@@ -240,7 +240,11 @@ export async function currentFile(repo: string, path: string): Promise<{ text: s
   try {
     const data = await gh(`/repos/egnaro9/${repo}/contents/${encodeURI(path)}?ref=main`);
     if (Array.isArray(data) || data.type !== "file") return { text: "" };
-    return { text: atob(String(data.content).replace(/\n/g, "")), sha: data.sha as string };
+    // atob yields latin-1 bytes; decoding them as UTF-8 keeps em-dashes and any
+    // other multibyte character intact (they rendered as "â" in the diff card).
+    const binary = atob(String(data.content).replace(/\n/g, ""));
+    const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+    return { text: new TextDecoder("utf-8").decode(bytes), sha: data.sha as string };
   } catch {
     return { text: "" }; // new file
   }
@@ -400,9 +404,19 @@ export async function readRepoFile(repo: string, path: string): Promise<string> 
   if (url.origin !== "https://raw.githubusercontent.com" || !url.pathname.startsWith(prefix)) {
     return "(refused: path escapes this project's repo)";
   }
-  const res = await fetch(url);
-  if (!res.ok) return `(could not read ${clean}: HTTP ${res.status})`;
-  const text = await res.text();
+  // Private repos are invisible to raw.githubusercontent — when the operator
+  // has armed a token, read through the authenticated API instead (Forge hit
+  // this: it reported "no README" on a private sandbox rather than inventing).
+  let text: string;
+  if (getGhToken()) {
+    const file = await currentFile(repo, clean);
+    if (!file.text) return `(could not read ${clean}: not found in egnaro9/${repo})`;
+    text = file.text;
+  } else {
+    const res = await fetch(url);
+    if (!res.ok) return `(could not read ${clean}: HTTP ${res.status})`;
+    text = await res.text();
+  }
   const body = text.length > 4000 ? text.slice(0, 4000) + "\n…(truncated)" : text;
   // Fenced and labelled: everything below is DATA, not instructions.
   return [
