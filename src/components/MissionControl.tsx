@@ -137,11 +137,13 @@ export default function MissionControl() {
               transition={{ duration: 0.15 }}
               className="glass absolute top-9 right-0 z-40 w-72 rounded-xl p-3"
             >
-              <div className="mono text-[9px] tracking-[0.2em] text-slate-400 uppercase">live brain · critic only (v1)</div>
+              <div className="mono text-[9px] tracking-[0.2em] text-slate-400 uppercase">live brain · all agents</div>
               <p className="mt-1.5 text-[10.5px] leading-relaxed text-slate-400">
                 Your key is stored <span className="text-slate-200">only in this browser</span> and sent{" "}
-                <span className="text-slate-200">only to api.anthropic.com</span>. Critic gets the room transcript + live
-                project context. No tools — read-only by construction.
+                <span className="text-slate-200">only to api.anthropic.com</span>. Agents get the room transcript + live
+                project context, and <span className="text-slate-200">four tools</span>: reading commits and repo files
+                runs free, summoning an agent executes (reversible), and creating a project is{" "}
+                <span className="text-amber-200">gated behind your approval</span>. Replies bill to your key.
               </p>
               <input
                 type="password"

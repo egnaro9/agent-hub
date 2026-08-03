@@ -49,25 +49,38 @@ const WORLDS: Record<string, React.ComponentType> = {
 const stateGlyph = { done: "✓", doing: "◐", todo: "○" } as const;
 const stateColor = { done: "#2dd4bf", doing: "#fbbf24", todo: "#64748b" } as const;
 
-// The worlds compose with absolute-% layers tuned for desktop widths; below
-// ~1100px those layers collide (critic finding). Instead of 18 responsive
-// redesigns, scale the whole scene to fit — composition and parallax intact.
-const WORLD_BASE_W = 1280;
+// Every world composes at ONE canonical width and is scaled to fit whatever
+// space it gets. That is the design decision, not a fallback: the dense,
+// bunched composition you get in a half-width window is the intended look, so
+// a full-screen monitor gets the same arrangement rendered larger — never the
+// same panels sprayed to the corners. (It also fixes the tablet collisions the
+// %-layout produced, since the layout never actually reflows.)
+const WORLD_BASE_W = 1080;
+const MAX_SCALE = 1.35; // beyond this the type reads as zoomed rather than grand
 function WorldViewport({ children }: { children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => setDims({ w: el.clientWidth, h: el.clientHeight }));
+    const measure = () => setDims({ w: el.clientWidth, h: el.clientHeight });
+    measure();
+    const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const scale = dims ? Math.min(1, dims.w / WORLD_BASE_W) : 1;
+  const scale = dims ? Math.min(MAX_SCALE, dims.w / WORLD_BASE_W) : 1;
   return (
     <div ref={ref} className="h-full min-h-0 overflow-hidden">
-      {dims && scale < 1 ? (
-        <div style={{ width: WORLD_BASE_W, height: dims.h / scale, transform: `scale(${scale})`, transformOrigin: "top left" }}>
+      {dims ? (
+        <div
+          style={{
+            width: dims.w / scale,
+            height: dims.h / scale,
+            transform: `scale(${scale})`,
+            transformOrigin: "top left",
+          }}
+        >
           {children}
         </div>
       ) : (

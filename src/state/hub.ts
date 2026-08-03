@@ -95,6 +95,25 @@ const restTalking = (agents: Agent[], assignments: Record<string, string>, excep
 
 const SEED_PROJECT_IDS = new Set(PROJECTS.map((p) => p.id));
 
+// Critic finding: zustand's persist doesn't listen for cross-tab writes, so a
+// stale tab could overwrite localStorage and revert an APPROVED gate card to
+// pending (and drop the project it created). The gate's record must be durable:
+// adopt other tabs' writes as they happen.
+let adoptingExternal = false;
+if (typeof window !== "undefined") {
+  addEventListener("storage", (e) => {
+    if (e.key !== "agent-hub:state" || !e.newValue) return;
+    adoptingExternal = true;
+    try {
+      void useHub.persist.rehydrate();
+    } finally {
+      setTimeout(() => {
+        adoptingExternal = false;
+      }, 0);
+    }
+  });
+}
+
 export const useHub = create<HubState>()(
   persist(
     (set, get) => ({
@@ -800,7 +819,16 @@ export const useHub = create<HubState>()(
     {
       name: "agent-hub:state",
       version: 1,
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => ({
+        getItem: (name: string) => localStorage.getItem(name),
+        // While adopting another tab's state, this tab must not write back its
+        // stale snapshot — that is how an approved gate card reverted.
+        setItem: (name: string, value: string) => {
+          if (adoptingExternal) return;
+          localStorage.setItem(name, value);
+        },
+        removeItem: (name: string) => localStorage.removeItem(name),
+      })),
       // What survives a tab: rooms (cards included), assignments, projects the
       // operator created, and where every node was dragged. Streaming flags are
       // scrubbed so a closed tab can't leave a message writing forever.
@@ -819,6 +847,8 @@ export const useHub = create<HubState>()(
         extraProjects: s.projects.filter((p) => !SEED_PROJECT_IDS.has(p.id)).map((p) => ({ ...p, liveActivity: undefined })),
         positions: Object.fromEntries([...s.projects, ...s.agents].map((x) => [x.id, x.pos])),
       }),
+      // A rehydrate triggered by another tab's write must not immediately be
+      // overwritten by this tab's older snapshot — skip one write cycle.
       merge: (persistedRaw, current) => {
         const p = (persistedRaw ?? {}) as {
           channels?: Record<string, Channel>;
