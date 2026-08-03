@@ -1,25 +1,27 @@
+import { Suspense, lazy } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useHub } from "../../state/hub";
 import { detailFor } from "../../data/detail";
 import ChatRoom from "./ChatRoom";
-import HarnessWorld from "./HarnessWorld";
-import ModelDriftWorld from "./ModelDriftWorld";
-import CrashkitWorld from "./CrashkitWorld";
-import DifferentialOracleWorld from "./DifferentialOracleWorld";
-import TapdodgeWorld from "./TapdodgeWorld";
-import EvalHistoryWorld from "./EvalHistoryWorld";
-import HarnessLoopWorld from "./HarnessLoopWorld";
-import PiGatesWorld from "./PiGatesWorld";
-import GradecoreWorld from "./GradecoreWorld";
-import RagEvalLabWorld from "./RagEvalLabWorld";
-import Match3World from "./Match3World";
-import AgentGraphWorld from "./AgentGraphWorld";
-import LlmGatewayWorld from "./LlmGatewayWorld";
-import EvalDashboardWorld from "./EvalDashboardWorld";
-import McpToolsWorld from "./McpToolsWorld";
-import PromptRegressWorld from "./PromptRegressWorld";
-import PiEvalWorld from "./PiEvalWorld";
-import CastPipelineWorld from "./CastPipelineWorld";
+
+const HarnessWorld = lazy(() => import("./HarnessWorld"));
+const ModelDriftWorld = lazy(() => import("./ModelDriftWorld"));
+const CrashkitWorld = lazy(() => import("./CrashkitWorld"));
+const DifferentialOracleWorld = lazy(() => import("./DifferentialOracleWorld"));
+const TapdodgeWorld = lazy(() => import("./TapdodgeWorld"));
+const EvalHistoryWorld = lazy(() => import("./EvalHistoryWorld"));
+const HarnessLoopWorld = lazy(() => import("./HarnessLoopWorld"));
+const PiGatesWorld = lazy(() => import("./PiGatesWorld"));
+const GradecoreWorld = lazy(() => import("./GradecoreWorld"));
+const RagEvalLabWorld = lazy(() => import("./RagEvalLabWorld"));
+const Match3World = lazy(() => import("./Match3World"));
+const AgentGraphWorld = lazy(() => import("./AgentGraphWorld"));
+const LlmGatewayWorld = lazy(() => import("./LlmGatewayWorld"));
+const EvalDashboardWorld = lazy(() => import("./EvalDashboardWorld"));
+const McpToolsWorld = lazy(() => import("./McpToolsWorld"));
+const PromptRegressWorld = lazy(() => import("./PromptRegressWorld"));
+const PiEvalWorld = lazy(() => import("./PiEvalWorld"));
+const CastPipelineWorld = lazy(() => import("./CastPipelineWorld"));
 
 // Per-project overview worlds. A project without an entry gets the standard
 // overview template; adding a world is one import + one line here.
@@ -84,7 +86,17 @@ export default function ProjectStage({ projectId }: { projectId: string }) {
       {mode === "overview" && WORLDS[projectId] ? (
         (() => {
           const World = WORLDS[projectId];
-          return <World />;
+          return (
+            <Suspense
+              fallback={
+                <div className="grid h-full place-items-center">
+                  <span className="mono text-[11px] tracking-[0.25em] text-slate-500">entering world…</span>
+                </div>
+              }
+            >
+              <World />
+            </Suspense>
+          );
         })()
       ) : mode === "overview" ? (
         <div className="h-full min-h-0 overflow-y-auto p-5">

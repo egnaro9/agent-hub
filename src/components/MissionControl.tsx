@@ -22,7 +22,7 @@ export default function MissionControl() {
     : [];
 
   return (
-    <div className="relative z-30 flex h-11 shrink-0 items-center gap-3 border-b border-white/8 bg-[#070b17]/90 px-4 backdrop-blur">
+    <div className="relative z-30 flex min-h-11 shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-white/8 bg-[#070b17]/90 px-4 py-1 backdrop-blur">
       {/* location */}
       <button onClick={backToGraph} className={`mono cursor-pointer text-[11px] transition ${project ? "text-slate-500 hover:text-slate-300" : "text-slate-200"}`}>
         constellation
@@ -53,7 +53,7 @@ export default function MissionControl() {
       <div className="flex-1" />
 
       {/* fleet status */}
-      <span className="mono text-[10px] text-slate-500">
+      <span className="mono hidden text-[10px] text-slate-400 lg:inline">
         <span className="text-teal-300">{active}</span> active
         {errored > 0 && (
           <>
@@ -96,7 +96,7 @@ export default function MissionControl() {
                   <span className="grid h-6 w-6 flex-none place-items-center rounded-full text-[9px] font-bold text-white" style={{ background: a.color }}>{a.glyph}</span>
                   <span className="min-w-0">
                     <span className="block text-[11.5px] text-slate-200">{a.name}</span>
-                    <span className="mono block truncate text-[8.5px] text-slate-500">{a.role}</span>
+                    <span className="mono block truncate text-[8.5px] text-slate-400">{a.role}</span>
                   </span>
                 </button>
               ))}
@@ -108,7 +108,7 @@ export default function MissionControl() {
       {/* global search hint — focuses the sidebar search */}
       <button
         onClick={() => document.getElementById("hub-search")?.focus()}
-        className="mono cursor-pointer rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] text-slate-500 transition hover:text-slate-300"
+        className="mono hidden cursor-pointer rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] text-slate-500 transition hover:text-slate-300 lg:block"
       >
         search <span className="text-slate-700">/</span>
       </button>

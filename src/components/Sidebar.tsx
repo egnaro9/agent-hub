@@ -116,16 +116,16 @@ export default function Sidebar() {
             <div className="mx-4 my-2 border-t border-white/6" />
           </>
         )}
-        <div className="mono px-4 pb-2 text-[9.5px] tracking-[0.25em] text-slate-500 uppercase">
+        <div className="mono px-4 pb-2 text-[9.5px] tracking-[0.25em] text-slate-400 uppercase">
           projects <span className="text-slate-700">· {visible.length}</span>
         </div>
         {rest.map(projectRow)}
-        {visible.length === 0 && <div className="mono px-4 py-2 text-[10px] text-slate-600">nothing matches "{search}"</div>}
+        {visible.length === 0 && <div className="mono px-4 py-2 text-[10px] text-slate-500">nothing matches "{search}"</div>}
       </div>
 
       {/* agents */}
       <div className="border-t border-white/8 py-3">
-        <div className="mono px-4 pb-2 text-[9.5px] tracking-[0.25em] text-slate-500 uppercase">
+        <div className="mono px-4 pb-2 text-[9.5px] tracking-[0.25em] text-slate-400 uppercase">
           agents <span className="text-slate-700">· {visibleAgents.length}</span>
         </div>
         {visibleAgents.map((a) => {
@@ -156,9 +156,9 @@ export default function Sidebar() {
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-1.5 text-[12px] text-slate-200">
                   {a.name}
-                  {scoped && <span className="mono rounded border border-white/10 px-1 text-[7.5px] tracking-wider text-slate-500 uppercase">scoped</span>}
+                  {scoped && <span className="mono rounded border border-white/10 px-1 text-[7.5px] tracking-wider text-slate-400 uppercase">scoped</span>}
                 </span>
-                <span className={`mono block truncate text-[9px] ${a.status.kind === "error" ? "text-rose-400" : "text-slate-500"}`}>
+                <span className={`mono block truncate text-[9px] ${a.status.kind === "error" ? "text-rose-400" : "text-slate-400"}`}>
                   {statusText(a, projectName)}
                 </span>
               </span>

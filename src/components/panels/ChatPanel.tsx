@@ -16,6 +16,12 @@ export default function ChatPanel() {
   const closePanels = useHub((s) => s.closePanels);
   const [draft, setDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Move focus into the dialog when it opens.
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   const queueLen = conversation?.queue.length ?? 0;
 
@@ -32,6 +38,7 @@ export default function ChatPanel() {
   if (!conversation) return null;
   const participants = conversation.participants.map((id) => agents.find((a) => a.id === id)!);
   const speaking = queueLen > 0 ? agents.find((a) => a.id === conversation.queue[0].from) : undefined;
+  const title = conversation.kind === "solo" ? participants[0].name : participants.map((a) => a.name).join(" × ");
 
   const submit = () => {
     if (!draft.trim()) return;
@@ -45,6 +52,9 @@ export default function ChatPanel() {
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: 440, opacity: 0 }}
       transition={{ type: "spring", stiffness: 320, damping: 32 }}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Conversation with ${title}`}
       className="glass absolute top-0 right-0 z-30 flex h-full w-[400px] flex-col rounded-l-2xl"
     >
       <header className="flex items-center justify-between border-b border-white/10 p-4 pl-5">
@@ -57,9 +67,7 @@ export default function ChatPanel() {
             ))}
           </div>
           <div>
-            <div className="text-[13px] font-semibold text-slate-100">
-              {conversation.kind === "solo" ? participants[0].name : participants.map((a) => a.name).join(" × ")}
-            </div>
+            <div className="text-[13px] font-semibold text-slate-100">{title}</div>
             <div className="mono text-[9.5px] tracking-wider text-slate-500 uppercase">
               {conversation.kind === "solo" ? participants[0].role : topic ? `roundtable · ${topic.name}` : "roundtable"}
             </div>
@@ -110,6 +118,7 @@ export default function ChatPanel() {
       <footer className="border-t border-white/10 p-3">
         <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 focus-within:border-cyan-300/50">
           <input
+            ref={inputRef}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !e.nativeEvent.isComposing && submit()}

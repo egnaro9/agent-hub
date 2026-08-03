@@ -5,6 +5,15 @@ import { useHub } from "../../state/hub";
 // The Harness Builder project world — the flagship 2.5D overview. CSS
 // perspective + pointer parallax; every layer sits at its own depth. The
 // numbers in the floating cards are the project's REAL published sweep result.
+//
+// Framer floats are gated app-wide by MotionConfig reducedMotion="user"; the
+// inline CSS animation (the dashed topology edges), the pointer parallax, and
+// the animate={{y:[...]}} float loops are our own, so we gate them here.
+const REDUCE =
+  typeof window !== "undefined" &&
+  typeof window.matchMedia === "function" &&
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
 export default function HarnessWorld() {
   const setProjectMode = useHub((s) => s.setProjectMode);
   const sweepDone = useHub((s) => s.harnessSweepDone);
@@ -18,6 +27,7 @@ export default function HarnessWorld() {
   const midX = useSpring(useTransform(mx, [-0.5, 0.5], [10, -10]), { stiffness: 50, damping: 18 });
 
   const onMove = (e: React.PointerEvent) => {
+    if (REDUCE) return;
     const r = ref.current?.getBoundingClientRect();
     if (!r) return;
     mx.set((e.clientX - r.left) / r.width - 0.5);
@@ -63,7 +73,7 @@ export default function HarnessWorld() {
             "M520,110 C640,110 640,210 740,210",
             "M520,310 C640,310 640,210 740,210",
           ].map((d, i) => (
-            <path key={i} d={d} fill="none" stroke="#fbbf24" strokeWidth="1.5" strokeDasharray="7 7" style={{ animation: "dashflow 1.1s linear infinite" }} />
+            <path key={i} d={d} fill="none" stroke="#fbbf24" strokeWidth="1.5" strokeDasharray="7 7" style={REDUCE ? undefined : { animation: "dashflow 1.1s linear infinite" }} />
           ))}
           {[
             { x: 40, y: 180, label: "PLANNER" },
@@ -85,7 +95,7 @@ export default function HarnessWorld() {
           <motion.div
             key={c.name}
             className="glass absolute w-[240px] rounded-2xl p-4"
-            animate={{ y: [0, i % 2 ? 9 : -9, 0] }}
+            animate={REDUCE ? undefined : { y: [0, i % 2 ? 9 : -9, 0] }}
             transition={{ duration: 5 + i, repeat: Infinity, ease: "easeInOut" }}
             style={{
               left: c.x,
@@ -110,7 +120,7 @@ export default function HarnessWorld() {
         {/* the refusal ribbon — the product's whole personality */}
         <motion.div
           className="glass absolute left-1/2 bottom-[24%] -translate-x-1/2 rounded-xl border-teal-300/40 px-5 py-2.5"
-          animate={{ y: [0, -6, 0] }}
+          animate={REDUCE ? undefined : { y: [0, -6, 0] }}
           transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
           style={{ transform: "translateZ(60px)" }}
         >
