@@ -71,14 +71,15 @@ export default function ChatRoom({ projectId }: { projectId: string }) {
         <div className="flex items-center gap-1.5">
           <span className="flex -space-x-1.5">
             {members.map((a) => (
-              <span
+              <button
                 key={a.id}
-                title={`${a.name} — ${a.role}`}
-                className="grid h-6.5 w-6.5 place-items-center rounded-full text-[9px] font-bold text-white"
+                onClick={() => useHub.getState().removeFromRoom(projectId, a.id)}
+                title={`${a.name} — ${a.role} · click to release from this room`}
+                className="grid h-6.5 w-6.5 cursor-pointer place-items-center rounded-full text-[9px] font-bold text-white transition hover:opacity-50"
                 style={{ background: `radial-gradient(circle at 32% 28%, ${a.color}88, #0b1120 78%)`, border: `1.5px solid ${a.color}` }}
               >
                 {a.glyph}
-              </span>
+              </button>
             ))}
           </span>
           {outside.map((a) => (

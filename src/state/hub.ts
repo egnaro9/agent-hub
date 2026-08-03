@@ -61,6 +61,7 @@ interface HubState {
   streamAgent: (projectId: string, agentId: string) => Promise<void>;
   streamDm: (agentId: string) => Promise<void>;
   approveAction: (projectId: string, msgId: string) => void;
+  removeFromRoom: (projectId: string, agentId: string) => void;
   dismissAction: (projectId: string, msgId: string) => void;
   summon: (agentId: string, projectId: string) => void;
   openChat: (agentId: string) => void;
@@ -549,6 +550,25 @@ export const useHub = create<HubState>()(
         convo.participants.includes(a.id) ? { ...a, status: { kind: "talking" } } : a
       ),
     }));
+  },
+
+  // Leaving a room covers both cases: assigned crew (unassign handles the
+  // participant list too) and drop-ins who arrived via mention or convene.
+  removeFromRoom: (projectId, agentId) => {
+    if (get().assignments[agentId] === projectId) {
+      get().unassign(agentId);
+      return;
+    }
+    set((s) => {
+      const c = s.channels[projectId];
+      if (!c) return {};
+      return {
+        channels: {
+          ...s.channels,
+          [projectId]: { ...c, participants: c.participants.filter((p) => p !== agentId) },
+        },
+      };
+    });
   },
 
   // The operator's side of the gate: approving executes the proposal and Ops
