@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 import type { Agent, Conversation, Message, Project, QueuedLine, StructuralEdge, Vec } from "../types";
 import { AGENTS, PROJECTS, STRUCTURAL, SEED_ASSIGNMENTS } from "../data/mock";
 import { personaFor, ERRORS, buildRoundtable, nextId } from "../sim/lines";
@@ -91,7 +92,11 @@ const restTalking = (agents: Agent[], assignments: Record<string, string>, excep
     a.id !== except && a.status.kind === "talking" ? { ...a, status: restingStatus(a.id, assignments) } : a
   );
 
-export const useHub = create<HubState>()((set, get) => ({
+const SEED_PROJECT_IDS = new Set(PROJECTS.map((p) => p.id));
+
+export const useHub = create<HubState>()(
+  persist(
+    (set, get) => ({
   projects: PROJECTS,
   agents: AGENTS.map((a) =>
     SEED_ASSIGNMENTS[a.id] ? { ...a, status: { kind: "working", projectId: SEED_ASSIGNMENTS[a.id] } } : a
@@ -771,4 +776,53 @@ export const useHub = create<HubState>()((set, get) => ({
         agents: s.agents.map((a) => (a.id === agentId ? { ...a, status: { kind: "idle" } } : a)),
       };
     }),
-}));
+    }),
+    {
+      name: "agent-hub:state",
+      version: 1,
+      storage: createJSONStorage(() => localStorage),
+      // What survives a tab: rooms (cards included), assignments, projects the
+      // operator created, and where every node was dragged. Streaming flags are
+      // scrubbed so a closed tab can't leave a message writing forever.
+      partialize: (s) => ({
+        channels: Object.fromEntries(
+          Object.entries(s.channels).map(([pid, ch]) => [
+            pid,
+            {
+              participants: ch.participants,
+              queue: ch.queue,
+              messages: ch.messages.slice(-80).map((m) => (m.streaming ? { ...m, streaming: false } : m)),
+            },
+          ])
+        ),
+        assignments: s.assignments,
+        extraProjects: s.projects.filter((p) => !SEED_PROJECT_IDS.has(p.id)).map((p) => ({ ...p, liveActivity: undefined })),
+        positions: Object.fromEntries([...s.projects, ...s.agents].map((x) => [x.id, x.pos])),
+      }),
+      merge: (persistedRaw, current) => {
+        const p = (persistedRaw ?? {}) as {
+          channels?: Record<string, Channel>;
+          assignments?: Record<string, string>;
+          extraProjects?: Project[];
+          positions?: Record<string, Vec>;
+        };
+        const pos = p.positions ?? {};
+        const assignments = p.assignments ?? current.assignments;
+        return {
+          ...current,
+          channels: p.channels ?? current.channels,
+          assignments,
+          projects: [
+            ...current.projects.map((pr) => (pos[pr.id] ? { ...pr, pos: pos[pr.id] } : pr)),
+            ...(p.extraProjects ?? []),
+          ],
+          agents: current.agents.map((a) => ({
+            ...a,
+            ...(pos[a.id] ? { pos: pos[a.id] } : {}),
+            status: assignments[a.id] ? { kind: "working" as const, projectId: assignments[a.id] } : { kind: "idle" as const },
+          })),
+        };
+      },
+    }
+  )
+);

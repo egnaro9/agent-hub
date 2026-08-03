@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
 import { AnimatePresence, MotionConfig } from "framer-motion";
 import Particles from "./components/Particles";
@@ -29,12 +29,32 @@ export default function App() {
       if (m) {
         useHub.getState().openStage(m[1]);
         if (m[2]) useHub.getState().setProjectMode("work");
+      } else if (location.hash === "" || location.hash === "#") {
+        if (useHub.getState().stage.kind !== "graph") useHub.getState().backToGraph();
       }
     };
     applyHash();
     addEventListener("hashchange", applyHash);
     return () => removeEventListener("hashchange", applyHash);
   }, []);
+
+  // URL ⇄ stage, both directions: navigation writes the hash (so refresh and
+  // Back work), and hash edits/Back drive the stage. The first invocation is
+  // skipped — at boot the URL is the source of truth, and writing before the
+  // deep-link effect has read it wipes the hash (StrictMode made this bite).
+  const projectMode = useHub((s) => s.projectMode);
+  const hashSyncArmed = useRef(false);
+  useEffect(() => {
+    if (!hashSyncArmed.current) {
+      hashSyncArmed.current = true;
+      return;
+    }
+    const want = stage.kind === "project" ? `#/p/${stage.id}${projectMode === "work" ? "/work" : ""}` : "#";
+    if (location.hash !== want && !(want === "#" && location.hash === "")) {
+      history.pushState(null, "", want === "#" ? location.pathname : want);
+    }
+  }, [stage, projectMode]);
+
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

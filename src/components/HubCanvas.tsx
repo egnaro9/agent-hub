@@ -14,7 +14,6 @@ import AgentNode from "./nodes/AgentNode";
 import ProjectNode from "./nodes/ProjectNode";
 import PulseEdge from "./edges/PulseEdge";
 import { useHub } from "../state/hub";
-import { AGENTS, PROJECTS } from "../data/mock";
 
 const nodeTypes = {
   agent: (p: { id: string }) => <AgentNode id={p.id} />,
@@ -25,10 +24,15 @@ const edgeTypes = { pulse: PulseEdge };
 // Node identity and position are React Flow's; everything the nodes DISPLAY
 // (status, assignments, tray) lives in the store and is read by id inside the
 // node components — so nodes never need re-creation when the sim ticks.
-const initialNodes: Node[] = [
-  ...PROJECTS.map((p) => ({ id: p.id, type: "project", position: p.pos, data: {} })),
-  ...AGENTS.map((a) => ({ id: a.id, type: "agent", position: a.pos, data: {}, zIndex: 10 })),
-];
+// Seeded from the HYDRATED store (not the mock module) so persisted positions
+// and operator-created projects are there from the first frame.
+const makeInitialNodes = (): Node[] => {
+  const s = useHub.getState();
+  return [
+    ...s.projects.map((p) => ({ id: p.id, type: "project", position: p.pos, data: {} })),
+    ...s.agents.map((a) => ({ id: a.id, type: "agent", position: a.pos, data: {}, zIndex: 10 })),
+  ];
+};
 
 export default function HubCanvas() {
   const agents = useHub((s) => s.agents);
@@ -39,7 +43,7 @@ export default function HubCanvas() {
   const moveNode = useHub((s) => s.moveNode);
   const rf = useReactFlow();
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [nodes, setNodes, onNodesChange] = useNodesState(useMemo(makeInitialNodes, []));
 
   // Projects created at runtime (chat's "new project:") must reach the canvas —
   // the node list is otherwise a one-time snapshot (critic BLOCKER). Existing
