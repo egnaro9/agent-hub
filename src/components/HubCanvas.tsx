@@ -1,0 +1,118 @@
+import { useEffect, useMemo } from "react";
+import {
+  ReactFlow,
+  Background,
+  BackgroundVariant,
+  MiniMap,
+  Controls,
+  useReactFlow,
+  useNodesState,
+  type Node,
+  type Edge,
+} from "@xyflow/react";
+import AgentNode from "./nodes/AgentNode";
+import ProjectNode from "./nodes/ProjectNode";
+import PulseEdge from "./edges/PulseEdge";
+import { useHub } from "../state/hub";
+import { AGENTS, PROJECTS } from "../data/mock";
+
+const nodeTypes = {
+  agent: (p: { id: string }) => <AgentNode id={p.id} />,
+  project: (p: { id: string }) => <ProjectNode id={p.id} />,
+};
+const edgeTypes = { pulse: PulseEdge };
+
+// Node identity and position are React Flow's; everything the nodes DISPLAY
+// (status, assignments, tray) lives in the store and is read by id inside the
+// node components — so nodes never need re-creation when the sim ticks.
+const initialNodes: Node[] = [
+  ...PROJECTS.map((p) => ({ id: p.id, type: "project", position: p.pos, data: {} })),
+  ...AGENTS.map((a) => ({ id: a.id, type: "agent", position: a.pos, data: {}, zIndex: 10 })),
+];
+
+export default function HubCanvas() {
+  const agents = useHub((s) => s.agents);
+  const structural = useHub((s) => s.structural);
+  const assignments = useHub((s) => s.assignments);
+  const conversation = useHub((s) => s.conversation);
+  const focusRequest = useHub((s) => s.focusRequest);
+  const moveNode = useHub((s) => s.moveNode);
+  const rf = useReactFlow();
+
+  const [nodes, , onNodesChange] = useNodesState(initialNodes);
+
+  const edges: Edge[] = useMemo(() => {
+    const base: Edge[] = structural.map((e) => ({
+      id: e.id,
+      source: e.source,
+      target: e.target,
+      label: e.label,
+      style: { stroke: "rgba(148,183,255,.16)", strokeWidth: 1.2 },
+      labelStyle: { fill: "#526580", fontSize: 9, fontFamily: "ui-monospace, monospace" },
+      labelBgStyle: { fill: "transparent" },
+    }));
+    const work: Edge[] = Object.entries(assignments).map(([agentId, projectId]) => {
+      const agent = agents.find((a) => a.id === agentId);
+      return {
+        id: `work-${agentId}`,
+        source: agentId,
+        target: projectId,
+        type: "pulse",
+        data: { color: agent?.color ?? "#22d3ee" },
+      };
+    });
+    const talk: Edge[] = [];
+    if (conversation && conversation.kind === "roundtable") {
+      const ps = conversation.participants;
+      for (let i = 0; i < ps.length; i++) {
+        for (let j = i + 1; j < ps.length; j++) {
+          talk.push({
+            id: `talk-${ps[i]}-${ps[j]}`,
+            source: ps[i],
+            target: ps[j],
+            type: "pulse",
+            data: { color: "#e2e8f0" },
+          });
+        }
+      }
+    }
+    return [...base, ...work, ...talk];
+  }, [structural, assignments, agents, conversation]);
+
+  useEffect(() => {
+    if (!focusRequest) return;
+    rf.setCenter(focusRequest.pos.x + 80, focusRequest.pos.y + 60, { zoom: 1.05, duration: 700 });
+  }, [focusRequest, rf]);
+
+  return (
+    <div className="h-full w-full">
+    <ReactFlow
+      nodes={nodes}
+      edges={edges}
+      nodeTypes={nodeTypes}
+      edgeTypes={edgeTypes}
+      onNodesChange={onNodesChange}
+      onNodeDragStop={(_, node) => moveNode(node.id, node.position)}
+      fitView
+      fitViewOptions={{ padding: 0.12 }}
+      minZoom={0.25}
+      maxZoom={1.8}
+      proOptions={{ hideAttribution: true }}
+      nodesConnectable={false}
+      deleteKeyCode={null}
+    >
+      <Background variant={BackgroundVariant.Dots} gap={36} size={1} color="rgba(148,183,255,.14)" />
+      <MiniMap
+        pannable
+        zoomable
+        position="bottom-left"
+        style={{ background: "rgba(8,12,24,.92)", width: 190, height: 130 }}
+        nodeColor={(n) => (n.type === "agent" ? "#7dd3fc" : "#2b3b55")}
+        nodeStrokeWidth={0}
+        maskColor="rgba(5,7,15,.72)"
+      />
+      <Controls position="bottom-right" showInteractive={false} />
+    </ReactFlow>
+    </div>
+  );
+}
