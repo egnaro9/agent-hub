@@ -39,7 +39,6 @@ export interface Agent {
 export interface ProjectDetail {
   metrics: { label: string; value: string }[];
   tasks: { id: string; text: string; state: "done" | "doing" | "todo" }[];
-  files: { name: string; kind: "file" | "pr"; meta: string }[];
 }
 
 /**

@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { useHub } from "../../state/hub";
+import { useHub, type RepoWork } from "../../state/hub";
 import { detailFor } from "../../data/detail";
 import ChatRoom from "./ChatRoom";
 import TopologyBar from "../TopologyBar";
@@ -47,8 +47,219 @@ const WORLDS: Record<string, React.ComponentType> = {
   "cast-pipeline": CastPipelineWorld,
 };
 
-const stateGlyph = { done: "✓", doing: "◐", todo: "○" } as const;
-const stateColor = { done: "#2dd4bf", doing: "#fbbf24", todo: "#64748b" } as const;
+// ---- the WORK panel's two cards ---------------------------------------------
+//
+// These used to be two hardcoded lists labelled "mock" — sitting beside agents
+// that were already reading the real repo, and rotted besides (model-drift
+// still listed a shipped item as todo). Both now read the actual repo.
+//
+// The governing rule, everywhere below: never let one shape of nothing wear
+// another's words. Loading is not empty, a spent rate limit is not an empty
+// repo, and a project with no repo at all is not a failed request. Each gets
+// its own sentence.
+
+// One vocabulary for the ways a card can have nothing, so the two cards never
+// describe the same outage differently.
+const OUT_OF_BUDGET =
+  "GitHub's hourly limit for this browser is spent — unauthenticated reads get 60 an hour, shared with the commit feed. Reload after the hour and it comes back.";
+const NO_ANSWER =
+  "GitHub didn't answer for this repo — it may be missing, renamed or private, or the network is down. That is not a claim there's nothing there.";
+const NO_REPO =
+  "This project was created here in the hub. There's no GitHub repo behind it yet, so there is nothing to read.";
+
+const TONE = { live: "text-teal-300", warn: "text-amber-300", muted: "text-slate-500" } as const;
+
+/** `label · source` — the source half is the card's claim about where its rows came from. */
+function CardHead({ label, source, tone }: { label: string; source: string; tone: keyof typeof TONE }) {
+  return (
+    <div className="mono text-[9.5px] tracking-[0.25em] text-slate-500 uppercase">
+      {label} · <span className={TONE[tone]}>{source}</span>
+    </div>
+  );
+}
+
+/** Why this card is showing nothing, in words. An unexplained empty card is the thing being replaced. */
+const Because = ({ text }: { text: string }) => (
+  <p className="mt-2.5 text-[11px] leading-relaxed text-slate-500">{text}</p>
+);
+
+/** What the row cap withheld — so a card can't imply the repo is smaller than it is. */
+const More = ({ n, label }: { n: number; label: string }) =>
+  n > 0 ? <div className="mono mt-2.5 text-[10px] text-slate-600">+{n} more {label}</div> : null;
+
+const WorkCard = ({ children }: { children: React.ReactNode }) => (
+  <div className="glass min-h-0 flex-1 overflow-y-auto rounded-xl p-4">{children}</div>
+);
+
+// GitHub reports bytes; printing "48213" makes the reader do the division.
+// Directories arrive unsized (the API doesn't count them), which is why null is
+// a case here rather than a zero.
+const fmtSize = (bytes: number | null): string => {
+  if (bytes === null) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1_048_576) return `${Math.round(bytes / 1024)} kB`;
+  return `${(bytes / 1_048_576).toFixed(1)} MB`;
+};
+
+function FilesCard({ work, hue }: { work: RepoWork | undefined; hue: string }) {
+  // `undefined` is "the fetch hasn't reported yet", same as "loading" — the
+  // effect below fires it, and until it answers this card claims nothing.
+  if (!work || work.phase === "loading")
+    return (
+      <WorkCard>
+        <CardHead label="files" source="reading github…" tone="muted" />
+      </WorkCard>
+    );
+  if (work.phase === "no-repo")
+    return (
+      <WorkCard>
+        <CardHead label="files" source="no repo" tone="muted" />
+        <Because text={NO_REPO} />
+      </WorkCard>
+    );
+  const tree = work.tree;
+  if (tree && tree.status === "ok")
+    return (
+      <WorkCard>
+        <CardHead label="files" source="repo root · github" tone="live" />
+        <ul className="mt-2.5 space-y-2">
+          {tree.items.map((e) => (
+            <li key={e.name} className="flex items-center gap-2.5 text-[11.5px] text-slate-300">
+              {/* A directory reads differently from a file three ways over — the
+                  badge is the project's hue rather than grey, the name carries a
+                  trailing slash, and the size column is blank because GitHub
+                  does not size a directory. */}
+              <span
+                className="mono flex-none rounded border px-1.5 py-px text-[8px] tracking-wider uppercase"
+                style={
+                  e.kind === "dir"
+                    ? { borderColor: `${hue}66`, color: hue, background: `${hue}14` }
+                    : { borderColor: "rgba(255,255,255,.15)", color: "#64748b" }
+                }
+              >
+                {e.kind}
+              </span>
+              <span className={`mono min-w-0 flex-1 truncate ${e.kind === "dir" ? "text-slate-200" : ""}`}>
+                {e.name}
+                {e.kind === "dir" ? "/" : ""}
+              </span>
+              <span className="mono flex-none text-[9px] text-slate-600">{fmtSize(e.size)}</span>
+            </li>
+          ))}
+        </ul>
+        <More n={tree.more} label="in the repo root" />
+      </WorkCard>
+    );
+  if (tree?.status === "empty")
+    return (
+      <WorkCard>
+        {/* Still live: GitHub answered, and what it said was "nothing". */}
+        <CardHead label="files" source="repo root · github" tone="live" />
+        <Because text="GitHub answered and the repo root is genuinely empty — no files, no directories." />
+      </WorkCard>
+    );
+  if (tree?.status === "rate-limited")
+    return (
+      <WorkCard>
+        <CardHead label="files" source="rate limit" tone="warn" />
+        <Because text={OUT_OF_BUDGET} />
+      </WorkCard>
+    );
+  return (
+    <WorkCard>
+      <CardHead label="files" source="unavailable" tone="warn" />
+      <Because text={NO_ANSWER} />
+    </WorkCard>
+  );
+}
+
+function TasksCard({ work, commits }: { work: RepoWork | undefined; commits: string[] | undefined }) {
+  if (!work || work.phase === "loading")
+    return (
+      <WorkCard>
+        <CardHead label="tasks" source="reading github…" tone="muted" />
+      </WorkCard>
+    );
+  if (work.phase === "no-repo")
+    return (
+      <WorkCard>
+        <CardHead label="tasks" source="no repo" tone="muted" />
+        <Because text={NO_REPO} />
+      </WorkCard>
+    );
+
+  const issues = work.issues;
+
+  // FIRST CHOICE — open issues. On model-drift these are auto-filed drift
+  // alerts rather than a hand-written to-do list, which is why the header says
+  // "open issues" and not "tasks from the team": they ARE that repo's open
+  // work, and the card names its source instead of characterising it.
+  if (issues && issues.status === "ok")
+    return (
+      <WorkCard>
+        <CardHead label="tasks" source="open issues · github" tone="live" />
+        <ul className="mt-2.5 space-y-2">
+          {issues.items.map((i) => (
+            <li key={i.number} className="flex items-start gap-2.5 text-[12px] leading-snug text-slate-300">
+              <span className="mono mt-px flex-none text-[10.5px] text-slate-600">#{i.number}</span>
+              <span className="min-w-0 flex-1">{i.title}</span>
+              {/* age is "" when GitHub gave no created_at — no bare separator */}
+              {i.age && <span className="mono mt-px flex-none text-[9px] text-slate-600">{i.age}</span>}
+            </li>
+          ))}
+        </ul>
+        <More n={issues.more} label="open" />
+      </WorkCard>
+    );
+
+  // SECOND CHOICE — what actually landed. Twelve of the thirteen repos on this
+  // board have zero open issues, so an issues-only card would be dead almost
+  // everywhere. These commits cost nothing extra: hydrateActivity already
+  // pulled them for the overview's signals card.
+  const why =
+    issues?.status === "empty"
+      ? "no open issues on this repo — showing what landed instead."
+      : issues?.status === "rate-limited"
+        ? "open issues unread, hourly limit spent — showing what landed instead."
+        : "open issues unread, GitHub didn't answer — showing what landed instead.";
+  if (commits && commits.length > 0)
+    return (
+      <WorkCard>
+        <CardHead label="tasks" source="recent commits · github" tone="live" />
+        <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500">{why}</p>
+        <ul className="mt-2 space-y-2">
+          {commits.map((c, i) => (
+            <li key={i} className="mono flex gap-2.5 text-[11.5px] leading-relaxed text-slate-300">
+              <span className="mt-1.5 h-1.5 w-1.5 flex-none rounded-full bg-slate-500" />
+              <span className="min-w-0 flex-1">{c}</span>
+            </li>
+          ))}
+        </ul>
+      </WorkCard>
+    );
+
+  // NEITHER — say which nothing this is.
+  if (issues?.status === "rate-limited")
+    return (
+      <WorkCard>
+        <CardHead label="tasks" source="rate limit" tone="warn" />
+        <Because text={OUT_OF_BUDGET} />
+      </WorkCard>
+    );
+  if (issues?.status === "empty")
+    return (
+      <WorkCard>
+        <CardHead label="tasks" source="nothing to show" tone="muted" />
+        <Because text="No open issues on this repo — and the commit read didn't answer, so there's no fallback to show either." />
+      </WorkCard>
+    );
+  return (
+    <WorkCard>
+      <CardHead label="tasks" source="unavailable" tone="warn" />
+      <Because text={NO_ANSWER} />
+    </WorkCard>
+  );
+}
 
 // Every world composes at ONE canonical width and is scaled to fit whatever
 // space it gets. That is the design decision, not a fallback: the dense,
@@ -102,6 +313,20 @@ export default function ProjectStage({ projectId }: { projectId: string }) {
   const toggleRoomDrawer = useHub((s) => s.toggleRoomDrawer);
   const openStage = useHub((s) => s.openStage);
   const unassign = useHub((s) => s.unassign);
+  const repoWork = useHub((s) => s.repoWork[projectId]);
+  const hydrateWork = useHub((s) => s.hydrateWork);
+
+  // Fired HERE and only in work mode, not from openStage. These two requests
+  // feed two cards that exist only in this tab, and openStage always lands in
+  // overview — so hydrating on open spent 36 of a 60/hour budget rendering
+  // nothing while an operator browsed the 18 worlds. The effect re-runs when the
+  // segmented control flips, and hydrateWork is guarded per project per session,
+  // so convene()'s straight-to-work path is covered by the same line.
+  const exists = !!project;
+  useEffect(() => {
+    if (exists && mode === "work") void hydrateWork(projectId);
+  }, [projectId, exists, mode, hydrateWork]);
+
   if (!project) return null;
 
   const detail = detailFor(projectId);
@@ -242,34 +467,8 @@ export default function ProjectStage({ projectId }: { projectId: string }) {
            tablet squeezed the chat to ~168px) */
         <div className="flex h-full min-h-0 flex-col gap-4 p-4 lg:flex-row">
           <div className="flex max-h-[180px] min-h-0 w-full flex-none flex-row gap-4 lg:max-h-none lg:w-[300px] lg:flex-col">
-            <div className="glass min-h-0 flex-1 overflow-y-auto rounded-xl p-4">
-              <div className="mono text-[9.5px] tracking-[0.25em] text-slate-500 uppercase">tasks · mock</div>
-              <ul className="mt-2.5 space-y-2">
-                {detail.tasks.map((t) => (
-                  <li key={t.id} className="flex items-start gap-2.5 text-[12px] leading-snug text-slate-300">
-                    <span className="mono mt-px flex-none text-[12px]" style={{ color: stateColor[t.state] }}>{stateGlyph[t.state]}</span>
-                    <span className={t.state === "done" ? "text-slate-500 line-through decoration-white/20" : ""}>{t.text}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="glass min-h-0 flex-1 overflow-y-auto rounded-xl p-4">
-              <div className="mono text-[9.5px] tracking-[0.25em] text-slate-500 uppercase">files · mock</div>
-              <ul className="mt-2.5 space-y-2">
-                {detail.files.map((f, i) => (
-                  <li key={i} className="flex items-center gap-2.5 text-[11.5px] text-slate-300">
-                    <span
-                      className="mono flex-none rounded border px-1.5 py-px text-[8px] tracking-wider uppercase"
-                      style={f.kind === "pr" ? { borderColor: "#a78bfa66", color: "#a78bfa" } : { borderColor: "rgba(255,255,255,.15)", color: "#64748b" }}
-                    >
-                      {f.kind}
-                    </span>
-                    <span className="mono min-w-0 flex-1 truncate">{f.name}</span>
-                    <span className="mono flex-none text-[9px] text-slate-600">{f.meta}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <TasksCard work={repoWork} commits={project.liveActivity} />
+            <FilesCard work={repoWork} hue={project.hue} />
           </div>
           {/* work mode gets the shape launcher over the room it runs in — the
               transcript and the composer below it are where the run lands. */}

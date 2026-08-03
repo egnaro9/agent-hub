@@ -10,7 +10,9 @@ test.describe("deep links and mode switching", () => {
     await gotoHub(page, "/#/p/crashkit/work");
 
     await expect(composer(page, "crashkit")).toBeVisible();
-    await expect(page.getByText("tasks · mock")).toBeVisible();
+    // The tasks header always opens "tasks ·" whatever source it settled on —
+    // these specs run without a GitHub stub, so the state is not theirs to pin.
+    await expect(page.getByText(/^tasks ·/)).toBeVisible();
     await expect(page.getByRole("button", { name: "work", exact: true })).toBeVisible();
     await expect(page).toHaveURL(/#\/p\/crashkit\/work$/);
   });
@@ -56,7 +58,7 @@ test.describe("deep links and mode switching", () => {
 
     await expect(page.locator(".react-flow__pane")).toBeVisible();
     await expect(page.getByRole("button", { name: "+ summon agent" })).toBeDisabled();
-    await expect(page.getByText("tasks · mock")).toHaveCount(0);
+    await expect(page.getByText(/^tasks ·/)).toHaveCount(0);
   });
 
   test("the brain chip reports mock with no key stored", async ({ page }) => {

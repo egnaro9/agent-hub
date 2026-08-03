@@ -64,7 +64,7 @@ export const SECTIONS: Section[] = [
           "Every project has two modes. Overview renders a hand-built 2.5D scene for that project. Work gives you a task list, a file list, the topology bar and the room.",
         how: "The segmented control next to the project name in the top bar. Or click `enter the workroom ▸` inside any overview scene.",
         gotcha:
-          "The mode is global — it follows you between projects — except that entering a project always resets you to overview. In work mode, both side panels are labelled mock: only seven projects have curated task and file lists, and the rest fall back to a placeholder backlog that is not theirs.",
+          "The mode is global — it follows you between projects — except that entering a project always resets you to overview. In work mode both side panels read the REAL repo: files show the repo root, and tasks show open GitHub issues where the repo has them, falling back to recent commits where it does not — the header names which is on screen. A project you minted in the hub says `no repo` instead of pretending.",
       },
       {
         title: "the scenes",
@@ -298,7 +298,7 @@ export const SECTIONS: Section[] = [
           "Opening a project fetches its three most recent real commits and hands them to the agents. This needs no key.",
         how: "Open any project and watch the room: an agent posts a `Pulled the live feed…` line, and those commits are in its system prompt from then on.",
         gotcha:
-          "That call is always unauthenticated — capped at 60 requests an hour and blind to private repos, even with a write token armed. Any failure silently leaves the curated mock feed in place. The `read_recent_commits` tool uses the same unauthenticated path, while `read_repo_file` does use your token.",
+          "Everything here is unauthenticated — 60 requests an hour for this whole browser, and blind to private repos even with a write token armed. Opening a work tab spends up to three (commits, files, issues); results are cached for the session, and when the budget runs out the cards say so instead of pretending the repo is empty. `read_recent_commits` spends from the same budget, while `read_repo_file` does use your token.",
       },
     ],
   },

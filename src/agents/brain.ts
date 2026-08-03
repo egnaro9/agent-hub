@@ -113,7 +113,21 @@ const PERSONA_BRIEFS: Record<string, string> = {
     "You are Porter — the cross-runtime specialist, resident in tapdodge-engine. Doctrine paid for in a 69-difference day: a same-runtime test cannot see a between-runtime lie; anything touching the rules gets the cross-compile diff before merge.",
 };
 
-export function buildAgentSystem(agentId: string, project: Project | undefined, detail: ProjectDetail | undefined): string {
+/**
+ * @param openWork the project's REAL outstanding work — its open GitHub issues,
+ * the same list the work tab shows. The card stopped showing the hardcoded task
+ * list, but this prompt kept feeding it to the agents, so an agent asked "what's
+ * outstanding here?" answered from a list that had already rotted (model-drift
+ * was still calling a shipped item todo). The panel and the prompt now read one
+ * source; where there are no issues, agents get no task line at all rather than
+ * a fictional one.
+ */
+export function buildAgentSystem(
+  agentId: string,
+  project: Project | undefined,
+  detail: ProjectDetail | undefined,
+  openWork?: string[]
+): string {
   const lines = [
     (PERSONA_BRIEFS[agentId] ?? "You are an agent in Erik's Agent Hub.") + " You are one teammate in a shared ops room; other agents may have spoken before you.",
     "House doctrine everyone enforces: deterministic checks over vibes; a claim needs evidence; 'the suite cannot decide' is a valid and honorable verdict; never invent numbers — if you don't know, say so.",
@@ -129,7 +143,9 @@ export function buildAgentSystem(agentId: string, project: Project | undefined, 
     lines.push(feed);
     if (detail) {
       lines.push(`Metrics (curated): ${detail.metrics.map((m) => `${m.label}: ${m.value}`).join(" · ")}.`);
-      lines.push(`Task list (MOCK): ${detail.tasks.map((t) => `[${t.state}] ${t.text}`).join(" · ")}.`);
+    }
+    if (openWork?.length) {
+      lines.push(`REAL open issues on this repo (live from GitHub): ${openWork.join(" | ")}.`);
     }
   }
   return lines.join("\n\n");

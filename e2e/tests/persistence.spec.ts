@@ -26,7 +26,7 @@ test.describe("persistence across a reload", () => {
     // the URL and the stage it encodes
     await expect(page).toHaveURL(/#\/p\/crashkit\/work$/);
     await expect(composer(page, "crashkit")).toBeVisible();
-    await expect(page.getByText("tasks · mock")).toBeVisible();
+    await expect(page.getByText(/^tasks ·/)).toBeVisible();
   });
 
   test("a project id that was never created is absent after a reload (no false positives)", async ({ page }) => {

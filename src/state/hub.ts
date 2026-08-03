@@ -5,7 +5,14 @@ import { PRESETS, briefFor, callCount, plan, type Phase, type Topology, type Top
 import { getShape, toTopology, validateShape } from "../agents/customShapes";
 import { AGENTS, PROJECTS, STRUCTURAL, SEED_ASSIGNMENTS } from "../data/mock";
 import { personaFor, ERRORS, buildRoundtable, nextId } from "../sim/lines";
-import { fetchRecentCommits } from "../data/github";
+import {
+  fetchOpenIssues,
+  fetchRecentCommits,
+  fetchRepoTree,
+  type IssueEntry,
+  type RepoFeed,
+  type TreeEntry,
+} from "../data/github";
 import { getKey, buildAgentSystem, toTurns, streamReply, runToolLoop, readRepoFile, GATED_TOOLS, toolsFor, currentFile, commitToBranch, getGhToken, modelForAgent } from "../agents/brain";
 import { detailFor } from "../data/detail";
 
@@ -113,6 +120,26 @@ export interface Channel {
   queue: QueuedLine[];
 }
 
+/**
+ * What the WORK panel knows about a project's repo — the two cards beside the
+ * room used to be hardcoded, and the agents sitting in that room were already
+ * reading the real thing.
+ *
+ * Kept in the store, not in the component, so tabbing overview → work → back
+ * doesn't spend another two requests from an hourly budget of sixty.
+ *
+ * `phase` is not derivable from the two feeds. A null feed means BOTH "not
+ * asked yet" and "asked, told nothing", and those two must never draw the same
+ * — loading is not empty. And a project the operator minted in the hub chat is
+ * never asked at all: "no repo" is a fact about the project, not a failed
+ * request, and it is free to say.
+ */
+export interface RepoWork {
+  phase: "loading" | "ready" | "no-repo";
+  tree: RepoFeed<TreeEntry> | null;
+  issues: RepoFeed<IssueEntry> | null;
+}
+
 // Agents allowed in a project's room: every global agent + the ones scoped to it.
 export const agentInScope = (a: Agent, projectId: string) =>
   a.scope === "global" || a.scope.projectId === projectId;
@@ -149,6 +176,9 @@ interface HubState {
   focusRequest: { pos: Vec; seq: number } | null;
   createProject: (name: string) => string;
   hydrateActivity: (projectId: string) => Promise<void>;
+  /** The WORK panel's tree + issues, per project. Never persisted — a session's cache is enough. */
+  repoWork: Record<string, RepoWork>;
+  hydrateWork: (projectId: string) => Promise<void>;
 
   moveNode: (id: string, pos: Vec) => void;
   openStage: (projectId: string) => void;
@@ -190,7 +220,19 @@ const restingStatus = (agentId: string, assignments: Record<string, string>) =>
 
 // One hydration attempt per project per session — success or failure, we don't
 // hammer an unauthenticated API that rate-limits at 60/hr.
-const hydrationAttempted = new Set<string>();
+//
+// A Map of the in-flight promise rather than a Set of ids, because the WORK
+// panel now has to WAIT on this: its tasks card falls back to these commits
+// when a repo has no open issues, and a second caller that returned instantly
+// would let the card announce "no commits either" in the gap before the first
+// call lands. Same one-attempt guarantee; it is just awaitable now.
+const hydrationAttempted = new Map<string, Promise<void>>();
+
+// The same discipline for the WORK panel's own two requests. Separate from the
+// commit feed because they are separate calls with separate failure modes — and
+// because a project with no repo skips them entirely, which the commit path has
+// no way to express.
+const workAttempted = new Set<string>();
 
 // One live stream per room at a time.
 const liveStreams = new Set<string>();
@@ -357,36 +399,94 @@ export const useHub = create<HubState>()(
       agents: restTalking(agents, assignments),
     });
     void get().hydrateActivity(projectId);
+    // NOT hydrated here: openStage always lands in overview, and the two cards
+    // this feeds live only in the work tab. ProjectStage fires it when the mode
+    // is actually work, so browsing worlds costs nothing.
   },
 
   hydrateActivity: async (projectId) => {
-    if (hydrationAttempted.has(projectId)) return;
-    hydrationAttempted.add(projectId);
+    const inFlight = hydrationAttempted.get(projectId);
+    if (inFlight) return inFlight;
+    // A project the operator minted in the chat has no repo to have commits in.
+    // Asking anyway spent a request from a 60/hr budget to be told 404 — the
+    // curated "created from the hub chat" lines were going to stand either way.
+    if (!SEED_PROJECT_IDS.has(projectId)) {
+      hydrationAttempted.set(projectId, Promise.resolve());
+      return;
+    }
+    const run = (async () => {
+      try {
+        const lines = await fetchRecentCommits(projectId);
+        if (lines.length === 0) return; // 404/rate-limit/renamed repo → keep mock
+        set((s) => {
+          const ch = s.channels[projectId];
+          const speaker = ch?.participants[0];
+          return {
+            projects: s.projects.map((p) => (p.id === projectId ? { ...p, liveActivity: lines } : p)),
+            // the room reacts to real context: first agent present reports the pull
+            channels: speaker
+              ? {
+                  ...s.channels,
+                  [projectId]: {
+                    ...ch,
+                    queue: [
+                      ...ch.queue,
+                      { from: speaker, text: `Pulled the live feed — latest commit here is "${lines[0]}". Working from that, not from memory.` },
+                    ],
+                  },
+                }
+              : s.channels,
+          };
+        });
+      } catch {
+        /* offline — the curated mock feed stands */
+      }
+    })();
+    // Registered before this function can yield, so two openStage calls in the
+    // same tick still produce exactly one request.
+    hydrationAttempted.set(projectId, run);
+    return run;
+  },
+
+  repoWork: {},
+
+  // The WORK panel's two cards. Lazy and once-per-project-per-session, because
+  // these are two more requests against the SAME 60/hr unauthenticated budget
+  // the commit feed is already spending from — doing this for all 18 projects
+  // up front would empty it in one browsing session and leave every card blank
+  // for an hour. github.ts parks the answers (failures included) in
+  // sessionStorage, so a tab reload doesn't re-spend either.
+  hydrateWork: async (projectId) => {
+    if (workAttempted.has(projectId)) return;
+    workAttempted.add(projectId);
+    // A project the operator minted in the chat has no repo behind it. Asking
+    // GitHub would spend two requests to be told 404, and the card would then
+    // say "the request failed" — a different sentence from "there is nothing
+    // here to read", and the wrong one.
+    if (!SEED_PROJECT_IDS.has(projectId)) {
+      set((s) => ({ repoWork: { ...s.repoWork, [projectId]: { phase: "no-repo", tree: null, issues: null } } }));
+      return;
+    }
+    set((s) => ({ repoWork: { ...s.repoWork, [projectId]: { phase: "loading", tree: null, issues: null } } }));
+    // All three at once. The commit hydration is in here — not just beside it —
+    // because the tasks card falls back to those commits when a repo has no open
+    // issues; settling `ready` before they land would flash "no commits either"
+    // at a repo with plenty. Neither repo fetcher throws: a failure arrives as a
+    // status, which is the whole reason they return a status.
     try {
-      const lines = await fetchRecentCommits(projectId);
-      if (lines.length === 0) return; // 404/rate-limit/renamed repo → keep mock
-      set((s) => {
-        const ch = s.channels[projectId];
-        const speaker = ch?.participants[0];
-        return {
-          projects: s.projects.map((p) => (p.id === projectId ? { ...p, liveActivity: lines } : p)),
-          // the room reacts to real context: first agent present reports the pull
-          channels: speaker
-            ? {
-                ...s.channels,
-                [projectId]: {
-                  ...ch,
-                  queue: [
-                    ...ch.queue,
-                    { from: speaker, text: `Pulled the live feed — latest commit here is "${lines[0]}". Working from that, not from memory.` },
-                  ],
-                },
-              }
-            : s.channels,
-        };
-      });
+      const [tree, issues] = await Promise.all([
+        fetchRepoTree(projectId),
+        fetchOpenIssues(projectId),
+        get().hydrateActivity(projectId),
+      ]);
+      set((s) => ({ repoWork: { ...s.repoWork, [projectId]: { phase: "ready", tree, issues } } }));
     } catch {
-      /* offline — the curated mock feed stands */
+      // "Neither fetcher throws" is a property of today's code, not a law. If
+      // one ever does, the un-caught rejection leaves phase pinned at "loading"
+      // and workAttempted already set — both cards read "reading github…"
+      // forever with no way back. Settle a terminal state instead.
+      const failed = { status: "failed" as const, items: [], more: 0 };
+      set((s) => ({ repoWork: { ...s.repoWork, [projectId]: { phase: "ready", tree: failed, issues: failed } } }));
     }
   },
 
@@ -850,7 +950,10 @@ export const useHub = create<HubState>()(
       const project = projects.find((p) => p.id === projectId);
       const channel = channels[projectId];
       if (!project || !channel) return;
-      const persona = buildAgentSystem(agentId, project, detailFor(projectId));
+      // The same open-issue list the work tab shows, so the room and the panel
+      // never disagree about what is outstanding here.
+      const openWork = get().repoWork[projectId]?.issues?.items.map((i) => `#${i.number} ${i.title}`);
+      const persona = buildAgentSystem(agentId, project, detailFor(projectId), openWork);
       // The brief goes FIRST: it is this turn's job, and the persona below it is
       // who does the job. Nothing else about the turn changes.
       const system = opts?.brief ? `${opts.brief}\n\n${persona}` : persona;
@@ -1247,7 +1350,12 @@ export const useHub = create<HubState>()(
     try {
       const { projects, assignments, conversation } = get();
       const topic = projects.find((p) => p.id === conversation?.topicId);
-      const system = buildAgentSystem(agentId, topic, topic ? detailFor(topic.id) : undefined);
+      const system = buildAgentSystem(
+        agentId,
+        topic,
+        topic ? detailFor(topic.id) : undefined,
+        topic ? get().repoWork[topic.id]?.issues?.items.map((i) => `#${i.number} ${i.title}`) : undefined
+      );
       const turns = toTurns(conversation?.messages ?? [], agentId);
       patch((c) => ({ ...c, messages: [...c.messages, { id: msgId, from: agentId, text: "", streaming: true }] }));
       set((s) => ({
