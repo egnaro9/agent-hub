@@ -790,12 +790,18 @@ export const useHub = create<HubState>()(
   // conversation changes mid-stream (closed, replaced), updates stop cleanly.
   streamDm: async (agentId) => {
     const streamKey = `dm:${agentId}`;
-    if (liveStreams.has(streamKey)) return;
+    // FAILURE MODE (same shape the channel path had): a bare
+    // `if (liveStreams.has(key)) return` silently DROPS a message the operator
+    // sent while the agent was still writing — the composer stays enabled for
+    // exactly that, so the follow-up must queue behind the in-flight turn
+    // rather than vanish. takeTurn serializes per agent; still one stream each.
+    const releaseTurn = await takeTurn(streamKey);
     liveStreams.add(streamKey);
     const msgId = nextId();
     const convoId = get().conversation?.id;
     if (!convoId) {
       liveStreams.delete(streamKey);
+      releaseTurn();
       return;
     }
     const patch = (fn: (c: Conversation) => Conversation) =>
@@ -833,6 +839,7 @@ export const useHub = create<HubState>()(
       }));
     } finally {
       liveStreams.delete(streamKey);
+      releaseTurn();
     }
   },
 
