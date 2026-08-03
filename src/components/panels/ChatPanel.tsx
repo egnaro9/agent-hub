@@ -24,6 +24,9 @@ export default function ChatPanel() {
   }, []);
 
   const queueLen = conversation?.queue.length ?? 0;
+  // Mid-reply: more turns queued, or the tail message still streaming in.
+  const lastMsg = conversation?.messages[conversation.messages.length - 1];
+  const writing = queueLen > 0 || Boolean(lastMsg?.streaming);
 
   useEffect(() => {
     if (!conversation || queueLen === 0) return;
@@ -76,7 +79,17 @@ export default function ChatPanel() {
         <button onClick={closePanels} className="mono cursor-pointer rounded-md border border-white/10 px-2 py-1 text-[11px] text-slate-400 hover:bg-white/10">esc</button>
       </header>
 
-      <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-4">
+      {/* Live region on the scroll container, not a wrapper: only rows added
+          after mount get announced, never the whole transcript. */}
+      <div
+        ref={scrollRef}
+        role="log"
+        aria-live="polite"
+        aria-relevant="additions text"
+        aria-atomic="false"
+        aria-label={`Messages with ${title}`}
+        className="flex-1 space-y-3 overflow-y-auto p-4"
+      >
         {conversation.messages.map((m) => {
           if (m.from === "user") {
             return (
@@ -126,8 +139,25 @@ export default function ChatPanel() {
             placeholder={conversation.kind === "solo" ? `Message ${participants[0].name}…` : "Interject…"}
             className="flex-1 bg-transparent text-[13px] text-slate-100 placeholder-slate-500 outline-none"
           />
-          <button onClick={submit} className="mono cursor-pointer rounded-lg border border-cyan-300/40 bg-cyan-400/15 px-2.5 py-1 text-[11px] text-cyan-200 transition hover:bg-cyan-400/30">
-            send
+          {/* Stays enabled while an agent writes — interjecting is intentional;
+              the button only labels the state. */}
+          <button
+            onClick={submit}
+            aria-label={writing ? "Send — an agent is writing" : "Send"}
+            className={`mono cursor-pointer rounded-lg border px-2.5 py-1 text-[11px] transition ${
+              writing
+                ? "border-teal-300/30 bg-teal-400/10 text-teal-200/80 hover:bg-teal-400/20"
+                : "border-cyan-300/40 bg-cyan-400/15 text-cyan-200 hover:bg-cyan-400/30"
+            }`}
+          >
+            {writing ? (
+              <span className="flex items-center gap-1.5">
+                <span className="breathe inline-block h-1.5 w-1.5 rounded-full bg-teal-300" />
+                writing…
+              </span>
+            ) : (
+              "send"
+            )}
           </button>
         </div>
       </footer>

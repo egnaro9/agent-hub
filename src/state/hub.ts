@@ -4,7 +4,7 @@ import type { Agent, Conversation, Message, Project, QueuedLine, StructuralEdge,
 import { AGENTS, PROJECTS, STRUCTURAL, SEED_ASSIGNMENTS } from "../data/mock";
 import { personaFor, ERRORS, buildRoundtable, nextId } from "../sim/lines";
 import { fetchRecentCommits } from "../data/github";
-import { getKey, buildAgentSystem, toTurns, streamReply, runToolLoop, readRepoFile, GATED_TOOLS, toolsFor, currentFile, commitToBranch, getGhToken } from "../agents/brain";
+import { getKey, buildAgentSystem, toTurns, streamReply, runToolLoop, readRepoFile, GATED_TOOLS, toolsFor, currentFile, commitToBranch, getGhToken, modelForAgent } from "../agents/brain";
 import { detailFor } from "../data/detail";
 
 export type Stage = { kind: "graph" } | { kind: "project"; id: string };
@@ -428,6 +428,7 @@ export const useHub = create<HubState>()(
         system,
         turns,
         tools: toolsFor(get().commitsArmed && getGhToken() !== null),
+        model: modelForAgent(agentId),
         onDelta: (delta) => {
           if (needBreak) {
             acc += "\n\n";
@@ -739,7 +740,7 @@ export const useHub = create<HubState>()(
         agents: s.agents.map((a) => (a.id === agentId ? { ...a, status: { kind: "talking" as const } } : a)),
       }));
       let acc = "";
-      for await (const delta of streamReply(system, turns)) {
+      for await (const delta of streamReply(system, turns, modelForAgent(agentId))) {
         acc += delta;
         const text = acc;
         patch((c) => ({ ...c, messages: c.messages.map((m) => (m.id === msgId ? { ...m, text } : m)) }));

@@ -74,8 +74,12 @@ export default function Sidebar() {
         <button
           onClick={() => toggleStar(p.id)}
           title={isStarred ? "unpin" : "pin"}
-          className={`mono cursor-pointer text-[11px] transition ${
-            isStarred ? "text-amber-300" : "text-slate-700 opacity-0 group-hover:opacity-100 hover:text-amber-300"
+          aria-label={isStarred ? `unpin ${p.name}` : `pin ${p.name}`}
+          aria-pressed={isStarred}
+          className={`mono flex-none cursor-pointer rounded text-[11px] transition outline-none focus-visible:ring-1 focus-visible:ring-amber-300/70 ${
+            isStarred
+              ? "text-amber-300"
+              : "text-slate-600 opacity-50 group-hover:opacity-100 hover:text-amber-300 focus-visible:opacity-100"
           }`}
         >
           {isStarred ? "★" : "☆"}

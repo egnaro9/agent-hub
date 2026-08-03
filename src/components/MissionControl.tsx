@@ -1,7 +1,13 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useHub, agentInScope } from "../state/hub";
-import { getKey, setKey, clearKey, getModel, setModel, BRAIN_MODELS, getGhToken, setGhToken, clearGhToken } from "../agents/brain";
+import { getKey, setKey, clearKey, getModel, setModel, BRAIN_MODELS, getGhToken, setGhToken, clearGhToken, getRouting, setRouting } from "../agents/brain";
+
+// "claude-haiku-4-5" → "haiku-4-5"; anything long gets clipped so the bar never blows out.
+const shortModel = (id: string) => {
+  const s = id.replace(/^claude-/, "").replace(/-\d{8}$/, "");
+  return s.length > 14 ? `${s.slice(0, 13)}…` : s;
+};
 
 // The thin command strip over the stage: where you are, who's active, summon.
 export default function MissionControl() {
@@ -21,8 +27,43 @@ export default function MissionControl() {
   const [modelDraft, setModelDraft] = useState(getModel());
   const [ghDraft, setGhDraft] = useState("");
   const [dangerOpen, setDangerOpen] = useState(false);
+  const [routing, setRoutingState] = useState(getRouting());
+  const [activeModel, setActiveModel] = useState(getModel());
   const commitsArmed = useHub((s) => s.commitsArmed);
   const setCommitsArmed = useHub((s) => s.setCommitsArmed);
+  const summonRef = useRef<HTMLDivElement>(null);
+  const brainRef = useRef<HTMLDivElement>(null);
+
+  const anyOpen = summonOpen || brainOpen;
+
+  // One handler for both popovers: click outside dismisses, Escape dismisses the whole stack.
+  useEffect(() => {
+    if (!anyOpen) return;
+    const onPointerDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (summonRef.current && !summonRef.current.contains(t)) setSummonOpen(false);
+      if (brainRef.current && !brainRef.current.contains(t)) setBrainOpen(false);
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setSummonOpen(false);
+      setBrainOpen(false);
+      setDangerOpen(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [anyOpen]);
+
+  // Navigating away should never leave a menu floating over the new stage.
+  useEffect(() => {
+    setSummonOpen(false);
+    setBrainOpen(false);
+    setDangerOpen(false);
+  }, [stage]);
 
   const project = stage.kind === "project" ? projects.find((p) => p.id === stage.id) : undefined;
   const active = agents.filter((a) => a.status.kind === "working" || a.status.kind === "talking").length;
@@ -76,7 +117,7 @@ export default function MissionControl() {
       </span>
 
       {/* summon */}
-      <div className="relative">
+      <div ref={summonRef} className="relative">
         <button
           onClick={() => setSummonOpen((v) => !v)}
           disabled={!project || summonable.length === 0}
@@ -116,21 +157,23 @@ export default function MissionControl() {
       </div>
 
       {/* brain — BYOK live-agent connection */}
-      <div className="relative">
+      <div ref={brainRef} className="relative">
         <button
           onClick={() => {
             setBrainOpen((v) => !v);
             setKeyDraft("");
             setModelDraft(getModel());
+            setActiveModel(getModel());
           }}
-          className={`mono cursor-pointer rounded-md border px-2.5 py-1 text-[10px] transition ${
+          className={`mono cursor-pointer rounded-md border px-2.5 py-1 text-[10px] whitespace-nowrap transition ${
             brainConnected
               ? "border-teal-300/50 bg-teal-400/10 text-teal-200 hover:bg-teal-400/25"
               : "border-white/10 bg-white/5 text-slate-500 hover:text-slate-300"
           }`}
-          title="Connect a live model to Critic — bring your own Anthropic key"
+          title={`Connect a live model to Critic — bring your own Anthropic key (model: ${activeModel})`}
         >
           ◈ brain: {brainConnected ? "live" : "mock"}
+          <span className={brainConnected ? "text-teal-300/60" : "text-slate-600"}> · {shortModel(activeModel)}</span>
         </button>
         <AnimatePresence>
           {brainOpen && (
@@ -165,11 +208,27 @@ export default function MissionControl() {
                   <option key={m} value={m}>{m}</option>
                 ))}
               </select>
+              <label className="mono mt-2 flex cursor-pointer items-start gap-2 text-[10px] leading-relaxed text-slate-400">
+                <input
+                  type="checkbox"
+                  checked={routing}
+                  onChange={(e) => {
+                    setRoutingState(e.target.checked);
+                    setRouting(e.target.checked);
+                  }}
+                  className="mt-0.5 cursor-pointer accent-teal-400"
+                />
+                <span>
+                  route by role — judgment agents (Critic, Oracle) use the model above; the chattier ones drop to
+                  sonnet or haiku. Never routes <em>up</em> past your choice.
+                </span>
+              </label>
               <div className="mt-2.5 flex gap-2">
                 <button
                   onClick={() => {
                     if (keyDraft.trim()) setKey(keyDraft);
                     setModel(modelDraft);
+                    setActiveModel(modelDraft);
                     setBrainConnected(getKey() !== null);
                     setBrainOpen(false);
                     setKeyDraft("");

@@ -41,6 +41,48 @@ export const getModel = (): string => {
     return DEFAULT_MODEL;
   }
 };
+
+// Per-agent routing: judgment roles get the strong model, the talkative ones
+// get a cheap fast one. The operator's chosen model is the ceiling — routing
+// only ever picks something equal or cheaper, never an upgrade they didn't ask
+// for. Turn it off and every agent uses the chosen model.
+const ROUTE_KEY = "agent-hub:route-by-role";
+const CHEAP = "claude-haiku-4-5";
+const MID = "claude-sonnet-4-6";
+const ROLE_TIER: Record<string, "strong" | "mid" | "cheap"> = {
+  critic: "strong",
+  oracle: "strong",
+  strat: "mid",
+  forge: "mid",
+  porter: "mid",
+  ops: "cheap",
+  probe: "cheap",
+};
+
+export const getRouting = (): boolean => {
+  try {
+    return localStorage.getItem(ROUTE_KEY) !== "off";
+  } catch {
+    return true;
+  }
+};
+export const setRouting = (on: boolean) => {
+  try {
+    localStorage.setItem(ROUTE_KEY, on ? "on" : "off");
+  } catch {
+    /* ignore */
+  }
+};
+
+const RANK: Record<string, number> = { "claude-haiku-4-5": 0, "claude-sonnet-4-6": 1, "claude-opus-4-8": 2 };
+export const modelForAgent = (agentId: string): string => {
+  const chosen = getModel();
+  if (!getRouting()) return chosen;
+  const tier = ROLE_TIER[agentId] ?? "mid";
+  const want = tier === "strong" ? chosen : tier === "mid" ? MID : CHEAP;
+  // never route UP past what the operator selected
+  return (RANK[want] ?? 1) <= (RANK[chosen] ?? 2) ? want : chosen;
+};
 export const setModel = (m: string) => {
   try {
     localStorage.setItem(MODEL_KEY, m);
@@ -109,12 +151,12 @@ export const toTurns = (messages: Message[], selfId: string, limit = 20): BrainT
   return turns.length ? turns : [{ role: "user", content: "(the room is quiet — introduce yourself briefly)" }];
 };
 
-export async function* streamReply(system: string, turns: BrainTurn[]): AsyncGenerator<string, void, void> {
+export async function* streamReply(system: string, turns: BrainTurn[], model?: string): AsyncGenerator<string, void, void> {
   const apiKey = getKey();
   if (!apiKey) throw new Error("no key");
   const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
   const stream = client.messages.stream({
-    model: getModel(),
+    model: model ?? getModel(),
     max_tokens: 1024,
     system,
     messages: turns,
@@ -319,13 +361,14 @@ export async function streamAgentTurn(
   system: string,
   messages: Anthropic.MessageParam[],
   onDelta: (text: string) => void,
-  tools: Anthropic.Tool[] = AGENT_TOOLS
+  tools: Anthropic.Tool[] = AGENT_TOOLS,
+  model?: string
 ): Promise<AgentTurnResult> {
   const apiKey = getKey();
   if (!apiKey) throw new Error("no key");
   const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
   const stream = client.messages.stream({
-    model: getModel(),
+    model: model ?? getModel(),
     max_tokens: 1024,
     system,
     messages,
@@ -350,13 +393,14 @@ export async function runToolLoop(opts: {
   system: string;
   turns: BrainTurn[];
   tools?: Anthropic.Tool[];
+  model?: string;
   onDelta: (t: string) => void;
   execute: (name: string, input: Record<string, unknown>) => Promise<{ result: string } | { gated: true }>;
   maxTurns?: number;
 }): Promise<void> {
   let messages: Anthropic.MessageParam[] = opts.turns.map((t) => ({ role: t.role, content: t.content }));
   for (let i = 0; i < (opts.maxTurns ?? 4); i++) {
-    const { toolCalls, assistantContent } = await streamAgentTurn(opts.system, messages, opts.onDelta, opts.tools);
+    const { toolCalls, assistantContent } = await streamAgentTurn(opts.system, messages, opts.onDelta, opts.tools, opts.model);
     if (toolCalls.length === 0) return;
     messages = [...messages, { role: "assistant", content: assistantContent }];
     const results: Anthropic.ToolResultBlockParam[] = [];

@@ -57,9 +57,14 @@ export default function ChatRoom({ projectId }: { projectId: string }) {
   const assign = useHub((s) => s.assign);
   const [draft, setDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const queueLen = channel?.queue.length ?? 0;
   const hasQueue = queueLen > 0;
+  // An agent is mid-reply if there is anything left to say, or the tail
+  // message is still streaming its characters in.
+  const lastMsg = channel?.messages[channel.messages.length - 1];
+  const writing = hasQueue || Boolean(lastMsg?.streaming);
 
   useEffect(() => {
     if (!hasQueue) return;
@@ -85,6 +90,13 @@ export default function ChatRoom({ projectId }: { projectId: string }) {
     setDraft("");
   };
 
+  // Approving or dismissing removes the buttons from the DOM, which drops focus
+  // onto <body>. Hand it to the composer — the natural next thing to do.
+  const resolveAction = (fn: () => void) => {
+    fn();
+    inputRef.current?.focus();
+  };
+
   return (
     <div className="glass flex h-full min-h-0 flex-col rounded-2xl">
       <header className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
@@ -99,15 +111,25 @@ export default function ChatRoom({ projectId }: { projectId: string }) {
         <div className="flex items-center gap-1.5">
           <span className="flex -space-x-1.5">
             {members.map((a) => (
-              <button
-                key={a.id}
-                onClick={() => useHub.getState().removeFromRoom(projectId, a.id)}
-                title={`${a.name} — ${a.role} · click to release from this room`}
-                className="grid h-6.5 w-6.5 cursor-pointer place-items-center rounded-full text-[9px] font-bold text-white transition hover:opacity-50"
-                style={{ background: `radial-gradient(circle at 32% 28%, ${a.color}88, #0b1120 78%)`, border: `1.5px solid ${a.color}` }}
-              >
-                {a.glyph}
-              </button>
+              // The avatar itself is not a target — releasing an agent hides
+              // behind a small × so a misclick can't quietly empty the room.
+              <span key={a.id} className="group/av relative">
+                <span
+                  title={`${a.name} — ${a.role}`}
+                  className="grid h-6.5 w-6.5 place-items-center rounded-full text-[9px] font-bold text-white"
+                  style={{ background: `radial-gradient(circle at 32% 28%, ${a.color}88, #0b1120 78%)`, border: `1.5px solid ${a.color}` }}
+                >
+                  {a.glyph}
+                </span>
+                <button
+                  onClick={() => useHub.getState().removeFromRoom(projectId, a.id)}
+                  title={`Release ${a.name} from this room`}
+                  aria-label={`Release ${a.name} from this room`}
+                  className="mono absolute -top-1 -right-1 grid h-3.5 w-3.5 cursor-pointer place-items-center rounded-full border border-rose-300/60 bg-slate-950 text-[8px] leading-none text-rose-300 opacity-0 transition pointer-events-none group-hover/av:pointer-events-auto group-hover/av:opacity-100 hover:bg-rose-400/25 focus-visible:pointer-events-auto focus-visible:opacity-100"
+                >
+                  ×
+                </button>
+              </span>
             ))}
           </span>
           {outside.map((a) => (
@@ -123,7 +145,17 @@ export default function ChatRoom({ projectId }: { projectId: string }) {
         </div>
       </header>
 
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+      {/* Live region sits on the scroll container, not a wrapper around the whole
+          panel: only rows added after mount are announced, never the backlog. */}
+      <div
+        ref={scrollRef}
+        role="log"
+        aria-live="polite"
+        aria-relevant="additions text"
+        aria-atomic="false"
+        aria-label={`#${project.name} messages`}
+        className="min-h-0 flex-1 overflow-y-auto px-4 py-3"
+      >
         {channel.messages.length === 0 && !speaking && (
           <div className="mono mt-6 text-center text-[11px] leading-relaxed text-slate-600">
             This is the start of <span style={{ color: project.hue }}>#{project.name}</span>.
@@ -196,13 +228,15 @@ export default function ChatRoom({ projectId }: { projectId: string }) {
                 {m.action.status === "pending" ? (
                   <div className="mt-2 flex gap-2">
                     <button
-                      onClick={() => useHub.getState().approveAction(projectId, m.id)}
+                      onClick={() => resolveAction(() => useHub.getState().approveAction(projectId, m.id))}
+                      aria-label={`Approve ${label}`}
                       className="mono cursor-pointer rounded-lg border border-teal-300/50 bg-teal-400/15 px-3 py-1 text-[10.5px] text-teal-200 transition hover:bg-teal-400/30"
                     >
                       approve ▸
                     </button>
                     <button
-                      onClick={() => useHub.getState().dismissAction(projectId, m.id)}
+                      onClick={() => resolveAction(() => useHub.getState().dismissAction(projectId, m.id))}
+                      aria-label={`Dismiss ${label}`}
                       className="mono cursor-pointer rounded-lg border border-white/10 bg-white/5 px-3 py-1 text-[10.5px] text-slate-400 transition hover:text-rose-300"
                     >
                       dismiss
@@ -252,14 +286,32 @@ export default function ChatRoom({ projectId }: { projectId: string }) {
       <footer className="border-t border-white/10 p-3">
         <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 focus-within:border-cyan-300/50">
           <input
+            ref={inputRef}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !e.nativeEvent.isComposing && submit()}
             placeholder={`Message #${project.name} — @${members[0]?.name ?? "an agent"} or @team to direct it`}
             className="flex-1 bg-transparent text-[13px] text-slate-100 placeholder-slate-500 outline-none"
           />
-          <button onClick={submit} className="mono cursor-pointer rounded-lg border border-cyan-300/40 bg-cyan-400/15 px-2.5 py-1 text-[11px] text-cyan-200 transition hover:bg-cyan-400/30">
-            send
+          {/* Stays enabled while an agent writes — interjecting mid-reply is the
+              point of the room; the button just says what's happening. */}
+          <button
+            onClick={submit}
+            aria-label={writing ? "Send — an agent is writing" : "Send"}
+            className={`mono cursor-pointer rounded-lg border px-2.5 py-1 text-[11px] transition ${
+              writing
+                ? "border-teal-300/30 bg-teal-400/10 text-teal-200/80 hover:bg-teal-400/20"
+                : "border-cyan-300/40 bg-cyan-400/15 text-cyan-200 hover:bg-cyan-400/30"
+            }`}
+          >
+            {writing ? (
+              <span className="flex items-center gap-1.5">
+                <span className="breathe inline-block h-1.5 w-1.5 rounded-full bg-teal-300" />
+                writing…
+              </span>
+            ) : (
+              "send"
+            )}
           </button>
         </div>
       </footer>
