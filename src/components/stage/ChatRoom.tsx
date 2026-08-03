@@ -117,6 +117,40 @@ export default function ChatRoom({ projectId }: { projectId: string }) {
             );
           }
           const a = agents.find((x) => x.id === m.from)!;
+          if (m.action) {
+            const label = `${m.action.tool}(${Object.values(m.action.input).map(String).join(", ")})`;
+            return (
+              <div key={m.id} className="-mx-2 my-1 rounded-xl border border-amber-300/40 bg-amber-400/8 px-3.5 py-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="grid h-5 w-5 flex-none place-items-center rounded-full text-[8px] font-bold text-white" style={{ background: a.color }}>{a.glyph}</span>
+                  <span className="text-[12px] text-slate-200">
+                    <span style={{ color: a.color }}>{a.name}</span> proposes <code className="mono text-[11px] text-amber-200">{label}</code>
+                  </span>
+                </div>
+                <div className="mono mt-1 text-[9px] tracking-[0.15em] text-amber-300/70 uppercase">gated · operator approval required · agents cannot self-approve</div>
+                {m.action.status === "pending" ? (
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      onClick={() => useHub.getState().approveAction(projectId, m.id)}
+                      className="mono cursor-pointer rounded-lg border border-teal-300/50 bg-teal-400/15 px-3 py-1 text-[10.5px] text-teal-200 transition hover:bg-teal-400/30"
+                    >
+                      approve ▸
+                    </button>
+                    <button
+                      onClick={() => useHub.getState().dismissAction(projectId, m.id)}
+                      className="mono cursor-pointer rounded-lg border border-white/10 bg-white/5 px-3 py-1 text-[10.5px] text-slate-400 transition hover:text-rose-300"
+                    >
+                      dismiss
+                    </button>
+                  </div>
+                ) : (
+                  <div className={`mono mt-1.5 text-[10px] ${m.action.status === "approved" ? "text-teal-300" : "text-slate-500"}`}>
+                    {m.action.status === "approved" ? "✓ approved by operator" : "dismissed by operator"}
+                  </div>
+                )}
+              </div>
+            );
+          }
           return (
             <div key={m.id} className="group -mx-2 flex gap-2.5 rounded-lg px-2 py-1.5 hover:bg-white/3">
               <span className="mt-0.5 grid h-7 w-7 flex-none place-items-center rounded-full text-[10px] font-bold text-white" style={{ background: `radial-gradient(circle at 32% 28%, ${a.color}88, #0b1120 78%)`, border: `1.5px solid ${a.color}` }}>

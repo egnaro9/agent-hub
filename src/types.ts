@@ -45,6 +45,11 @@ export interface Message {
   from: string; // agent id or "user"
   text: string;
   streaming?: boolean; // a live brain is still writing this one
+  action?: {
+    tool: string;
+    input: Record<string, unknown>;
+    status: "pending" | "approved" | "dismissed";
+  };
 }
 
 export interface QueuedLine {

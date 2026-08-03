@@ -3,7 +3,7 @@ import type { Agent, Conversation, Message, Project, QueuedLine, StructuralEdge,
 import { AGENTS, PROJECTS, STRUCTURAL, SEED_ASSIGNMENTS } from "../data/mock";
 import { personaFor, ERRORS, buildRoundtable, nextId } from "../sim/lines";
 import { fetchRecentCommits } from "../data/github";
-import { getKey, buildAgentSystem, toTurns, streamReply } from "../agents/brain";
+import { getKey, buildAgentSystem, toTurns, streamReply, runToolLoop, readRepoFile, GATED_TOOLS } from "../agents/brain";
 import { detailFor } from "../data/detail";
 
 export type Stage = { kind: "graph" } | { kind: "project"; id: string };
@@ -59,6 +59,8 @@ interface HubState {
   sendToChannel: (projectId: string, text: string) => void;
   streamAgent: (projectId: string, agentId: string) => Promise<void>;
   streamDm: (agentId: string) => Promise<void>;
+  approveAction: (projectId: string, msgId: string) => void;
+  dismissAction: (projectId: string, msgId: string) => void;
   summon: (agentId: string, projectId: string) => void;
   openChat: (agentId: string) => void;
   closePanels: () => void;
@@ -373,8 +375,9 @@ export const useHub = create<HubState>()((set, get) => ({
         };
       });
       let acc = "";
-      for await (const delta of streamReply(system, turns)) {
-        acc += delta;
+      let needBreak = false;
+      let proposed = false;
+      const paint = () => {
         const text = acc;
         set((s) => {
           const ch = s.channels[projectId];
@@ -386,7 +389,58 @@ export const useHub = create<HubState>()((set, get) => ({
             },
           };
         });
-      }
+      };
+      await runToolLoop({
+        system,
+        turns,
+        onDelta: (delta) => {
+          if (needBreak) {
+            acc += "\n\n";
+            needBreak = false;
+          }
+          acc += delta;
+          paint();
+        },
+        execute: async (name, input) => {
+          needBreak = acc.length > 0;
+          if (GATED_TOOLS.has(name)) {
+            proposed = true;
+            set((s) => {
+              const ch = s.channels[projectId];
+              if (!ch) return {};
+              return {
+                channels: {
+                  ...s.channels,
+                  [projectId]: {
+                    ...ch,
+                    messages: [
+                      ...ch.messages,
+                      { id: nextId(), from: agentId, text: "", action: { tool: name, input, status: "pending" as const } },
+                    ],
+                  },
+                },
+              };
+            });
+            return { gated: true };
+          }
+          if (name === "read_recent_commits") {
+            const lines = await fetchRecentCommits(projectId);
+            return { result: lines.join("\n") || "(no commits readable — repo missing or rate-limited)" };
+          }
+          if (name === "read_repo_file") {
+            return { result: await readRepoFile(projectId, String((input as { path?: string }).path ?? "README.md")) };
+          }
+          if (name === "summon_agent") {
+            const target = String((input as { agentId?: string }).agentId ?? "");
+            if (get().agents.some((a) => a.id === target)) {
+              get().assign(target, projectId);
+              return { result: `summoned ${target} into the room (executed — reversible)` };
+            }
+            return { result: `unknown agent id "${target}"` };
+          }
+          return { result: `unknown tool ${name}` };
+        },
+      });
       set((s) => {
         const ch = s.channels[projectId];
         return {
@@ -394,7 +448,15 @@ export const useHub = create<HubState>()((set, get) => ({
             ? {
                 channels: {
                   ...s.channels,
-                  [projectId]: { ...ch, messages: ch.messages.map((m) => (m.id === msgId ? { ...m, streaming: false } : m)) },
+                  [projectId]: {
+                    ...ch,
+                    messages:
+                      acc.length === 0 && !proposed
+                        ? ch.messages.filter((m) => m.id !== msgId)
+                        : ch.messages.map((m) =>
+                            m.id === msgId ? { ...m, text: m.text || "(proposed an action — see the card below)", streaming: false } : m
+                          ),
+                  },
                 },
               }
             : {}),
@@ -483,6 +545,53 @@ export const useHub = create<HubState>()((set, get) => ({
       ),
     }));
   },
+
+  // The operator's side of the gate: approving executes the proposal and Ops
+  // announces it; dismissing just marks the card. The agent never self-approves.
+  approveAction: (projectId, msgId) => {
+    const ch = get().channels[projectId];
+    const msg = ch?.messages.find((m) => m.id === msgId);
+    if (!ch || !msg?.action || msg.action.status !== "pending") return;
+    let announce = "";
+    if (msg.action.tool === "create_project") {
+      const name = String((msg.action.input as { name?: string }).name ?? "untitled");
+      const id = get().createProject(name);
+      announce = `✓ operator approved — ${id} is on the board.`;
+    }
+    set((s) => {
+      const c = s.channels[projectId];
+      if (!c) return {};
+      return {
+        channels: {
+          ...s.channels,
+          [projectId]: {
+            ...c,
+            messages: [
+              ...c.messages.map((m) => (m.id === msgId ? { ...m, action: { ...m.action!, status: "approved" as const } } : m)),
+              ...(announce ? [{ id: nextId(), from: "ops", text: announce }] : []),
+            ],
+          },
+        },
+      };
+    });
+  },
+
+  dismissAction: (projectId, msgId) =>
+    set((s) => {
+      const c = s.channels[projectId];
+      if (!c) return {};
+      return {
+        channels: {
+          ...s.channels,
+          [projectId]: {
+            ...c,
+            messages: c.messages.map((m) =>
+              m.id === msgId && m.action ? { ...m, action: { ...m.action, status: "dismissed" as const } } : m
+            ),
+          },
+        },
+      };
+    }),
 
   // Live DM: same read-only stream, scoped to the drawer conversation. If the
   // conversation changes mid-stream (closed, replaced), updates stop cleanly.

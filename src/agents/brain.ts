@@ -71,7 +71,7 @@ export function buildAgentSystem(agentId: string, project: Project | undefined, 
   const lines = [
     (PERSONA_BRIEFS[agentId] ?? "You are an agent in Erik's Agent Hub.") + " You are one teammate in a shared ops room; other agents may have spoken before you.",
     "House doctrine everyone enforces: deterministic checks over vibes; a claim needs evidence; 'the suite cannot decide' is a valid and honorable verdict; never invent numbers — if you don't know, say so.",
-    "You are READ-ONLY in this version: you have no tools and cannot act on anything. If asked to change, run, or create something, say plainly that acting requires tools you don't have yet and describe what you WOULD check.",
+    "Tools & the gate: read_recent_commits and read_repo_file are free — use them instead of guessing. summon_agent executes immediately (reversible) and is announced. create_project is GATED: calling it renders a proposal card that only the human operator can approve — it does NOT execute, so never claim it happened; say you've proposed it. This gate is doctrine, not a limitation to apologize for.",
     "Style: chat-room register, 1-4 sentences unless asked for depth. No markdown headers. Never begin your reply with a speaker tag like [strat]: or [critic]: — the UI adds attribution. Don't repeat what a teammate just said; add your function's angle or stay brief.",
   ];
   if (project) {
@@ -122,4 +122,129 @@ export async function* streamReply(system: string, turns: BrainTurn[]): AsyncGen
       yield event.delta.text;
     }
   }
+}
+
+// ---- tools ------------------------------------------------------------------
+// Three tiers, and the tiers ARE the product: read tools run freely, reversible
+// tools run with a notice, and anything that creates state becomes a proposal
+// card only the operator can approve. Reliability earns launch-automation —
+// it never earns gate-removal.
+
+export const AGENT_TOOLS: Anthropic.Tool[] = [
+  {
+    name: "read_recent_commits",
+    description: "Fetch the current project's most recent commits live from GitHub. Free to use.",
+    input_schema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "read_repo_file",
+    description:
+      "Read a file from the current project's public GitHub repo (main branch), e.g. README.md. Free to use. Returns up to ~4KB.",
+    input_schema: {
+      type: "object",
+      properties: { path: { type: "string", description: "Repo-relative path, e.g. README.md" } },
+      required: ["path"],
+    },
+  },
+  {
+    name: "summon_agent",
+    description:
+      "Bring another agent into this room and onto this project. Reversible, so it executes immediately with a notice. Agent ids: strat, forge, critic, oracle, ops, probe, porter.",
+    input_schema: {
+      type: "object",
+      properties: { agentId: { type: "string" } },
+      required: ["agentId"],
+    },
+  },
+  {
+    name: "create_project",
+    description:
+      "Propose creating a new project node in the hub. GATED: this does NOT execute — it renders a proposal card that only the human operator can approve. Never claim it happened.",
+    input_schema: {
+      type: "object",
+      properties: { name: { type: "string" } },
+      required: ["name"],
+    },
+  },
+];
+
+export const GATED_TOOLS = new Set(["create_project"]);
+
+export interface ToolCall {
+  id: string;
+  name: string;
+  input: Record<string, unknown>;
+}
+
+export interface AgentTurnResult {
+  toolCalls: ToolCall[];
+  assistantContent: Anthropic.ContentBlock[];
+}
+
+// One model turn with tools: text deltas go to onDelta as they stream; any
+// tool_use blocks come back for the caller's loop to execute or gate.
+export async function streamAgentTurn(
+  system: string,
+  messages: Anthropic.MessageParam[],
+  onDelta: (text: string) => void
+): Promise<AgentTurnResult> {
+  const apiKey = getKey();
+  if (!apiKey) throw new Error("no key");
+  const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
+  const stream = client.messages.stream({
+    model: getModel(),
+    max_tokens: 1024,
+    system,
+    messages,
+    tools: AGENT_TOOLS,
+  });
+  for await (const event of stream) {
+    if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+      onDelta(event.delta.text);
+    }
+  }
+  const final = await stream.finalMessage();
+  const toolCalls: ToolCall[] = final.content
+    .filter((b): b is Anthropic.ToolUseBlock => b.type === "tool_use")
+    .map((b) => ({ id: b.id, name: b.name, input: (b.input ?? {}) as Record<string, unknown> }));
+  return { toolCalls, assistantContent: final.content };
+}
+
+// Drives the request → tool → result loop. All SDK typing stays in this file;
+// the store supplies an executor that either returns a result string or
+// declares the call gated (rendered as an operator proposal, never executed).
+export async function runToolLoop(opts: {
+  system: string;
+  turns: BrainTurn[];
+  onDelta: (t: string) => void;
+  execute: (name: string, input: Record<string, unknown>) => Promise<{ result: string } | { gated: true }>;
+  maxTurns?: number;
+}): Promise<void> {
+  let messages: Anthropic.MessageParam[] = opts.turns.map((t) => ({ role: t.role, content: t.content }));
+  for (let i = 0; i < (opts.maxTurns ?? 4); i++) {
+    const { toolCalls, assistantContent } = await streamAgentTurn(opts.system, messages, opts.onDelta);
+    if (toolCalls.length === 0) return;
+    messages = [...messages, { role: "assistant", content: assistantContent }];
+    const results: Anthropic.ToolResultBlockParam[] = [];
+    for (const tc of toolCalls) {
+      const out = await opts.execute(tc.name, tc.input);
+      results.push({
+        type: "tool_result",
+        tool_use_id: tc.id,
+        content:
+          "gated" in out
+            ? "GATED: rendered as a proposal card for the human operator to approve. NOT executed — never claim it happened."
+            : out.result,
+      });
+    }
+    messages = [...messages, { role: "user", content: results }];
+  }
+}
+
+export async function readRepoFile(repo: string, path: string): Promise<string> {
+  const clean = path.replace(/^\/+/, "").replace(/\.\./g, "");
+  const res = await fetch(`https://raw.githubusercontent.com/egnaro9/${repo}/main/${clean}`);
+  if (!res.ok) return `(could not read ${clean}: HTTP ${res.status})`;
+  const text = await res.text();
+  return text.length > 4000 ? text.slice(0, 4000) + "\n…(truncated)" : text;
 }
