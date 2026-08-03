@@ -44,6 +44,7 @@ export interface Message {
   id: string;
   from: string; // agent id or "user"
   text: string;
+  streaming?: boolean; // a live brain is still writing this one
 }
 
 export interface QueuedLine {

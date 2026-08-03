@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useHub, agentInScope } from "../state/hub";
+import { getKey, setKey, clearKey, getModel, setModel, BRAIN_MODELS } from "../agents/brain";
 
 // The thin command strip over the stage: where you are, who's active, summon.
 export default function MissionControl() {
@@ -12,7 +13,12 @@ export default function MissionControl() {
   const setProjectMode = useHub((s) => s.setProjectMode);
   const backToGraph = useHub((s) => s.backToGraph);
   const summon = useHub((s) => s.summon);
+  const brainConnected = useHub((s) => s.brainConnected);
+  const setBrainConnected = useHub((s) => s.setBrainConnected);
   const [summonOpen, setSummonOpen] = useState(false);
+  const [brainOpen, setBrainOpen] = useState(false);
+  const [keyDraft, setKeyDraft] = useState("");
+  const [modelDraft, setModelDraft] = useState(getModel());
 
   const project = stage.kind === "project" ? projects.find((p) => p.id === stage.id) : undefined;
   const active = agents.filter((a) => a.status.kind === "working" || a.status.kind === "talking").length;
@@ -100,6 +106,84 @@ export default function MissionControl() {
                   </span>
                 </button>
               ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* brain — BYOK live-agent connection */}
+      <div className="relative">
+        <button
+          onClick={() => {
+            setBrainOpen((v) => !v);
+            setKeyDraft("");
+            setModelDraft(getModel());
+          }}
+          className={`mono cursor-pointer rounded-md border px-2.5 py-1 text-[10px] transition ${
+            brainConnected
+              ? "border-teal-300/50 bg-teal-400/10 text-teal-200 hover:bg-teal-400/25"
+              : "border-white/10 bg-white/5 text-slate-500 hover:text-slate-300"
+          }`}
+          title="Connect a live model to Critic — bring your own Anthropic key"
+        >
+          ◈ brain: {brainConnected ? "live" : "mock"}
+        </button>
+        <AnimatePresence>
+          {brainOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.15 }}
+              className="glass absolute top-9 right-0 z-40 w-72 rounded-xl p-3"
+            >
+              <div className="mono text-[9px] tracking-[0.2em] text-slate-400 uppercase">live brain · critic only (v1)</div>
+              <p className="mt-1.5 text-[10.5px] leading-relaxed text-slate-400">
+                Your key is stored <span className="text-slate-200">only in this browser</span> and sent{" "}
+                <span className="text-slate-200">only to api.anthropic.com</span>. Critic gets the room transcript + live
+                project context. No tools — read-only by construction.
+              </p>
+              <input
+                type="password"
+                value={keyDraft}
+                onChange={(e) => setKeyDraft(e.target.value)}
+                placeholder={brainConnected ? "key saved — paste to replace" : "sk-ant-…"}
+                className="mono mt-2.5 w-full rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-[11px] text-slate-200 placeholder-slate-600 outline-none focus:border-teal-300/50"
+              />
+              <select
+                value={modelDraft}
+                onChange={(e) => setModelDraft(e.target.value)}
+                className="mono mt-2 w-full cursor-pointer rounded-lg border border-white/10 bg-[#0b1120] px-2 py-1.5 text-[11px] text-slate-300 outline-none"
+              >
+                {BRAIN_MODELS.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+              <div className="mt-2.5 flex gap-2">
+                <button
+                  onClick={() => {
+                    if (keyDraft.trim()) setKey(keyDraft);
+                    setModel(modelDraft);
+                    setBrainConnected(getKey() !== null);
+                    setBrainOpen(false);
+                    setKeyDraft("");
+                  }}
+                  className="mono flex-1 cursor-pointer rounded-lg border border-teal-300/40 bg-teal-400/15 px-2 py-1.5 text-[10.5px] text-teal-200 transition hover:bg-teal-400/30"
+                >
+                  save
+                </button>
+                <button
+                  onClick={() => {
+                    clearKey();
+                    setBrainConnected(false);
+                    setBrainOpen(false);
+                    setKeyDraft("");
+                  }}
+                  className="mono cursor-pointer rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-[10.5px] text-slate-400 transition hover:text-rose-300"
+                >
+                  disconnect
+                </button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>

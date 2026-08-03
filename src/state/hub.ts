@@ -3,6 +3,8 @@ import type { Agent, Conversation, Message, Project, QueuedLine, StructuralEdge,
 import { AGENTS, PROJECTS, STRUCTURAL, SEED_ASSIGNMENTS } from "../data/mock";
 import { personaFor, ERRORS, buildRoundtable, nextId } from "../sim/lines";
 import { fetchRecentCommits } from "../data/github";
+import { getKey, buildCriticSystem, toTurns, streamReply } from "../agents/brain";
+import { detailFor } from "../data/detail";
 
 export type Stage = { kind: "graph" } | { kind: "project"; id: string };
 export type ProjectMode = "overview" | "work";
@@ -40,6 +42,8 @@ interface HubState {
   starred: string[];
   search: string;
   harnessSweepDone: boolean;
+  brainConnected: boolean; // a BYOK Anthropic key is present in this browser
+  setBrainConnected: (v: boolean) => void;
   focusRequest: { pos: Vec; seq: number } | null;
   createProject: (name: string) => string;
   hydrateActivity: (projectId: string) => Promise<void>;
@@ -53,6 +57,7 @@ interface HubState {
   setSearch: (q: string) => void;
   advanceChannel: (projectId: string) => void;
   sendToChannel: (projectId: string, text: string) => void;
+  streamCritic: (projectId: string) => Promise<void>;
   summon: (agentId: string, projectId: string) => void;
   openChat: (agentId: string) => void;
   closePanels: () => void;
@@ -72,6 +77,9 @@ const restingStatus = (agentId: string, assignments: Record<string, string>) =>
 // One hydration attempt per project per session — success or failure, we don't
 // hammer an unauthenticated API that rate-limits at 60/hr.
 const hydrationAttempted = new Set<string>();
+
+// One live stream per room at a time.
+const liveStreams = new Set<string>();
 
 // Critic finding: every path that drops a conversation must rest its speakers,
 // or agents stay "talking" forever and the tick loop can never rescue them.
@@ -96,6 +104,8 @@ export const useHub = create<HubState>()((set, get) => ({
   starred: loadStars(),
   search: "",
   harnessSweepDone: false,
+  brainConnected: getKey() !== null,
+  setBrainConnected: (v) => set({ brainConnected: v }),
   focusRequest: null,
 
   // Agents can act on the hub: a chat command mints a real project node.
@@ -294,10 +304,14 @@ export const useHub = create<HubState>()((set, get) => ({
       responders = participants;
     }
 
+    // When the live brain is connected, Critic answers for real — everyone
+    // else stays a persona. His canned line is dropped from the queue.
+    const liveCritic = get().brainConnected && responders.includes("critic");
+    const personaResponders = liveCritic ? responders.filter((r) => r !== "critic") : responders;
     const replies: QueuedLine[] =
-      responders.length === 1
-        ? [{ from: responders[0], text: personaFor(responders[0]).reply(text, projectId) }]
-        : responders.map((p) => ({ from: p, text: personaFor(p).ack(text) }));
+      personaResponders.length === 1 && responders.length === 1
+        ? [{ from: personaResponders[0], text: personaFor(personaResponders[0]).reply(text, projectId) }]
+        : personaResponders.map((p) => ({ from: p, text: personaFor(p).ack(text) }));
 
     set((s) => ({
       channels: {
@@ -310,6 +324,92 @@ export const useHub = create<HubState>()((set, get) => ({
         },
       },
     }));
+    if (liveCritic) void get().streamCritic(projectId);
+  },
+
+  // The first REAL agent: Critic, streaming from Anthropic with the room's
+  // transcript and the project's live context. Read-only by construction —
+  // no tools are passed, so speech is the only capability.
+  streamCritic: async (projectId) => {
+    const streamKey = `ch:${projectId}`;
+    if (liveStreams.has(streamKey)) return;
+    liveStreams.add(streamKey);
+    const msgId = nextId();
+    try {
+      const { projects, channels } = get();
+      const project = projects.find((p) => p.id === projectId);
+      const channel = channels[projectId];
+      if (!project || !channel) return;
+      const system = buildCriticSystem(project, detailFor(projectId));
+      const turns = toTurns(channel.messages, "critic");
+      set((s) => {
+        const ch = s.channels[projectId];
+        if (!ch) return {};
+        return {
+          channels: {
+            ...s.channels,
+            [projectId]: {
+              ...ch,
+              participants: ch.participants.includes("critic") ? ch.participants : [...ch.participants, "critic"],
+              messages: [...ch.messages, { id: msgId, from: "critic", text: "", streaming: true }],
+            },
+          },
+          agents: s.agents.map((a) => (a.id === "critic" ? { ...a, status: { kind: "talking" as const } } : a)),
+        };
+      });
+      let acc = "";
+      for await (const delta of streamReply(system, turns)) {
+        acc += delta;
+        const text = acc;
+        set((s) => {
+          const ch = s.channels[projectId];
+          if (!ch) return {};
+          return {
+            channels: {
+              ...s.channels,
+              [projectId]: { ...ch, messages: ch.messages.map((m) => (m.id === msgId ? { ...m, text } : m)) },
+            },
+          };
+        });
+      }
+      set((s) => {
+        const ch = s.channels[projectId];
+        return {
+          ...(ch
+            ? {
+                channels: {
+                  ...s.channels,
+                  [projectId]: { ...ch, messages: ch.messages.map((m) => (m.id === msgId ? { ...m, streaming: false } : m)) },
+                },
+              }
+            : {}),
+          agents: s.agents.map((a) =>
+            a.id === "critic" && a.status.kind === "talking" ? { ...a, status: restingStatus("critic", s.assignments) } : a
+          ),
+        };
+      });
+    } catch (err) {
+      const note = err instanceof Error && /401|auth/i.test(err.message) ? "key rejected — check it in the brain menu" : "live brain error — falling back to silence";
+      set((s) => {
+        const ch = s.channels[projectId];
+        return {
+          ...(ch
+            ? {
+                channels: {
+                  ...s.channels,
+                  [projectId]: {
+                    ...ch,
+                    messages: ch.messages.map((m) => (m.id === msgId ? { ...m, text: m.text || `⚠ ${note}`, streaming: false } : m)),
+                  },
+                },
+              }
+            : {}),
+          agents: s.agents.map((a) => (a.id === "critic" ? { ...a, status: { kind: "error" as const, note } } : a)),
+        };
+      });
+    } finally {
+      liveStreams.delete(streamKey);
+    }
   },
 
   // Summon: bring an in-scope agent into the room (and onto the project).

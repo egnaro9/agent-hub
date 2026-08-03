@@ -126,7 +126,10 @@ export default function ChatRoom({ projectId }: { projectId: string }) {
                 <div className="mono text-[9.5px] tracking-wider uppercase" style={{ color: a.color }}>
                   {a.name} <span className="text-slate-600 normal-case">· {a.role.split("—")[0].trim()}</span>
                 </div>
-                <div className="text-[13px] leading-relaxed text-slate-200">{m.text}</div>
+                <div className="text-[13px] leading-relaxed text-slate-200">
+                  <MentionText text={m.text} />
+                  {m.streaming && <span className="breathe ml-0.5 inline-block h-3.5 w-[7px] translate-y-0.5 bg-teal-300/80" />}
+                </div>
               </div>
             </div>
           );
