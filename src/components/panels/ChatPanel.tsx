@@ -55,7 +55,7 @@ export default function ChatPanel() {
       role="dialog"
       aria-modal="true"
       aria-label={`Conversation with ${title}`}
-      className="glass absolute top-0 right-0 z-30 flex h-full w-[400px] flex-col rounded-l-2xl"
+      className="glass absolute top-0 right-0 z-30 flex h-full w-[min(400px,90vw)] flex-col rounded-l-2xl"
     >
       <header className="flex items-center justify-between border-b border-white/10 p-4 pl-5">
         <div className="flex items-center gap-3">

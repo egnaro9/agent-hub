@@ -1,4 +1,4 @@
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useHub } from "../../state/hub";
 import { detailFor } from "../../data/detail";
@@ -49,6 +49,34 @@ const WORLDS: Record<string, React.ComponentType> = {
 const stateGlyph = { done: "✓", doing: "◐", todo: "○" } as const;
 const stateColor = { done: "#2dd4bf", doing: "#fbbf24", todo: "#64748b" } as const;
 
+// The worlds compose with absolute-% layers tuned for desktop widths; below
+// ~1100px those layers collide (critic finding). Instead of 18 responsive
+// redesigns, scale the whole scene to fit — composition and parallax intact.
+const WORLD_BASE_W = 1280;
+function WorldViewport({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setDims({ w: el.clientWidth, h: el.clientHeight }));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const scale = dims ? Math.min(1, dims.w / WORLD_BASE_W) : 1;
+  return (
+    <div ref={ref} className="h-full min-h-0 overflow-hidden">
+      {dims && scale < 1 ? (
+        <div style={{ width: WORLD_BASE_W, height: dims.h / scale, transform: `scale(${scale})`, transformOrigin: "top left" }}>
+          {children}
+        </div>
+      ) : (
+        children
+      )}
+    </div>
+  );
+}
+
 export default function ProjectStage({ projectId }: { projectId: string }) {
   const project = useHub((s) => s.projects.find((p) => p.id === projectId));
   const projects = useHub((s) => s.projects);
@@ -94,7 +122,9 @@ export default function ProjectStage({ projectId }: { projectId: string }) {
                 </div>
               }
             >
-              <World />
+              <WorldViewport>
+                <World />
+              </WorldViewport>
             </Suspense>
           );
         })()
@@ -156,7 +186,7 @@ export default function ProjectStage({ projectId }: { projectId: string }) {
             ))}
           </div>
 
-          <div className="mt-5 grid grid-cols-2 gap-4">
+          <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
             {/* signals — real commits once GitHub hydration lands, mock until */}
             <div className="glass rounded-xl p-4">
               <div className="mono text-[9.5px] tracking-[0.25em] text-slate-500 uppercase">
@@ -194,9 +224,10 @@ export default function ProjectStage({ projectId }: { projectId: string }) {
           </div>
         </div>
       ) : (
-        /* work mode */
-        <div className="flex h-full min-h-0 gap-4 p-4">
-          <div className="flex min-h-0 w-[300px] flex-none flex-col gap-4">
+        /* work mode — side column stacks above the room below lg (critic:
+           tablet squeezed the chat to ~168px) */
+        <div className="flex h-full min-h-0 flex-col gap-4 p-4 lg:flex-row">
+          <div className="flex max-h-[180px] min-h-0 w-full flex-none flex-row gap-4 lg:max-h-none lg:w-[300px] lg:flex-col">
             <div className="glass min-h-0 flex-1 overflow-y-auto rounded-xl p-4">
               <div className="mono text-[9.5px] tracking-[0.25em] text-slate-500 uppercase">tasks · mock</div>
               <ul className="mt-2.5 space-y-2">
@@ -249,7 +280,7 @@ export default function ProjectStage({ projectId }: { projectId: string }) {
                 animate={{ x: 0, opacity: 1 }}
                 exit={{ x: 440, opacity: 0 }}
                 transition={{ type: "spring", stiffness: 320, damping: 32 }}
-                className="absolute top-3 right-6 bottom-3 z-10 w-[400px]"
+                className="absolute top-3 right-6 bottom-3 z-10 w-[min(400px,85%)]"
               >
                 <ChatRoom projectId={projectId} />
               </motion.div>
