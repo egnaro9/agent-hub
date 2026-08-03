@@ -922,6 +922,7 @@ export const useHub = create<HubState>()(
           ])
         ),
         assignments: s.assignments,
+        mapLocked: s.mapLocked,
         extraProjects: s.projects.filter((p) => !SEED_PROJECT_IDS.has(p.id)).map((p) => ({ ...p, liveActivity: undefined })),
         positions: Object.fromEntries([...s.projects, ...s.agents].map((x) => [x.id, x.pos])),
       }),
@@ -931,6 +932,7 @@ export const useHub = create<HubState>()(
         const p = (persistedRaw ?? {}) as {
           channels?: Record<string, Channel>;
           assignments?: Record<string, string>;
+          mapLocked?: boolean;
           extraProjects?: Project[];
           positions?: Record<string, Vec>;
         };
@@ -940,6 +942,7 @@ export const useHub = create<HubState>()(
           ...current,
           channels: p.channels ?? current.channels,
           assignments,
+          mapLocked: p.mapLocked ?? current.mapLocked,
           projects: [
             ...current.projects.map((pr) => (pos[pr.id] ? { ...pr, pos: pos[pr.id] } : pr)),
             ...(p.extraProjects ?? []),

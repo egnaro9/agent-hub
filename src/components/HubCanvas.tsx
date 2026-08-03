@@ -111,11 +111,18 @@ export default function HubCanvas() {
       edgeTypes={edgeTypes}
       onNodesChange={onNodesChange}
       onNodeDragStop={(_, node) => moveNode(node.id, node.position)}
-      // Locked: keep the camera exactly where the operator put it (fitView
-      // re-fires on resize) and stop nodes from being dragged while exploring.
-      fitView={!mapLocked}
+      fitView
       fitViewOptions={{ padding: 0.12 }}
+      // LOCKED means: the layout and the zoom level stop moving on you.
+      // Trackpad scroll-zoom and double-click-zoom are the things that were
+      // resizing the map unbidden, so those go off; drag-to-pan stays on so you
+      // can still walk around, and the +/−/fit buttons still work deliberately.
+      // Nodes stop being draggable so a pan can't nudge a card by accident.
       nodesDraggable={!mapLocked}
+      zoomOnScroll={!mapLocked}
+      zoomOnPinch={!mapLocked}
+      zoomOnDoubleClick={!mapLocked}
+      panOnScroll={false}
       minZoom={0.25}
       maxZoom={1.8}
       proOptions={{ hideAttribution: true }}

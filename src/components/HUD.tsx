@@ -48,8 +48,8 @@ export default function HUD() {
             aria-label={mapLocked ? "Unlock the view" : "Lock the view"}
             title={
               mapLocked
-                ? "View locked — resizing won't refit the map, nodes can't be dragged. Click to unlock."
-                : "Lock the view so resizing won't refit the map"
+                ? "Locked: scroll and pinch won't zoom, cards can't be dragged. Drag to pan and the +/−/fit buttons still work. Click to unlock."
+                : "Lock the map: stops trackpad scroll from zooming and cards from being dragged. Panning stays on."
             }
             className={`mono flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-[10px] tracking-wider transition ${
               mapLocked ? "bg-amber-400/20 text-amber-200" : "text-slate-400 hover:bg-white/10 hover:text-slate-200"
