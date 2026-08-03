@@ -638,6 +638,48 @@ describe("probeProvider — four failures reported as four different things", ()
     expect(r.httpStatus).toBe(200);
   });
 
+  it("a listing endpoint that answers does NOT make the chat endpoint green", async () => {
+    // Measured against the real api.openai.com from a page origin: GET
+    // /v1/models returns a readable 401/200, POST /v1/chat/completions throws.
+    // A listing-only probe therefore reports "key accepted" for the one vendor
+    // no browser can chat with.
+    const { f, run } = probe(
+      async (url) => {
+        if (url.endsWith("/chat/completions")) throw new TypeError("Failed to fetch");
+        return new Response('{"data":[]}', { status: 200 });
+      },
+      { provider: "openai-compatible", baseUrl: "https://api.openai.com/v1" }
+    );
+    const r = await run();
+    expect(r.status).toBe("cors-blocked");
+    expect(r.detail).toMatch(/NOT a key problem/i);
+    expect((f.mock.calls[1] as [string])[0]).toBe("https://api.openai.com/v1/chat/completions");
+  });
+
+  it("a vendor whose chat endpoint answers stays ok", async () => {
+    // Groq and the rest send CORS headers on both, and an invalid body costs
+    // nothing: a 400 still proves the browser can reach the path.
+    const { run } = probe(
+      async (url) =>
+        url.endsWith("/chat/completions")
+          ? new Response('{"error":"model required"}', { status: 400 })
+          : new Response('{"data":[]}', { status: 200 }),
+      { provider: "openai-compatible", baseUrl: "https://api.groq.com/openai/v1" }
+    );
+    expect((await run()).status).toBe("ok");
+  });
+
+  it("names the vendor, not the transport, when one is given", async () => {
+    const { run } = probe(async () => new Response("{}", { status: 401 }), {
+      provider: "openai-compatible",
+      baseUrl: "https://api.x.ai/v1",
+      label: "xAI (Grok)",
+    });
+    const r = await run();
+    expect(r.detail).toContain("xAI (Grok)");
+    expect(r.detail).not.toMatch(/openai-compatible/i);
+  });
+
   it("reachable + rejected key → bad-key, not a network story", async () => {
     const { run } = probe(async () => new Response("{}", { status: 401 }));
     const r = await run();

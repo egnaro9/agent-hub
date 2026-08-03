@@ -768,6 +768,12 @@ export interface ProbeOptions {
   baseUrl?: string;
   fetchImpl?: typeof fetch;
   signal?: AbortSignal;
+  /**
+   * What to call the far end in the result. Without it a Groq failure reads
+   * "OpenAI-compatible rejected the key" — the transport's name, not the
+   * company's, which is the vendor the operator is actually looking at.
+   */
+  label?: string;
 }
 
 /** The cheapest authenticated GET each provider offers: list models. */
@@ -833,7 +839,7 @@ const isTypeError = (e: unknown): boolean =>
  */
 export async function probeProvider(opts: ProbeOptions): Promise<ProbeResult> {
   const { provider } = opts;
-  const label = PROVIDERS[provider].label;
+  const label = opts.label ?? PROVIDERS[provider].label;
   if (!opts.apiKey) return { status: "bad-key", detail: "no API key entered" };
   if (PROVIDERS[provider].needsBaseUrl && !normalizeBaseUrl(opts.baseUrl ?? "")) {
     return { status: "network-error", detail: "no base URL set" };
@@ -877,7 +883,35 @@ export async function probeProvider(opts: ProbeOptions): Promise<ProbeResult> {
     }
   }
 
-  if (res.ok) return { status: "ok", detail: `${label} reachable and the key was accepted.`, httpStatus: res.status };
+  if (res.ok) {
+    // Listing models is not proof that chatting works. api.openai.com sends
+    // CORS headers on GET /v1/models and none on POST /v1/chat/completions, so
+    // a listing-only probe goes green on the one vendor a browser cannot use —
+    // a false green on the exact case this probe exists to catch. Verify the
+    // endpoint the app actually calls. The body is deliberately invalid, so a
+    // reachable server answers 400 and no tokens are spent; only a TypeError
+    // (the browser refusing to hand us the response) changes the verdict.
+    if (provider === "openai-compatible") {
+      const chatUrl = `${normalizeBaseUrl(opts.baseUrl ?? "")}/chat/completions`;
+      try {
+        await f(chatUrl, {
+          method: "POST",
+          headers: { ...probeHeaders(provider, opts.apiKey), "content-type": "application/json" },
+          body: JSON.stringify({ model: "", messages: [] }),
+          ...(opts.signal ? { signal: opts.signal } : {}),
+        });
+      } catch (err) {
+        if (opts.signal?.aborted) return { status: "network-error", detail: "probe cancelled" };
+        if (isTypeError(err)) {
+          return {
+            status: "cors-blocked",
+            detail: `${label} accepted the key on its model list, but the browser is blocked from the chat endpoint it would actually use (no CORS headers there) — this is NOT a key problem, and no key will fix it.`,
+          };
+        }
+      }
+    }
+    return { status: "ok", detail: `${label} reachable and the key was accepted.`, httpStatus: res.status };
+  }
   if (res.status === 401 || res.status === 403) {
     return { status: "bad-key", detail: `${label} rejected the key (HTTP ${res.status}).`, httpStatus: res.status };
   }

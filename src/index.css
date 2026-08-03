@@ -29,6 +29,15 @@ body {
   border: 1px solid rgba(148, 183, 255, 0.14);
 }
 
+/* Settings popovers sit over the constellation, and backdrop-filter does not
+   reliably sample a backdrop across the transformed stacking contexts React
+   Flow and framer create — so the graph showed through unblurred, behind key
+   fields. These panels are opaque on purpose: reading a model id beats glass. */
+.panel-solid {
+  background: rgba(8, 12, 24, 0.985);
+  box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.85);
+}
+
 /* ambient radial wash behind everything */
 .vignette {
   background:

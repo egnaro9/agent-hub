@@ -1,7 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { Message, Project, ProjectDetail } from "../types";
 import { getOverride } from "./roster";
-import { streamChat, getProviderKey, getBaseUrl } from "./providers";
+import { streamChat } from "./providers";
+import { resolveVendor } from "./vendors";
 
 // The live brain — BYOK, browser-direct. The key lives ONLY in this browser's
 // localStorage and travels ONLY to api.anthropic.com (the SDK's browser mode);
@@ -165,15 +166,15 @@ export async function* streamReply(
   // Same per-agent transport choice as the tool loop, without tools.
   const brain = agentId ? getOverride(agentId) : null;
   if (brain) {
-    const key = getProviderKey(brain.provider);
-    if (!key) throw new Error(`no key for ${brain.provider}`);
+    const r = resolveVendor(brain.vendor ?? "anthropic");
+    if (!r?.apiKey) throw new Error(`no key for ${r?.vendor.label ?? brain.vendor}`);
     const queue: string[] = [];
     let done = false;
     const run = streamChat({
-      provider: brain.provider,
+      provider: r.provider,
       model: brain.model,
-      apiKey: key,
-      baseUrl: getBaseUrl(brain.provider) ?? undefined,
+      apiKey: r.apiKey,
+      baseUrl: r.baseUrl,
       system,
       messages: turns as never,
       tools: [],
@@ -444,13 +445,13 @@ export async function runToolLoop(opts: {
     let toolCalls: ToolCall[];
     let assistantContent: Anthropic.ContentBlock[];
     if (brain) {
-      const key = getProviderKey(brain.provider);
-      if (!key) throw new Error(`no key for ${brain.provider}`);
+      const r = resolveVendor(brain.vendor ?? "anthropic");
+      if (!r?.apiKey) throw new Error(`no key for ${r?.vendor.label ?? brain.vendor}`);
       const res = await streamChat({
-        provider: brain.provider,
+        provider: r.provider,
         model: brain.model,
-        apiKey: key,
-        baseUrl: getBaseUrl(brain.provider) ?? undefined,
+        apiKey: r.apiKey,
+        baseUrl: r.baseUrl,
         system: opts.system,
         messages: messages as never,
         tools: (opts.tools ?? AGENT_TOOLS) as never,

@@ -1,37 +1,32 @@
 import { useState } from "react";
 import { useHub } from "../state/hub";
-import { modelForAgent, BRAIN_MODELS } from "../agents/brain";
-import { brainFor, clearAllOverrides, clearOverride, getOverride, setOverride, type ProviderId } from "../agents/roster";
+import { modelForAgent } from "../agents/brain";
+import { brainFor, clearAllOverrides, clearOverride, getOverride, setOverride } from "../agents/roster";
+import { VENDORS, getVendorKey, vendorById } from "../agents/vendors";
 
-// Who thinks with what, one row per agent. The preset (role-tier routing on the
-// chosen model) shows as dim placeholder text; an explicit override replaces it
-// and can be cleared back with the ↺. Nothing here dispatches a request — it
-// only records intent, which the stream paths read at call time.
+// Who thinks with what, one row per agent.
+//
+// The choice here is a VENDOR (a company), not a transport — "OpenAI-compatible"
+// is a wire format and told the operator nothing. Models are a real dropdown of
+// that vendor's known ids plus a custom… escape hatch, because a combobox that
+// only suggested the current vendor's models read as "the field is stuck".
 
-const PROVIDER_LABEL: Record<ProviderId, string> = {
-  anthropic: "Anthropic",
-  google: "Google",
-  "openai-compatible": "OpenAI-compatible",
-};
-
-const MODELS_BY_PROVIDER: Record<ProviderId, string[]> = {
-  anthropic: [...BRAIN_MODELS],
-  google: ["gemini-2.5-pro", "gemini-2.5-flash"],
-  "openai-compatible": ["grok-4", "llama-3.3-70b-versatile", "openai/gpt-5"],
-};
+const CUSTOM = "__custom__";
 
 export default function RosterPanel({ onClose }: { onClose: () => void }) {
   const agents = useHub((s) => s.agents);
   const [, force] = useState(0);
   const redraw = () => force((n) => n + 1);
+  const [customFor, setCustomFor] = useState<string | null>(null);
 
   return (
-    <div className="glass absolute top-9 right-0 z-40 w-[22rem] rounded-xl p-3">
+    <div className="glass panel-solid absolute top-9 right-0 z-40 w-[25rem] rounded-xl p-3">
       <div className="flex items-center justify-between">
         <div className="mono text-[9px] tracking-[0.2em] text-slate-400 uppercase">who thinks with what</div>
         <button
           onClick={() => {
             clearAllOverrides();
+            setCustomFor(null);
             redraw();
           }}
           className="mono cursor-pointer text-[9px] text-slate-500 hover:text-slate-300"
@@ -41,15 +36,21 @@ export default function RosterPanel({ onClose }: { onClose: () => void }) {
         </button>
       </div>
       <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500">
-        Blank means the preset: judgment roles on your chosen model, chatty ones cheaper. Set one explicitly and it
-        wins — including a deliberate upgrade.
+        Blank means the preset: judgment roles on your chosen model, chatty ones cheaper. Each vendor keeps its own key
+        — set them in <span className="text-slate-300">◇ keys</span>.
       </p>
 
-      <div className="mt-2.5 max-h-72 space-y-1.5 overflow-y-auto pr-1">
+      <div className="mt-2.5 max-h-80 space-y-1.5 overflow-y-auto pr-1">
         {agents.map((a) => {
           const override = getOverride(a.id);
-          const preset = { provider: "anthropic" as ProviderId, model: modelForAgent(a.id) };
+          const preset = { vendor: "anthropic", model: modelForAgent(a.id) };
           const effective = brainFor(a.id, preset);
+          const vendorId = effective.vendor ?? "anthropic";
+          const vendor = vendorById(vendorId);
+          const known = vendor?.models ?? [];
+          const isCustom = customFor === a.id || (effective.model !== "" && !known.includes(effective.model));
+          const hasKey = getVendorKey(vendorId) !== null;
+
           return (
             <div key={a.id} className="flex items-center gap-1.5">
               <span
@@ -59,45 +60,77 @@ export default function RosterPanel({ onClose }: { onClose: () => void }) {
               >
                 {a.glyph}
               </span>
-              <span className="mono w-12 flex-none truncate text-[10px] text-slate-300">{a.name}</span>
+              <span className="mono w-11 flex-none truncate text-[10px] text-slate-300">{a.name}</span>
 
+              {/* vendor */}
               <select
-                value={effective.provider}
+                value={vendorId}
                 onChange={(e) => {
-                  const provider = e.target.value as ProviderId;
-                  setOverride(a.id, { provider, model: MODELS_BY_PROVIDER[provider][0] });
+                  const v = vendorById(e.target.value);
+                  setOverride(a.id, { vendor: e.target.value, model: v?.models[0] ?? "" });
+                  setCustomFor(null);
                   redraw();
                 }}
-                className="mono min-w-0 flex-1 cursor-pointer rounded border border-white/10 bg-[#0b1120] px-1 py-0.5 text-[9.5px] text-slate-300 outline-none"
+                title={vendor?.note ?? vendor?.label}
+                className={`mono min-w-0 flex-[1.1] cursor-pointer rounded border bg-[#0b1120] px-1 py-0.5 text-[9.5px] outline-none ${
+                  vendor?.browserBlocked
+                    ? "border-amber-300/40 text-amber-200"
+                    : hasKey
+                      ? "border-white/10 text-slate-300"
+                      : "border-white/10 text-slate-500"
+                }`}
               >
-                {(Object.keys(PROVIDER_LABEL) as ProviderId[]).map((p) => (
-                  <option key={p} value={p}>
-                    {PROVIDER_LABEL[p]}
+                {VENDORS.map((v) => (
+                  <option key={v.id} value={v.id} title={v.label}>
+                    {/* the parenthetical belongs in ◇ keys; this control is too narrow for it */}
+                    {v.short ?? v.label}
+                    {getVendorKey(v.id) ? " ✓" : ""}
                   </option>
                 ))}
               </select>
 
-              <input
-                list={`models-${a.id}`}
-                value={effective.model}
-                onChange={(e) => {
-                  setOverride(a.id, { provider: effective.provider, model: e.target.value });
-                  redraw();
-                }}
-                placeholder={preset.model}
-                className={`mono min-w-0 flex-[1.4] rounded border bg-[#0b1120] px-1 py-0.5 text-[9.5px] outline-none ${
-                  override ? "border-teal-300/40 text-teal-200" : "border-white/10 text-slate-400"
-                }`}
-              />
-              <datalist id={`models-${a.id}`}>
-                {MODELS_BY_PROVIDER[effective.provider].map((m) => (
-                  <option key={m} value={m} />
-                ))}
-              </datalist>
+              {/* model: a real dropdown, with an escape hatch for drift */}
+              {isCustom ? (
+                <input
+                  autoFocus
+                  value={effective.model}
+                  onChange={(e) => {
+                    setOverride(a.id, { vendor: vendorId, model: e.target.value });
+                    redraw();
+                  }}
+                  onBlur={() => setCustomFor(null)}
+                  placeholder="model id"
+                  className="mono min-w-0 flex-[1.3] rounded border border-teal-300/40 bg-[#0b1120] px-1 py-0.5 text-[9.5px] text-teal-200 outline-none"
+                />
+              ) : (
+                <select
+                  value={effective.model}
+                  onChange={(e) => {
+                    if (e.target.value === CUSTOM) {
+                      setCustomFor(a.id);
+                      return;
+                    }
+                    setOverride(a.id, { vendor: vendorId, model: e.target.value });
+                    redraw();
+                  }}
+                  className={`mono min-w-0 flex-[1.3] cursor-pointer rounded border bg-[#0b1120] px-1 py-0.5 text-[9.5px] outline-none ${
+                    override ? "border-teal-300/40 text-teal-200" : "border-white/10 text-slate-400"
+                  }`}
+                >
+                  {!known.includes(effective.model) && <option value={effective.model}>{effective.model}</option>}
+                  {known.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                  <option value={CUSTOM}>custom…</option>
+                </select>
+              )}
 
               <button
                 onClick={() => {
                   clearOverride(a.id);
+                  setCustomFor(null);
                   redraw();
                 }}
                 disabled={!override}
@@ -111,9 +144,13 @@ export default function RosterPanel({ onClose }: { onClose: () => void }) {
         })}
       </div>
 
+      <p className="mono mt-2 text-[9px] leading-relaxed text-slate-600">
+        ✓ marks a vendor you already have a key for. Model ids drift — custom… takes any string.
+      </p>
+
       <button
         onClick={onClose}
-        className="mono mt-2.5 w-full cursor-pointer rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-[10.5px] text-slate-300 transition hover:bg-white/10"
+        className="mono mt-2 w-full cursor-pointer rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-[10.5px] text-slate-300 transition hover:bg-white/10"
       >
         done
       </button>

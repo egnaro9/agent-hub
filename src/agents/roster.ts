@@ -12,7 +12,10 @@
 export type ProviderId = "anthropic" | "google" | "openai-compatible";
 
 export interface AgentBrain {
-  provider: ProviderId;
+  /** Vendor id from vendors.ts — the human-facing choice. */
+  vendor?: string;
+  /** Kept for entries written before vendors existed; treated as anthropic. */
+  provider?: ProviderId;
   model: string;
 }
 
@@ -28,8 +31,18 @@ const read = (): Record<string, AgentBrain> => {
     const out: Record<string, AgentBrain> = {};
     for (const [id, v] of Object.entries(parsed as Record<string, unknown>)) {
       const b = v as Partial<AgentBrain>;
-      if (b && typeof b.provider === "string" && typeof b.model === "string" && b.model) {
-        out[id] = { provider: b.provider as ProviderId, model: b.model };
+      if (b && typeof b.model === "string" && b.model) {
+        // Migrate pre-vendor entries: the only transport then was Anthropic
+        // unless a provider was set, and those map 1:1 onto vendor ids.
+        const vendor =
+          typeof b.vendor === "string"
+            ? b.vendor
+            : b.provider === "google"
+              ? "google"
+              : b.provider === "openai-compatible"
+                ? "openrouter"
+                : "anthropic";
+        out[id] = { vendor, model: b.model };
       }
     }
     return out;
