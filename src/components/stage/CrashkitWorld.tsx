@@ -216,6 +216,7 @@ export default function CrashkitWorld() {
             >
               ▶ crash-test a model
             </a>
+            <span className="mono self-center text-[9px] text-slate-600">free tier — first click takes ~30s to wake it</span>
           </div>
           <p className="mono mt-4 text-[10px] text-slate-600">BYOK — deterministic graders — worst-case-over-N scoring</p>
         </div>

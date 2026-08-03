@@ -222,12 +222,13 @@ export const useHub = create<HubState>()((set, get) => ({
     if (!channel) return;
 
     // Agents acting on the project — mock command handlers, LLM-tool-shaped.
-    // "run the sweep" in the harness-builder room replays the real result.
-    if (projectId === "harness-builder" && /run .*sweep/i.test(text)) {
+    // "run the sweep" REPLAYS the recorded result (the real sweep runs in the
+    // repo). Anchored so questions and negations don't trigger it.
+    if (projectId === "harness-builder" && /^\/?(re)?run the sweep\b/i.test(text.trim())) {
       const sweep: QueuedLine[] = [
-        { from: "oracle", text: "Sweep armed: 3 harness shapes × 20 tasks, deterministic graders, mock provider. Running…" },
+        { from: "oracle", text: "Replaying the recorded sweep — the real one runs in the repo: 3 harness shapes × 20 tasks, deterministic graders, mock provider." },
         { from: "oracle", text: "one drafter — 95% · $0.031 · 2.2s/task. planner→drafter — 90% · $0.264. planner→2 drafters→judge — 80% · $0.692." },
-        { from: "oracle", text: "17 of 20 tasks tied. Four discordant pairs cannot clear p<0.05 — this suite cannot decide between them. That is a limit of the suite, not a finding about the harnesses." },
+        { from: "oracle", text: "17 of 20 tasks tied. Three discordant pairs cannot clear p<0.05 — this suite cannot decide between them. That is a limit of the suite, not a finding about the harnesses." },
         { from: "critic", text: "Confirming the refusal is correct: a leaderboard would have printed 95 vs 80 and let you conclude. The honest output is the instrument statement." },
       ];
       set((s) => ({
@@ -248,7 +249,13 @@ export const useHub = create<HubState>()((set, get) => ({
     // "new project: <name>" mints a node in the constellation, live.
     const create = text.match(/^\/?new project:?\s+(.{2,40})$/i);
     if (create) {
-      const id = get().createProject(create[1]);
+      const slug = create[1].toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "untitled";
+      const taken =
+        get().projects.some((p) => p.id === slug) || get().agents.some((a) => a.id === slug);
+      const reply = taken
+        ? `"${slug}" is already on the board — pick another name.`
+        : `Done — ${slug} is on the board. It has no CI, no claims, and no crew yet: exactly how every honest project starts.`;
+      if (!taken) get().createProject(create[1]);
       set((s) => {
         const ch = s.channels[projectId]!;
         return {
@@ -257,10 +264,7 @@ export const useHub = create<HubState>()((set, get) => ({
             [projectId]: {
               ...ch,
               messages: [...ch.messages, { id: nextId(), from: "user", text }],
-              queue: [
-                { from: ch.participants[0] ?? "strat", text: `Done — ${id} is on the board. It has no CI, no claims, and no crew yet: exactly how every honest project starts.` },
-                ...ch.queue,
-              ],
+              queue: [{ from: ch.participants[0] ?? "strat", text: reply }, ...ch.queue],
             },
           },
         };
@@ -280,8 +284,14 @@ export const useHub = create<HubState>()((set, get) => ({
     } else if (mentioned.length > 0) {
       participants = Array.from(new Set([...participants, ...mentioned.map((a) => a.id)]));
       responders = mentioned.map((a) => a.id);
-    } else {
+    } else if (participants.length > 0) {
       responders = participants.slice(0, 3);
+    } else {
+      // an empty room must not be a silent dead end: the first in-scope global
+      // agent joins and answers
+      const joiner = agents.find((a) => a.scope === "global");
+      participants = joiner ? [joiner.id] : [];
+      responders = participants;
     }
 
     const replies: QueuedLine[] =
@@ -384,7 +394,12 @@ export const useHub = create<HubState>()((set, get) => ({
       tray.map((t) => assignments[t]).find(Boolean) ?? projects[Math.floor(Math.random() * projects.length)].id;
     const topic = projects.find((p) => p.id === topicId)!;
     const existing = channels[topicId] ?? { participants: [], messages: [], queue: [] };
-    const participants = Array.from(new Set([...existing.participants, ...tray]));
+    // union with the project's assigned crew and scoped residents — convening
+    // must never lock them out of their own room (critic finding)
+    const resident = get()
+      .agents.filter((a) => assignments[a.id] === topicId || (a.scope !== "global" && a.scope.projectId === topicId))
+      .map((a) => a.id);
+    const participants = Array.from(new Set([...existing.participants, ...resident, ...tray]));
     set({
       tray: [],
       conversation: null,
@@ -458,8 +473,19 @@ export const useHub = create<HubState>()((set, get) => ({
   unassign: (agentId) =>
     set((s) => {
       const { [agentId]: _, ...rest } = s.assignments;
+      // a released agent leaves the room too — otherwise it haunts the
+      // participant list forever and keeps answering (critic finding)
+      const channels = Object.fromEntries(
+        Object.entries(s.channels).map(([pid, ch]) => [
+          pid,
+          ch.participants.includes(agentId)
+            ? { ...ch, participants: ch.participants.filter((p) => p !== agentId) }
+            : ch,
+        ])
+      );
       return {
         assignments: rest,
+        channels,
         agents: s.agents.map((a) => (a.id === agentId ? { ...a, status: { kind: "idle" } } : a)),
       };
     }),

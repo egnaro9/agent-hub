@@ -145,7 +145,7 @@ export default function HarnessWorld() {
             </a>
           </div>
           <p className="mono mt-4 text-[10px] text-slate-600">
-            {sweepDone ? "◆ sweep re-run in the workroom — same verdict, honestly" : 'tip: tell the room to "run the sweep"'}
+            {sweepDone ? "◆ the workroom replayed the recorded sweep — the real one runs in the repo" : 'tip: tell the room to "run the sweep"'}
           </p>
         </div>
       </motion.div>

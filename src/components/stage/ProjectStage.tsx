@@ -73,7 +73,7 @@ export default function ProjectStage({ projectId }: { projectId: string }) {
 
   return (
     <motion.div
-      key={`${projectId}-${mode}`}
+      key={projectId}
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
@@ -186,7 +186,7 @@ export default function ProjectStage({ projectId }: { projectId: string }) {
         <div className="flex h-full min-h-0 gap-4 p-4">
           <div className="flex min-h-0 w-[300px] flex-none flex-col gap-4">
             <div className="glass min-h-0 flex-1 overflow-y-auto rounded-xl p-4">
-              <div className="mono text-[9.5px] tracking-[0.25em] text-slate-500 uppercase">tasks</div>
+              <div className="mono text-[9.5px] tracking-[0.25em] text-slate-500 uppercase">tasks · mock</div>
               <ul className="mt-2.5 space-y-2">
                 {detail.tasks.map((t) => (
                   <li key={t.id} className="flex items-start gap-2.5 text-[12px] leading-snug text-slate-300">
@@ -197,7 +197,7 @@ export default function ProjectStage({ projectId }: { projectId: string }) {
               </ul>
             </div>
             <div className="glass min-h-0 flex-1 overflow-y-auto rounded-xl p-4">
-              <div className="mono text-[9.5px] tracking-[0.25em] text-slate-500 uppercase">files & prs</div>
+              <div className="mono text-[9.5px] tracking-[0.25em] text-slate-500 uppercase">files · mock</div>
               <ul className="mt-2.5 space-y-2">
                 {detail.files.map((f, i) => (
                   <li key={i} className="flex items-center gap-2.5 text-[11.5px] text-slate-300">

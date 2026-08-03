@@ -39,7 +39,21 @@ export default function HubCanvas() {
   const moveNode = useHub((s) => s.moveNode);
   const rf = useReactFlow();
 
-  const [nodes, , onNodesChange] = useNodesState(initialNodes);
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+
+  // Projects created at runtime (chat's "new project:") must reach the canvas —
+  // the node list is otherwise a one-time snapshot (critic BLOCKER). Existing
+  // node positions are preserved; only genuinely new ids are appended.
+  const projects = useHub((s) => s.projects);
+  useEffect(() => {
+    setNodes((prev) => {
+      const have = new Set(prev.map((n) => n.id));
+      const added = projects
+        .filter((p) => !have.has(p.id))
+        .map((p) => ({ id: p.id, type: "project", position: p.pos, data: {} }));
+      return added.length > 0 ? [...prev, ...added] : prev;
+    });
+  }, [projects, setNodes]);
 
   const edges: Edge[] = useMemo(() => {
     const base: Edge[] = structural.map((e) => ({
