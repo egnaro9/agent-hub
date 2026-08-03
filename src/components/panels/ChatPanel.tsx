@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useHub } from "../../state/hub";
+import MicButton from "../MicButton";
 
 export default function ChatPanel() {
   const live = useHub((s) => s.conversation);
@@ -15,6 +16,8 @@ export default function ChatPanel() {
   const sendUser = useHub((s) => s.sendUser);
   const closePanels = useHub((s) => s.closePanels);
   const [draft, setDraft] = useState("");
+  // Dictation replaces only what it added, so anything typed first survives.
+  const dictationBase = useRef("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -47,6 +50,7 @@ export default function ChatPanel() {
     if (!draft.trim()) return;
     sendUser(draft.trim());
     setDraft("");
+    dictationBase.current = "";
   };
 
   return (
@@ -138,6 +142,14 @@ export default function ChatPanel() {
             onKeyDown={(e) => e.key === "Enter" && !e.nativeEvent.isComposing && submit()}
             placeholder={conversation.kind === "solo" ? `Message ${participants[0].name}…` : "Interject…"}
             className="flex-1 bg-transparent text-[13px] text-slate-100 placeholder-slate-500 outline-none"
+          />
+          <MicButton
+            onStart={() => (dictationBase.current = draft)}
+            onTranscript={(text, final) => {
+              const base = dictationBase.current;
+              setDraft((base && text ? `${base} ${text}` : base + text).trimStart());
+              if (final) dictationBase.current = "";
+            }}
           />
           {/* Stays enabled while an agent writes — interjecting is intentional;
               the button only labels the state. */}

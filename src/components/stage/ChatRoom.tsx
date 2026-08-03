@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useHub, agentInScope } from "../../state/hub";
+import MicButton from "../MicButton";
 
 // Minimal line diff for the commit card: enough to see what changes, with
 // unchanged runs collapsed. The operator approves what this shows.
@@ -56,6 +57,8 @@ export default function ChatRoom({ projectId }: { projectId: string }) {
   const sendToChannel = useHub((s) => s.sendToChannel);
   const assign = useHub((s) => s.assign);
   const [draft, setDraft] = useState("");
+  // Dictation replaces only what it added, so anything typed first survives.
+  const dictationBase = useRef("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -88,6 +91,7 @@ export default function ChatRoom({ projectId }: { projectId: string }) {
     if (!draft.trim()) return;
     sendToChannel(projectId, draft.trim());
     setDraft("");
+    dictationBase.current = "";
   };
 
   // Approving or dismissing removes the buttons from the DOM, which drops focus
@@ -295,6 +299,14 @@ export default function ChatRoom({ projectId }: { projectId: string }) {
           />
           {/* Stays enabled while an agent writes — interjecting mid-reply is the
               point of the room; the button just says what's happening. */}
+          <MicButton
+            onStart={() => (dictationBase.current = draft)}
+            onTranscript={(text, final) => {
+              const base = dictationBase.current;
+              setDraft((base && text ? `${base} ${text}` : base + text).trimStart());
+              if (final) dictationBase.current = "";
+            }}
+          />
           <button
             onClick={submit}
             aria-label={writing ? "Send — an agent is writing" : "Send"}
