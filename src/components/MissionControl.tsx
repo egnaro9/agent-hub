@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useHub, agentInScope } from "../state/hub";
-import { getKey, setKey, clearKey, getModel, setModel, BRAIN_MODELS } from "../agents/brain";
+import { getKey, setKey, clearKey, getModel, setModel, BRAIN_MODELS, getGhToken, setGhToken, clearGhToken } from "../agents/brain";
 
 // The thin command strip over the stage: where you are, who's active, summon.
 export default function MissionControl() {
@@ -19,6 +19,10 @@ export default function MissionControl() {
   const [brainOpen, setBrainOpen] = useState(false);
   const [keyDraft, setKeyDraft] = useState("");
   const [modelDraft, setModelDraft] = useState(getModel());
+  const [ghDraft, setGhDraft] = useState("");
+  const [dangerOpen, setDangerOpen] = useState(false);
+  const commitsArmed = useHub((s) => s.commitsArmed);
+  const setCommitsArmed = useHub((s) => s.setCommitsArmed);
 
   const project = stage.kind === "project" ? projects.find((p) => p.id === stage.id) : undefined;
   const active = agents.filter((a) => a.status.kind === "working" || a.status.kind === "talking").length;
@@ -185,6 +189,59 @@ export default function MissionControl() {
                 >
                   disconnect
                 </button>
+              </div>
+
+              {/* danger zone: write access, off unless deliberately armed */}
+              <div className="mt-3 border-t border-white/10 pt-2.5">
+                <button
+                  onClick={() => setDangerOpen((v) => !v)}
+                  className="mono flex w-full cursor-pointer items-center justify-between text-[9px] tracking-[0.2em] text-rose-300/80 uppercase"
+                >
+                  <span>danger zone · commits {commitsArmed ? "· ARMED" : "· off"}</span>
+                  <span className="text-slate-600">{dangerOpen ? "▾" : "▸"}</span>
+                </button>
+                {dangerOpen && (
+                  <div className="mt-2">
+                    <p className="text-[10.5px] leading-relaxed text-slate-400">
+                      Arming lets agents <span className="text-slate-200">propose commits</span>. Every one is gated: you
+                      see a diff and approve, and writes go to a{" "}
+                      <span className="text-slate-200">new branch, never main</span>. Merging stays in GitHub.
+                    </p>
+                    <p className="mt-1.5 text-[10px] leading-relaxed text-rose-300/80">
+                      This stores a GitHub token with write scope in this browser. Use a fine-grained PAT limited to one
+                      repo, contents-write only, short expiry — never a classic <code className="mono">repo</code> token.
+                    </p>
+                    <input
+                      type="password"
+                      value={ghDraft}
+                      onChange={(e) => setGhDraft(e.target.value)}
+                      placeholder={getGhToken() ? "token saved — paste to replace" : "github_pat_…"}
+                      className="mono mt-2 w-full rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-[11px] text-slate-200 placeholder-slate-600 outline-none focus:border-rose-300/50"
+                    />
+                    <div className="mt-2 flex gap-2">
+                      <button
+                        onClick={() => {
+                          if (ghDraft.trim()) setGhToken(ghDraft);
+                          setCommitsArmed(getGhToken() !== null);
+                          setGhDraft("");
+                        }}
+                        className="mono flex-1 cursor-pointer rounded-lg border border-rose-300/40 bg-rose-400/15 px-2 py-1.5 text-[10.5px] text-rose-200 transition hover:bg-rose-400/30"
+                      >
+                        arm commit proposals
+                      </button>
+                      <button
+                        onClick={() => {
+                          clearGhToken();
+                          setCommitsArmed(false);
+                          setGhDraft("");
+                        }}
+                        className="mono cursor-pointer rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-[10.5px] text-slate-400 transition hover:text-slate-200"
+                      >
+                        disarm
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </motion.div>
           )}

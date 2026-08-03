@@ -4,7 +4,7 @@ import type { Agent, Conversation, Message, Project, QueuedLine, StructuralEdge,
 import { AGENTS, PROJECTS, STRUCTURAL, SEED_ASSIGNMENTS } from "../data/mock";
 import { personaFor, ERRORS, buildRoundtable, nextId } from "../sim/lines";
 import { fetchRecentCommits } from "../data/github";
-import { getKey, buildAgentSystem, toTurns, streamReply, runToolLoop, readRepoFile, GATED_TOOLS } from "../agents/brain";
+import { getKey, buildAgentSystem, toTurns, streamReply, runToolLoop, readRepoFile, GATED_TOOLS, toolsFor, currentFile, commitToBranch, getGhToken } from "../agents/brain";
 import { detailFor } from "../data/detail";
 
 export type Stage = { kind: "graph" } | { kind: "project"; id: string };
@@ -43,6 +43,10 @@ interface HubState {
   starred: string[];
   search: string;
   harnessSweepDone: boolean;
+  mapLocked: boolean;
+  toggleMapLock: () => void;
+  commitsArmed: boolean;
+  setCommitsArmed: (v: boolean) => void;
   brainConnected: boolean; // a BYOK Anthropic key is present in this browser
   setBrainConnected: (v: boolean) => void;
   focusRequest: { pos: Vec; seq: number } | null;
@@ -132,6 +136,11 @@ export const useHub = create<HubState>()(
   starred: loadStars(),
   search: "",
   harnessSweepDone: false,
+  mapLocked: false,
+  toggleMapLock: () => set((s) => ({ mapLocked: !s.mapLocked })),
+  // DANGER ZONE: off unless the operator armed it AND a token exists.
+  commitsArmed: getGhToken() !== null,
+  setCommitsArmed: (v) => set({ commitsArmed: v }),
   brainConnected: getKey() !== null,
   setBrainConnected: (v) => set({ brainConnected: v }),
   focusRequest: null,
@@ -418,6 +427,7 @@ export const useHub = create<HubState>()(
       await runToolLoop({
         system,
         turns,
+        tools: toolsFor(get().commitsArmed && getGhToken() !== null),
         onDelta: (delta) => {
           if (needBreak) {
             acc += "\n\n";
@@ -430,6 +440,10 @@ export const useHub = create<HubState>()(
           needBreak = acc.length > 0;
           if (GATED_TOOLS.has(name)) {
             proposed = true;
+            let before: string | undefined;
+            if (name === "propose_commit") {
+              before = (await currentFile(projectId, String((input as { path?: string }).path ?? ""))).text;
+            }
             set((s) => {
               const ch = s.channels[projectId];
               if (!ch) return {};
@@ -440,7 +454,12 @@ export const useHub = create<HubState>()(
                     ...ch,
                     messages: [
                       ...ch.messages,
-                      { id: nextId(), from: agentId, text: "", action: { tool: name, input, status: "pending" as const } },
+                      {
+                        id: nextId(),
+                        from: agentId,
+                        text: "",
+                        action: { tool: name, input, status: "pending" as const, ...(before !== undefined ? { before } : {}) },
+                      },
                     ],
                   },
                 },
@@ -597,6 +616,65 @@ export const useHub = create<HubState>()(
     const msg = ch?.messages.find((m) => m.id === msgId);
     if (!ch || !msg?.action || msg.action.status !== "pending") return;
     let announce = "";
+    if (msg.action.tool === "propose_commit") {
+      const inp = msg.action.input as { path?: string; content?: string; message?: string };
+      // mark in-flight so a second click can't double-commit
+      set((s) => {
+        const c = s.channels[projectId];
+        if (!c) return {};
+        return {
+          channels: {
+            ...s.channels,
+            [projectId]: {
+              ...c,
+              messages: c.messages.map((m) => (m.id === msgId ? { ...m, action: { ...m.action!, status: "approved" as const } } : m)),
+            },
+          },
+        };
+      });
+      void (async () => {
+        try {
+          const out = await commitToBranch({
+            repo: projectId,
+            path: String(inp.path ?? ""),
+            content: String(inp.content ?? ""),
+            message: String(inp.message ?? "hub commit"),
+            agentId: msg.from,
+          });
+          set((s) => {
+            const c = s.channels[projectId];
+            if (!c) return {};
+            return {
+              channels: {
+                ...s.channels,
+                [projectId]: {
+                  ...c,
+                  messages: [
+                    ...c.messages,
+                    { id: nextId(), from: "ops", text: `✓ operator approved — committed to branch ${out.branch}. Merging stays in GitHub: ${out.url}` },
+                  ],
+                },
+              },
+            };
+          });
+        } catch (e) {
+          set((s) => {
+            const c = s.channels[projectId];
+            if (!c) return {};
+            return {
+              channels: {
+                ...s.channels,
+                [projectId]: {
+                  ...c,
+                  messages: [...c.messages, { id: nextId(), from: "ops", text: `⚠ commit refused: ${String(e).slice(0, 160)}` }],
+                },
+              },
+            };
+          });
+        }
+      })();
+      return;
+    }
     if (msg.action.tool === "create_project") {
       const name = String((msg.action.input as { name?: string }).name ?? "untitled");
       const id = get().createProject(name);

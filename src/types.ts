@@ -49,6 +49,7 @@ export interface Message {
     tool: string;
     input: Record<string, unknown>;
     status: "pending" | "approved" | "dismissed";
+    before?: string; // file contents as they exist today, for the diff card
   };
 }
 

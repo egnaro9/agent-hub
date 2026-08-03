@@ -1,6 +1,34 @@
 import { useEffect, useRef, useState } from "react";
 import { useHub, agentInScope } from "../../state/hub";
 
+// Minimal line diff for the commit card: enough to see what changes, with
+// unchanged runs collapsed. The operator approves what this shows.
+type DiffLine = { kind: "add" | "del" | "ctx" | "gap"; text: string };
+function lineDiff(before: string, after: string): DiffLine[] {
+  const a = before ? before.split("\n") : [];
+  const b = after.split("\n");
+  const bSet = new Set(b);
+  const aSet = new Set(a);
+  const out: DiffLine[] = [];
+  let same = 0;
+  const flushGap = () => {
+    if (same > 3) out.push({ kind: "gap", text: `  … ${same - 2} unchanged lines` });
+    same = 0;
+  };
+  for (const line of a) if (!bSet.has(line)) out.push({ kind: "del", text: `- ${line}` });
+  for (const line of b) {
+    if (aSet.has(line)) {
+      same++;
+      if (same <= 2) out.push({ kind: "ctx", text: `  ${line}` });
+    } else {
+      flushGap();
+      out.push({ kind: "add", text: `+ ${line}` });
+    }
+  }
+  flushGap();
+  return out.slice(0, 200);
+}
+
 // Render @-mentions in the speaker's accent so routing is visible.
 function MentionText({ text }: { text: string }) {
   const parts = text.split(/(@[\w-]+)/g);
@@ -119,7 +147,12 @@ export default function ChatRoom({ projectId }: { projectId: string }) {
           }
           const a = agents.find((x) => x.id === m.from)!;
           if (m.action) {
-            const label = `${m.action.tool}(${Object.values(m.action.input).map(String).join(", ")})`;
+            const isCommit = m.action.tool === "propose_commit";
+            const inp = m.action.input as { path?: string; content?: string; message?: string; why?: string };
+            const label = isCommit
+              ? `propose_commit(${inp.path ?? "?"})`
+              : `${m.action.tool}(${Object.values(m.action.input).map(String).join(", ")})`;
+            const diff = isCommit ? lineDiff(m.action.before ?? "", String(inp.content ?? "")) : null;
             return (
               <div key={m.id} className="-mx-2 my-1 rounded-xl border border-amber-300/40 bg-amber-400/8 px-3.5 py-2.5">
                 <div className="flex items-center gap-2">
@@ -128,7 +161,38 @@ export default function ChatRoom({ projectId }: { projectId: string }) {
                     <span style={{ color: a.color }}>{a.name}</span> proposes <code className="mono text-[11px] text-amber-200">{label}</code>
                   </span>
                 </div>
-                <div className="mono mt-1 text-[9px] tracking-[0.15em] text-amber-300/70 uppercase">gated · operator approval required · agents cannot self-approve</div>
+                <div className="mono mt-1 text-[9px] tracking-[0.15em] text-amber-300/70 uppercase">
+                  gated · operator approval required · agents cannot self-approve
+                  {isCommit && " · writes to a NEW BRANCH, never main"}
+                </div>
+                {isCommit && (
+                  <>
+                    <div className="mono mt-2 text-[11px] text-slate-300">
+                      <span className="text-slate-500">commit:</span> {inp.message}
+                    </div>
+                    {inp.why && <div className="mt-0.5 text-[11px] text-slate-400">{inp.why}</div>}
+                    {diff && (
+                      <pre className="mono mt-2 max-h-56 overflow-auto rounded-lg border border-white/10 bg-black/40 p-2 text-[10.5px] leading-[1.45]">
+                        {diff.map((d, i) => (
+                          <div
+                            key={i}
+                            className={
+                              d.kind === "add"
+                                ? "text-teal-300"
+                                : d.kind === "del"
+                                  ? "text-rose-300"
+                                  : d.kind === "gap"
+                                    ? "text-slate-600"
+                                    : "text-slate-500"
+                            }
+                          >
+                            {d.text}
+                          </div>
+                        ))}
+                      </pre>
+                    )}
+                  </>
+                )}
                 {m.action.status === "pending" ? (
                   <div className="mt-2 flex gap-2">
                     <button

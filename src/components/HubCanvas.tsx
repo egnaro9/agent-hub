@@ -4,7 +4,6 @@ import {
   Background,
   BackgroundVariant,
   MiniMap,
-  Controls,
   useReactFlow,
   useNodesState,
   type Node,
@@ -41,6 +40,7 @@ export default function HubCanvas() {
   const conversation = useHub((s) => s.conversation);
   const focusRequest = useHub((s) => s.focusRequest);
   const moveNode = useHub((s) => s.moveNode);
+  const mapLocked = useHub((s) => s.mapLocked);
   const rf = useReactFlow();
 
   const [nodes, setNodes, onNodesChange] = useNodesState(useMemo(makeInitialNodes, []));
@@ -111,8 +111,11 @@ export default function HubCanvas() {
       edgeTypes={edgeTypes}
       onNodesChange={onNodesChange}
       onNodeDragStop={(_, node) => moveNode(node.id, node.position)}
-      fitView
+      // Locked: keep the camera exactly where the operator put it (fitView
+      // re-fires on resize) and stop nodes from being dragged while exploring.
+      fitView={!mapLocked}
       fitViewOptions={{ padding: 0.12 }}
+      nodesDraggable={!mapLocked}
       minZoom={0.25}
       maxZoom={1.8}
       proOptions={{ hideAttribution: true }}
@@ -129,7 +132,8 @@ export default function HubCanvas() {
         nodeStrokeWidth={0}
         maskColor="rgba(5,7,15,.72)"
       />
-      <Controls position="bottom-right" showInteractive={false} />
+      {/* React Flow's own Controls are replaced by the HUD's horizontal cluster
+          (zoom / fit / lock together), so the stack no longer sits on the hint. */}
     </ReactFlow>
     </div>
   );
