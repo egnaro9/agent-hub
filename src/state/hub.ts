@@ -90,6 +90,43 @@ const hydrationAttempted = new Set<string>();
 // One live stream per room at a time.
 const liveStreams = new Set<string>();
 
+// FAILURE MODE (silently swallowed follow-up): the composer stays enabled while
+// an agent streams, so an operator message sent mid-stream used to hit an
+// early-return guard and never get answered. Requests are now SERIALIZED per
+// key instead of dropped: a second request waits for the in-flight one and then
+// runs against the updated transcript. Never two concurrent runs on one key.
+const chains = new Map<string, Promise<void>>();
+// Take a ticket for `key`: registers this caller as the new tail (so anyone
+// arriving later queues behind it), waits for the previous holder, and hands
+// back the release. Tickets never reject — release always runs in a finally.
+const takeTurn = async (key: string): Promise<() => void> => {
+  const prev = chains.get(key);
+  let release!: () => void;
+  const mine = new Promise<void>((r) => (release = r));
+  chains.set(key, mine);
+  if (prev) await prev;
+  return () => {
+    if (chains.get(key) === mine) chains.delete(key);
+    release();
+  };
+};
+
+// Leaving a room, in full. FAILURE MODE (the ghost that keeps talking): pulling
+// an agent out of `participants` left their already-queued canned lines in the
+// channel queue, so a released agent went on speaking for as long as the queue
+// took to drain. Their pending lines leave with them.
+const departure = (ch: Channel, agentId: string) => ({
+  participants: ch.participants.filter((p) => p !== agentId),
+  queue: ch.queue.filter((q) => q.from !== agentId),
+});
+
+// Is a live agent stream painting into this room right now?
+const liveInChannel = (projectId: string) => {
+  const prefix = `ch:${projectId}:`;
+  for (const key of liveStreams) if (key.startsWith(prefix)) return true;
+  return false;
+};
+
 // Critic finding: every path that drops a conversation must rest its speakers,
 // or agents stay "talking" forever and the tick loop can never rescue them.
 const restTalking = (agents: Agent[], assignments: Record<string, string>, except?: string) =>
@@ -253,6 +290,22 @@ export const useHub = create<HubState>()(
     const channel = get().channels[projectId];
     if (!channel || channel.queue.length === 0) return;
     const [next, ...rest] = channel.queue;
+    // FAILURE MODE (fiction laundered into a real transcript): the canned queue
+    // kept draining on its 1.5s timer while a live agent was streaming, so mock
+    // lines landed under a half-written real reply — and then went out as
+    // context to the next responder as if an agent had actually said them.
+    // CHOICE: DROP, not hold. A canned line is a stand-in for a reply a real
+    // agent is giving right now; replaying it later would still put words in
+    // that agent's mouth. Same cadence, so the queue empties instead of
+    // stockpiling behind the stream.
+    if (get().brainConnected && liveInChannel(projectId)) {
+      set((s) => {
+        const ch = s.channels[projectId];
+        if (!ch) return {};
+        return { channels: { ...s.channels, [projectId]: { ...ch, queue: ch.queue.slice(1) } } };
+      });
+      return;
+    }
     set((s) => ({
       channels: {
         ...s.channels,
@@ -354,8 +407,19 @@ export const useHub = create<HubState>()(
           },
         },
       }));
+      // FAILURE MODE (replies attached to the wrong question): a second @team
+      // message used to start its own fan-out immediately — the busy agent was
+      // skipped and the NEXT agent began streaming concurrently, answering
+      // message 2 while message 1's roundtable was still going, so the two
+      // conversations interleaved. One fan-out per room at a time: the second
+      // message's roundtable starts only when the first one is done.
       void (async () => {
-        for (const r of responders) await get().streamAgent(projectId, r);
+        const releaseFanout = await takeTurn(`fan:${projectId}`);
+        try {
+          for (const r of responders) await get().streamAgent(projectId, r);
+        } finally {
+          releaseFanout();
+        }
       })();
       return;
     }
@@ -383,7 +447,12 @@ export const useHub = create<HubState>()(
   // so speech is the only capability.
   streamAgent: async (projectId, agentId) => {
     const streamKey = `ch:${projectId}:${agentId}`;
-    if (liveStreams.has(streamKey)) return;
+    // FAILURE MODE (message dropped on the floor): this used to `return` when a
+    // stream for this agent was already running, so an operator line typed
+    // mid-stream got no answer at all. Queue instead — wait out the in-flight
+    // run, then answer against the transcript that now includes the new line.
+    // Still exactly one live stream per agent: the ticket is the mutex.
+    const releaseTurn = await takeTurn(streamKey);
     liveStreams.add(streamKey);
     const msgId = nextId();
     try {
@@ -531,6 +600,7 @@ export const useHub = create<HubState>()(
       });
     } finally {
       liveStreams.delete(streamKey);
+      releaseTurn();
     }
   },
 
@@ -604,7 +674,7 @@ export const useHub = create<HubState>()(
       return {
         channels: {
           ...s.channels,
-          [projectId]: { ...c, participants: c.participants.filter((p) => p !== agentId) },
+          [projectId]: { ...c, ...departure(c, agentId) },
         },
       };
     });
@@ -877,17 +947,19 @@ export const useHub = create<HubState>()(
 
   unassign: (agentId) =>
     set((s) => {
-      const { [agentId]: _, ...rest } = s.assignments;
+      const { [agentId]: room, ...rest } = s.assignments;
       // a released agent leaves the room too — otherwise it haunts the
-      // participant list forever and keeps answering (critic finding)
-      const channels = Object.fromEntries(
-        Object.entries(s.channels).map(([pid, ch]) => [
-          pid,
-          ch.participants.includes(agentId)
-            ? { ...ch, participants: ch.participants.filter((p) => p !== agentId) }
-            : ch,
-        ])
-      );
+      // participant list forever and keeps answering (critic finding).
+      // FAILURE MODE (collateral eviction): this used to sweep the agent out of
+      // EVERY channel, so releasing them from one project also silently kicked
+      // them out of every other room they had been mentioned or convened into.
+      // Only the room implied by the assignment is affected; the explicit-room
+      // case belongs to removeFromRoom.
+      const ch = room ? s.channels[room] : undefined;
+      const channels =
+        room && ch
+          ? { ...s.channels, [room]: { ...ch, ...departure(ch, agentId) } }
+          : s.channels;
       return {
         assignments: rest,
         channels,
@@ -939,15 +1011,22 @@ export const useHub = create<HubState>()(
         };
         const pos = p.positions ?? {};
         const assignments = p.assignments ?? current.assignments;
+        // FAILURE MODE (unbounded duplication): merge's 2nd arg is the LIVE
+        // state, not the initial state — on every rehydrate (and the cross-tab
+        // storage listener rehydrates on each foreign write, while each streamed
+        // token triggers a persist) current.projects ALREADY contains the
+        // extraProjects merged last time. Blind-concatenating them re-added a
+        // copy per rehydrate: 1, 2, 3, … Merge by id instead, persisted wins.
+        const byId = new Map<string, Project>();
+        for (const pr of current.projects) byId.set(pr.id, pr);
+        for (const ex of p.extraProjects ?? []) byId.set(ex.id, { ...byId.get(ex.id), ...ex });
+        const projects = Array.from(byId.values(), (pr) => (pos[pr.id] ? { ...pr, pos: pos[pr.id] } : pr));
         return {
           ...current,
           channels: p.channels ?? current.channels,
           assignments,
           mapLocked: p.mapLocked ?? current.mapLocked,
-          projects: [
-            ...current.projects.map((pr) => (pos[pr.id] ? { ...pr, pos: pos[pr.id] } : pr)),
-            ...(p.extraProjects ?? []),
-          ],
+          projects,
           agents: current.agents.map((a) => ({
             ...a,
             ...(pos[a.id] ? { pos: pos[a.id] } : {}),

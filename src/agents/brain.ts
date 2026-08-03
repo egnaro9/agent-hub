@@ -141,7 +141,10 @@ export const toTurns = (messages: Message[], selfId: string, limit = 20): BrainT
   const turns: BrainTurn[] = [];
   for (const m of messages.slice(-limit)) {
     const role = m.from === selfId ? "assistant" : "user";
-    const text = m.from === "user" ? m.text : `[${m.from}]: ${m.text}`;
+    // The speaker's OWN lines go back unlabelled — the assistant role already
+    // says who they are, and feeding "[critic]: …" back is what taught agents
+    // to write about themselves in the third person (a unit test caught this).
+    const text = m.from === "user" || m.from === selfId ? m.text : `[${m.from}]: ${m.text}`;
     const last = turns[turns.length - 1];
     if (last && last.role === role) last.content += `\n${text}`;
     else turns.push({ role, content: text });
