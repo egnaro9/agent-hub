@@ -1,0 +1,30 @@
+# Render blueprint — static site, no server, no secrets.
+# The hub is a pure client build: BYOK keys live in each visitor's own browser
+# and never reach any host of ours, so there is nothing here to configure but
+# the build itself.
+services:
+  - type: web
+    runtime: static
+    name: agent-hub
+    repo: https://github.com/egnaro9/agent-hub
+    branch: main
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    pullRequestPreviewsEnabled: false
+    headers:
+      # Unlisted, not indexed: a real URL to send, kept out of search results.
+      - path: /*
+        name: X-Robots-Tag
+        value: noindex, nofollow
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+    routes:
+      # Single-page app: hash routes are client-side, but this keeps any direct
+      # path request from 404ing.
+      - type: rewrite
+        source: /*
+        destination: /index.html
