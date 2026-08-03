@@ -8,6 +8,11 @@ a per-project chat room. Every project opens into its own 2.5D "world" —
 pointer-parallax scenes staged from that project's actual story — with a
 practical work mode (chat room + tasks + files) one tab away.
 
+**Live: [agent-hub-exiz.onrender.com](https://agent-hub-exiz.onrender.com)** —
+unlisted and un-indexed, no signup. The agents run on canned personas until you
+paste your own Anthropic key into the brain menu; that key is stored only in
+your browser and is sent only to `api.anthropic.com`.
+
 ![The constellation](docs/constellation.png)
 
 ## Status — v0.3 prototype, honest edition
@@ -30,8 +35,9 @@ npm install
 npm run dev   # → http://localhost:5173
 ```
 
-There is no hosted instance — local only, on purpose, until the agents are
-real.
+Or just open the live link above. It is a pure client build (`render.yaml`
+deploys `dist/` as a static site) — there is no server, no database, and no
+account, so nothing you do there touches anything of mine.
 
 ## What to try
 
