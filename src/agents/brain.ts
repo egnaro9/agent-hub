@@ -1,5 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { Message, Project, ProjectDetail } from "../types";
+import { getOverride } from "./roster";
+import { streamChat, getProviderKey, getBaseUrl } from "./providers";
 
 // The live brain — BYOK, browser-direct. The key lives ONLY in this browser's
 // localStorage and travels ONLY to api.anthropic.com (the SDK's browser mode);
@@ -154,7 +156,36 @@ export const toTurns = (messages: Message[], selfId: string, limit = 20): BrainT
   return turns.length ? turns : [{ role: "user", content: "(the room is quiet — introduce yourself briefly)" }];
 };
 
-export async function* streamReply(system: string, turns: BrainTurn[], model?: string): AsyncGenerator<string, void, void> {
+export async function* streamReply(
+  system: string,
+  turns: BrainTurn[],
+  model?: string,
+  agentId?: string
+): AsyncGenerator<string, void, void> {
+  // Same per-agent transport choice as the tool loop, without tools.
+  const brain = agentId ? getOverride(agentId) : null;
+  if (brain) {
+    const key = getProviderKey(brain.provider);
+    if (!key) throw new Error(`no key for ${brain.provider}`);
+    const queue: string[] = [];
+    let done = false;
+    const run = streamChat({
+      provider: brain.provider,
+      model: brain.model,
+      apiKey: key,
+      baseUrl: getBaseUrl(brain.provider) ?? undefined,
+      system,
+      messages: turns as never,
+      tools: [],
+      onDelta: (t) => queue.push(t),
+    }).finally(() => (done = true));
+    while (!done || queue.length) {
+      if (queue.length) yield queue.shift() as string;
+      else await new Promise((r) => setTimeout(r, 15));
+    }
+    await run;
+    return;
+  }
   const apiKey = getKey();
   if (!apiKey) throw new Error("no key");
   const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
@@ -397,13 +428,41 @@ export async function runToolLoop(opts: {
   turns: BrainTurn[];
   tools?: Anthropic.Tool[];
   model?: string;
+  /** Which agent is speaking — selects its provider/model from the roster. */
+  agentId?: string;
   onDelta: (t: string) => void;
   execute: (name: string, input: Record<string, unknown>) => Promise<{ result: string } | { gated: true }>;
   maxTurns?: number;
 }): Promise<void> {
   let messages: Anthropic.MessageParam[] = opts.turns.map((t) => ({ role: t.role, content: t.content }));
   for (let i = 0; i < (opts.maxTurns ?? 4); i++) {
-    const { toolCalls, assistantContent } = await streamAgentTurn(opts.system, messages, opts.onDelta, opts.tools, opts.model);
+    // The transport is chosen per agent: an override in the roster picks the
+    // provider, otherwise this is the Anthropic path it has always been. The
+    // unified shapes are a structural subset of the SDK's, so the message array
+    // and AGENT_TOOLS pass through unmapped either way.
+    const brain = opts.agentId ? getOverride(opts.agentId) : null;
+    let toolCalls: ToolCall[];
+    let assistantContent: Anthropic.ContentBlock[];
+    if (brain) {
+      const key = getProviderKey(brain.provider);
+      if (!key) throw new Error(`no key for ${brain.provider}`);
+      const res = await streamChat({
+        provider: brain.provider,
+        model: brain.model,
+        apiKey: key,
+        baseUrl: getBaseUrl(brain.provider) ?? undefined,
+        system: opts.system,
+        messages: messages as never,
+        tools: (opts.tools ?? AGENT_TOOLS) as never,
+        onDelta: opts.onDelta,
+      });
+      toolCalls = res.toolCalls as ToolCall[];
+      assistantContent = res.content as Anthropic.ContentBlock[];
+    } else {
+      const res = await streamAgentTurn(opts.system, messages, opts.onDelta, opts.tools, opts.model);
+      toolCalls = res.toolCalls;
+      assistantContent = res.assistantContent;
+    }
     if (toolCalls.length === 0) return;
     messages = [...messages, { role: "assistant", content: assistantContent }];
     const results: Anthropic.ToolResultBlockParam[] = [];

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import type { Agent, Conversation, Message, Project, QueuedLine, StructuralEdge, Vec } from "../types";
+import type { Agent, Conversation, Message, MessageNode, Project, QueuedLine, StructuralEdge, Vec } from "../types";
+import { PRESETS, briefFor, plan, type Phase, type TopologyNode } from "../agents/topology";
 import { AGENTS, PROJECTS, STRUCTURAL, SEED_ASSIGNMENTS } from "../data/mock";
 import { personaFor, ERRORS, buildRoundtable, nextId } from "../sim/lines";
 import { fetchRecentCommits } from "../data/github";
@@ -9,6 +10,38 @@ import { detailFor } from "../data/detail";
 
 export type Stage = { kind: "graph" } | { kind: "project"; id: string };
 export type ProjectMode = "overview" | "work";
+
+/** One turn's deviation from the room's normal streaming — used by topology runs. */
+export interface TurnBrief {
+  /** Prepended to this node's system prompt for this one turn. */
+  brief?: string;
+  /** Stamped onto the message this turn writes, so the transcript stays legible. */
+  node?: MessageNode;
+}
+
+/** What the UI shows while a shape is executing. Never persisted — a run dies with the tab. */
+export interface TopologyRun {
+  projectId: string;
+  presetId: string;
+  /** 1-based phase index; 0 while queued behind another fan-out. */
+  step: number;
+  steps: number;
+  /** Human label for the phase in flight, e.g. "fan-out · 3 workers". */
+  label: string;
+}
+
+const phaseLabel = (phase: Phase): string => {
+  switch (phase.kind) {
+    case "decompose":
+      return `decompose · ${phase.node.id}`;
+    case "fanout":
+      return `fan-out · ${phase.nodes.length} worker${phase.nodes.length === 1 ? "" : "s"}`;
+    case "sequence":
+      return `sequence · ${phase.nodes.length} in turn`;
+    case "synthesize":
+      return `${phase.node.role === "judge" ? "judge" : "synthesize"} · ${phase.node.id}`;
+  }
+};
 
 export interface Channel {
   participants: string[];
@@ -62,7 +95,9 @@ interface HubState {
   setSearch: (q: string) => void;
   advanceChannel: (projectId: string) => void;
   sendToChannel: (projectId: string, text: string) => void;
-  streamAgent: (projectId: string, agentId: string) => Promise<void>;
+  streamAgent: (projectId: string, agentId: string, opts?: TurnBrief) => Promise<void>;
+  topologyRun: TopologyRun | null;
+  runTopology: (projectId: string, presetId: string, task: string) => Promise<void>;
   streamDm: (agentId: string) => Promise<void>;
   approveAction: (projectId: string, msgId: string) => void;
   removeFromRoom: (projectId: string, agentId: string) => void;
@@ -442,10 +477,98 @@ export const useHub = create<HubState>()(
     }));
   },
 
+  topologyRun: null,
+
+  // Run a SHAPE in this room. The engine (agents/topology.ts) says what the
+  // shape is and what each node is told; this executes it against the same live
+  // path a normal room turn takes — same system prompt, same transcript, same
+  // tools, same gate. The only thing a topology adds is WHEN each node speaks.
+  //
+  // Fan-out is the whole reason this exists: the room's existing @team poll is
+  // sequential by design (each agent sees the ones before it), so the one thing
+  // it structurally cannot do is ask three agents the same question
+  // independently. A `fanout` phase issues its nodes with Promise.all — they go
+  // out together, none sees another's answer, and only the synthesize phase
+  // reads all of them.
+  runTopology: async (projectId, presetId, task) => {
+    const trimmed = task.trim();
+    const build = PRESETS[presetId];
+    const channel = get().channels[projectId];
+    if (!build || !channel || !trimmed) return;
+    // One shape at a time, hub-wide: two concurrent runs would interleave in the
+    // transcript and quietly double the bill.
+    if (get().topologyRun) return;
+
+    const note = (text: string) =>
+      set((s) => {
+        const ch = s.channels[projectId];
+        if (!ch) return {};
+        return {
+          channels: { ...s.channels, [projectId]: { ...ch, messages: [...ch.messages, { id: nextId(), from: "ops", text }] } },
+        };
+      });
+
+    // No key, no run — and say so rather than failing silently or, worse,
+    // pretending with canned lines. A topology's whole claim is that these are
+    // real model calls in a real shape.
+    if (!get().brainConnected) {
+      note("⚠ a topology needs a live brain — add an Anthropic key in the brain menu, then run the shape.");
+      return;
+    }
+
+    const topology = build(channel.participants);
+    const phases = plan(topology);
+    if (phases.length === 0) {
+      note("⚠ nobody in the room to run that shape — summon at least one agent first.");
+      return;
+    }
+
+    // The operator's task is the operator's line: it enters the transcript as
+    // theirs, so every node's context contains it verbatim.
+    set((s) => {
+      const ch = s.channels[projectId];
+      if (!ch) return {};
+      return {
+        channels: { ...s.channels, [projectId]: { ...ch, messages: [...ch.messages, { id: nextId(), from: "user", text: trimmed }] } },
+      };
+    });
+
+    // Marked running BEFORE queueing, so the launch button disables on the click
+    // rather than whenever an in-flight roundtable happens to finish.
+    set({ topologyRun: { projectId, presetId, step: 0, steps: phases.length, label: "queued" } });
+    // Shares the room's fan-out lock with @team: a shape never interleaves with
+    // a roundtable that is already speaking.
+    const releaseFanout = await takeTurn(`fan:${projectId}`);
+    try {
+      for (let i = 0; i < phases.length; i++) {
+        const phase = phases[i];
+        set({ topologyRun: { projectId, presetId, step: i + 1, steps: phases.length, label: phaseLabel(phase) } });
+        const turn = (node: TopologyNode) =>
+          get().streamAgent(projectId, node.agentId, {
+            brief: briefFor(phase.kind, node, trimmed),
+            node: { topology: topology.id, phase: phase.kind, id: node.id, role: node.role },
+          });
+        if (phase.kind === "fanout") {
+          // CONCURRENT — the point of the shape. Each node takes its own
+          // per-agent turn ticket, so serialization per agent is untouched.
+          await Promise.all(phase.nodes.map(turn));
+        } else if (phase.kind === "sequence") {
+          for (const node of phase.nodes) await turn(node);
+        } else {
+          await turn(phase.node);
+        }
+      }
+    } finally {
+      set({ topologyRun: null });
+      releaseFanout();
+    }
+  },
+
   // A live agent streaming from Anthropic with the room's transcript and the
-  // project's live context. Read-only by construction — no tools are passed,
-  // so speech is the only capability.
-  streamAgent: async (projectId, agentId) => {
+  // project's live context. Tools and the operator gate are unchanged whoever
+  // calls it: a topology node is this same turn with a one-turn brief prepended
+  // to its system prompt and a node stamp on the message it writes.
+  streamAgent: async (projectId, agentId, opts) => {
     const streamKey = `ch:${projectId}:${agentId}`;
     // FAILURE MODE (message dropped on the floor): this used to `return` when a
     // stream for this agent was already running, so an operator line typed
@@ -460,8 +583,20 @@ export const useHub = create<HubState>()(
       const project = projects.find((p) => p.id === projectId);
       const channel = channels[projectId];
       if (!project || !channel) return;
-      const system = buildAgentSystem(agentId, project, detailFor(projectId));
-      const turns = toTurns(get().channels[projectId]?.messages ?? channel.messages, agentId);
+      const persona = buildAgentSystem(agentId, project, detailFor(projectId));
+      // The brief goes FIRST: it is this turn's job, and the persona below it is
+      // who does the job. Nothing else about the turn changes.
+      const system = opts?.brief ? `${opts.brief}\n\n${persona}` : persona;
+      // A placeholder carries no content by definition. In a fan-out the other
+      // workers' placeholders already exist by the time this one reads the
+      // transcript, and feeding them through would send each worker a line
+      // reading "[forge]: " — noise that also hints at who else is mid-answer.
+      // Dropping them changes nothing on the sequential paths (a finished
+      // message is never empty-and-streaming).
+      const transcript = (get().channels[projectId]?.messages ?? channel.messages).filter(
+        (m) => !(m.streaming && m.text.length === 0)
+      );
+      const turns = toTurns(transcript, agentId);
       set((s) => {
         const ch = s.channels[projectId];
         if (!ch) return {};
@@ -471,7 +606,7 @@ export const useHub = create<HubState>()(
             [projectId]: {
               ...ch,
               participants: ch.participants.includes(agentId) ? ch.participants : [...ch.participants, agentId],
-              messages: [...ch.messages, { id: msgId, from: agentId, text: "", streaming: true }],
+              messages: [...ch.messages, { id: msgId, from: agentId, text: "", streaming: true, ...(opts?.node ? { node: opts.node } : {}) }],
             },
           },
           agents: s.agents.map((a) => (a.id === agentId ? { ...a, status: { kind: "talking" as const } } : a)),
@@ -498,6 +633,7 @@ export const useHub = create<HubState>()(
         turns,
         tools: toolsFor(get().commitsArmed && getGhToken() !== null),
         model: modelForAgent(agentId),
+        agentId,
         onDelta: (delta) => {
           if (needBreak) {
             acc += "\n\n";
@@ -528,6 +664,7 @@ export const useHub = create<HubState>()(
                         id: nextId(),
                         from: agentId,
                         text: "",
+                        ...(opts?.node ? { node: opts.node } : {}),
                         action: { tool: name, input, status: "pending" as const, ...(before !== undefined ? { before } : {}) },
                       },
                     ],
@@ -816,7 +953,7 @@ export const useHub = create<HubState>()(
         agents: s.agents.map((a) => (a.id === agentId ? { ...a, status: { kind: "talking" as const } } : a)),
       }));
       let acc = "";
-      for await (const delta of streamReply(system, turns, modelForAgent(agentId))) {
+      for await (const delta of streamReply(system, turns, modelForAgent(agentId), agentId)) {
         acc += delta;
         const text = acc;
         patch((c) => ({ ...c, messages: c.messages.map((m) => (m.id === msgId ? { ...m, text } : m)) }));

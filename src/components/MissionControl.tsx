@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useHub, agentInScope } from "../state/hub";
 import { getKey, setKey, clearKey, getModel, setModel, BRAIN_MODELS, getGhToken, setGhToken, clearGhToken, getRouting, setRouting } from "../agents/brain";
+import RosterPanel from "./RosterPanel";
+import ProvidersPanel from "./ProvidersPanel";
 
 // "claude-haiku-4-5" → "haiku-4-5"; anything long gets clipped so the bar never blows out.
 const shortModel = (id: string) => {
@@ -27,14 +29,17 @@ export default function MissionControl() {
   const [modelDraft, setModelDraft] = useState(getModel());
   const [ghDraft, setGhDraft] = useState("");
   const [dangerOpen, setDangerOpen] = useState(false);
+  const [rosterOpen, setRosterOpen] = useState(false);
+  const [keysOpen, setKeysOpen] = useState(false);
   const [routing, setRoutingState] = useState(getRouting());
   const [activeModel, setActiveModel] = useState(getModel());
   const commitsArmed = useHub((s) => s.commitsArmed);
   const setCommitsArmed = useHub((s) => s.setCommitsArmed);
   const summonRef = useRef<HTMLDivElement>(null);
   const brainRef = useRef<HTMLDivElement>(null);
+  const keysRef = useRef<HTMLDivElement>(null);
 
-  const anyOpen = summonOpen || brainOpen;
+  const anyOpen = summonOpen || brainOpen || keysOpen;
 
   // One handler for both popovers: click outside dismisses, Escape dismisses the whole stack.
   useEffect(() => {
@@ -43,12 +48,14 @@ export default function MissionControl() {
       const t = e.target as Node;
       if (summonRef.current && !summonRef.current.contains(t)) setSummonOpen(false);
       if (brainRef.current && !brainRef.current.contains(t)) setBrainOpen(false);
+      if (keysRef.current && !keysRef.current.contains(t)) setKeysOpen(false);
     };
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       setSummonOpen(false);
       setBrainOpen(false);
       setDangerOpen(false);
+      setKeysOpen(false);
     };
     document.addEventListener("mousedown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
@@ -63,6 +70,8 @@ export default function MissionControl() {
     setSummonOpen(false);
     setBrainOpen(false);
     setDangerOpen(false);
+    setRosterOpen(false);
+    setKeysOpen(false);
   }, [stage]);
 
   const project = stage.kind === "project" ? projects.find((p) => p.id === stage.id) : undefined;
@@ -154,6 +163,31 @@ export default function MissionControl() {
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
+
+      {/* per-agent brains */}
+      <div className="relative">
+        <button
+          onClick={() => setRosterOpen((v) => !v)}
+          className="mono cursor-pointer rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] text-slate-400 transition hover:text-slate-200"
+          title="Choose the provider and model for each agent"
+        >
+          ⚙ roster
+        </button>
+        {rosterOpen && <RosterPanel onClose={() => setRosterOpen(false)} />}
+      </div>
+
+      {/* provider credentials — one key per provider, plus an honest reachability probe */}
+      <div ref={keysRef} className="relative">
+        <button
+          data-testid="keys-button"
+          onClick={() => setKeysOpen((v) => !v)}
+          className="mono cursor-pointer rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] text-slate-400 transition hover:text-slate-200"
+          title="Store a key per provider and test that it actually reaches them"
+        >
+          ◇ keys
+        </button>
+        {keysOpen && <ProvidersPanel onClose={() => setKeysOpen(false)} />}
       </div>
 
       {/* brain — BYOK live-agent connection */}

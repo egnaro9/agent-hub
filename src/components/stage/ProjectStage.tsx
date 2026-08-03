@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useHub } from "../../state/hub";
 import { detailFor } from "../../data/detail";
 import ChatRoom from "./ChatRoom";
+import TopologyBar from "../TopologyBar";
 
 const HarnessWorld = lazy(() => import("./HarnessWorld"));
 const ModelDriftWorld = lazy(() => import("./ModelDriftWorld"));
@@ -270,8 +271,13 @@ export default function ProjectStage({ projectId }: { projectId: string }) {
               </ul>
             </div>
           </div>
-          <div className="min-h-0 min-w-0 flex-1">
-            <ChatRoom projectId={projectId} />
+          {/* work mode gets the shape launcher over the room it runs in — the
+              transcript and the composer below it are where the run lands. */}
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
+            <TopologyBar projectId={projectId} />
+            <div className="min-h-0 flex-1">
+              <ChatRoom projectId={projectId} />
+            </div>
           </div>
         </div>
       )}
