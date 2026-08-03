@@ -97,6 +97,7 @@ export default function ChatPanel() {
                 )}
                 <div className="rounded-2xl rounded-tl-md border border-white/10 bg-white/5 px-3.5 py-2 text-[13px] leading-relaxed text-slate-200">
                   {m.text}
+                  {m.streaming && <span className="breathe ml-0.5 inline-block h-3.5 w-[7px] translate-y-0.5 bg-teal-300/80" />}
                 </div>
               </div>
             </div>

@@ -3,7 +3,7 @@ import type { Agent, Conversation, Message, Project, QueuedLine, StructuralEdge,
 import { AGENTS, PROJECTS, STRUCTURAL, SEED_ASSIGNMENTS } from "../data/mock";
 import { personaFor, ERRORS, buildRoundtable, nextId } from "../sim/lines";
 import { fetchRecentCommits } from "../data/github";
-import { getKey, buildCriticSystem, toTurns, streamReply } from "../agents/brain";
+import { getKey, buildAgentSystem, toTurns, streamReply } from "../agents/brain";
 import { detailFor } from "../data/detail";
 
 export type Stage = { kind: "graph" } | { kind: "project"; id: string };
@@ -57,7 +57,8 @@ interface HubState {
   setSearch: (q: string) => void;
   advanceChannel: (projectId: string) => void;
   sendToChannel: (projectId: string, text: string) => void;
-  streamCritic: (projectId: string) => Promise<void>;
+  streamAgent: (projectId: string, agentId: string) => Promise<void>;
+  streamDm: (agentId: string) => Promise<void>;
   summon: (agentId: string, projectId: string) => void;
   openChat: (agentId: string) => void;
   closePanels: () => void;
@@ -304,14 +305,29 @@ export const useHub = create<HubState>()((set, get) => ({
       responders = participants;
     }
 
-    // When the live brain is connected, Critic answers for real — everyone
-    // else stays a persona. His canned line is dropped from the queue.
-    const liveCritic = get().brainConnected && responders.includes("critic");
-    const personaResponders = liveCritic ? responders.filter((r) => r !== "critic") : responders;
+    // Brain connected → every responder answers for real, sequentially, each
+    // seeing the replies before it (a genuine roundtable). No key → personas.
+    if (get().brainConnected && responders.length > 0) {
+      set((s) => ({
+        channels: {
+          ...s.channels,
+          [projectId]: {
+            ...channel,
+            participants,
+            messages: [...channel.messages, { id: nextId(), from: "user", text }],
+          },
+        },
+      }));
+      void (async () => {
+        for (const r of responders) await get().streamAgent(projectId, r);
+      })();
+      return;
+    }
+
     const replies: QueuedLine[] =
-      personaResponders.length === 1 && responders.length === 1
-        ? [{ from: personaResponders[0], text: personaFor(personaResponders[0]).reply(text, projectId) }]
-        : personaResponders.map((p) => ({ from: p, text: personaFor(p).ack(text) }));
+      responders.length === 1
+        ? [{ from: responders[0], text: personaFor(responders[0]).reply(text, projectId) }]
+        : responders.map((p) => ({ from: p, text: personaFor(p).ack(text) }));
 
     set((s) => ({
       channels: {
@@ -324,14 +340,13 @@ export const useHub = create<HubState>()((set, get) => ({
         },
       },
     }));
-    if (liveCritic) void get().streamCritic(projectId);
   },
 
-  // The first REAL agent: Critic, streaming from Anthropic with the room's
-  // transcript and the project's live context. Read-only by construction —
-  // no tools are passed, so speech is the only capability.
-  streamCritic: async (projectId) => {
-    const streamKey = `ch:${projectId}`;
+  // A live agent streaming from Anthropic with the room's transcript and the
+  // project's live context. Read-only by construction — no tools are passed,
+  // so speech is the only capability.
+  streamAgent: async (projectId, agentId) => {
+    const streamKey = `ch:${projectId}:${agentId}`;
     if (liveStreams.has(streamKey)) return;
     liveStreams.add(streamKey);
     const msgId = nextId();
@@ -340,8 +355,8 @@ export const useHub = create<HubState>()((set, get) => ({
       const project = projects.find((p) => p.id === projectId);
       const channel = channels[projectId];
       if (!project || !channel) return;
-      const system = buildCriticSystem(project, detailFor(projectId));
-      const turns = toTurns(channel.messages, "critic");
+      const system = buildAgentSystem(agentId, project, detailFor(projectId));
+      const turns = toTurns(get().channels[projectId]?.messages ?? channel.messages, agentId);
       set((s) => {
         const ch = s.channels[projectId];
         if (!ch) return {};
@@ -350,11 +365,11 @@ export const useHub = create<HubState>()((set, get) => ({
             ...s.channels,
             [projectId]: {
               ...ch,
-              participants: ch.participants.includes("critic") ? ch.participants : [...ch.participants, "critic"],
-              messages: [...ch.messages, { id: msgId, from: "critic", text: "", streaming: true }],
+              participants: ch.participants.includes(agentId) ? ch.participants : [...ch.participants, agentId],
+              messages: [...ch.messages, { id: msgId, from: agentId, text: "", streaming: true }],
             },
           },
-          agents: s.agents.map((a) => (a.id === "critic" ? { ...a, status: { kind: "talking" as const } } : a)),
+          agents: s.agents.map((a) => (a.id === agentId ? { ...a, status: { kind: "talking" as const } } : a)),
         };
       });
       let acc = "";
@@ -384,7 +399,7 @@ export const useHub = create<HubState>()((set, get) => ({
               }
             : {}),
           agents: s.agents.map((a) =>
-            a.id === "critic" && a.status.kind === "talking" ? { ...a, status: restingStatus("critic", s.assignments) } : a
+            a.id === agentId && a.status.kind === "talking" ? { ...a, status: restingStatus(agentId, s.assignments) } : a
           ),
         };
       });
@@ -404,7 +419,7 @@ export const useHub = create<HubState>()((set, get) => ({
                 },
               }
             : {}),
-          agents: s.agents.map((a) => (a.id === "critic" ? { ...a, status: { kind: "error" as const, note } } : a)),
+          agents: s.agents.map((a) => (a.id === agentId ? { ...a, status: { kind: "error" as const, note } } : a)),
         };
       });
     } finally {
@@ -444,6 +459,14 @@ export const useHub = create<HubState>()((set, get) => ({
   sendUser: (text) => {
     const convo = get().conversation;
     if (!convo) return;
+    // Live brain + solo DM → the agent answers for real.
+    if (get().brainConnected && convo.kind === "solo") {
+      set({
+        conversation: { ...convo, messages: [...convo.messages, { id: nextId(), from: "user", text }] },
+      });
+      void get().streamDm(convo.participants[0]);
+      return;
+    }
     const acks = convo.participants.map((p) => ({
       from: p,
       text: convo.kind === "solo" ? personaFor(p).reply(text, convo.topicId) : personaFor(p).ack(text),
@@ -459,6 +482,56 @@ export const useHub = create<HubState>()((set, get) => ({
         convo.participants.includes(a.id) ? { ...a, status: { kind: "talking" } } : a
       ),
     }));
+  },
+
+  // Live DM: same read-only stream, scoped to the drawer conversation. If the
+  // conversation changes mid-stream (closed, replaced), updates stop cleanly.
+  streamDm: async (agentId) => {
+    const streamKey = `dm:${agentId}`;
+    if (liveStreams.has(streamKey)) return;
+    liveStreams.add(streamKey);
+    const msgId = nextId();
+    const convoId = get().conversation?.id;
+    if (!convoId) {
+      liveStreams.delete(streamKey);
+      return;
+    }
+    const patch = (fn: (c: Conversation) => Conversation) =>
+      set((s) => (s.conversation && s.conversation.id === convoId ? { conversation: fn(s.conversation) } : {}));
+    try {
+      const { projects, assignments, conversation } = get();
+      const topic = projects.find((p) => p.id === conversation?.topicId);
+      const system = buildAgentSystem(agentId, topic, topic ? detailFor(topic.id) : undefined);
+      const turns = toTurns(conversation?.messages ?? [], agentId);
+      patch((c) => ({ ...c, messages: [...c.messages, { id: msgId, from: agentId, text: "", streaming: true }] }));
+      set((s) => ({
+        agents: s.agents.map((a) => (a.id === agentId ? { ...a, status: { kind: "talking" as const } } : a)),
+      }));
+      let acc = "";
+      for await (const delta of streamReply(system, turns)) {
+        acc += delta;
+        const text = acc;
+        patch((c) => ({ ...c, messages: c.messages.map((m) => (m.id === msgId ? { ...m, text } : m)) }));
+      }
+      patch((c) => ({ ...c, messages: c.messages.map((m) => (m.id === msgId ? { ...m, streaming: false } : m)) }));
+      set((s) => ({
+        agents: s.agents.map((a) =>
+          a.id === agentId && a.status.kind === "talking" ? { ...a, status: restingStatus(agentId, s.assignments) } : a
+        ),
+      }));
+    } catch {
+      patch((c) => ({
+        ...c,
+        messages: c.messages.map((m) =>
+          m.id === msgId ? { ...m, text: m.text || "⚠ live brain error — check the key in the brain menu", streaming: false } : m
+        ),
+      }));
+      set((s) => ({
+        agents: s.agents.map((a) => (a.id === agentId ? { ...a, status: { kind: "error" as const, note: "live brain error" } } : a)),
+      }));
+    } finally {
+      liveStreams.delete(streamKey);
+    }
   },
 
   advance: () => {
