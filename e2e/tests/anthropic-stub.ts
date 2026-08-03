@@ -47,6 +47,19 @@ export interface RecordedRequest {
   apiKey: string | null;
 }
 
+/**
+ * How a request gets answered. An ARRAY keys the answer to arrival order, which
+ * is exactly right for a sequential run and a lottery for a concurrent one: a
+ * fan-out of six issues its calls together, so "the fourth request" is not
+ * reliably any particular agent, and an index-keyed script quietly hands Forge's
+ * answer to Oracle. A FUNCTION keys the answer to WHO ASKED — the recorded
+ * request carries the system prompt, so a responder can reply as that agent and
+ * the assertions downstream stop depending on a scheduling order nothing
+ * guarantees. Returning undefined means "off the end of the script": counted in
+ * `overflow`, same as running past an array.
+ */
+export type Script = ScriptedTurn[] | ((request: RecordedRequest, index: number) => ScriptedTurn | undefined);
+
 export interface AnthropicStub {
   /** One entry per request the app made to api.anthropic.com, in order. */
   readonly requests: RecordedRequest[];
@@ -159,13 +172,15 @@ export function sseBody(turn: ScriptedTurn, model = "claude-opus-4-8"): string {
 /**
  * Route api.anthropic.com to a scripted stream. `script[n]` answers the n-th
  * request the app makes, so a tool loop is scripted as [turn-with-tool,
- * follow-up-turn] — exactly the two round trips the real loop would make.
+ * follow-up-turn] — exactly the two round trips the real loop would make. Pass a
+ * function instead when the run is concurrent and arrival order is not a fact
+ * worth pinning (see Script).
  *
  * Anything past the end of the script is answered with a loud, visible line and
  * counted in `overflow`, so an unexpected extra model call shows up in an
  * assertion instead of hiding.
  */
-export async function stubAnthropic(context: BrowserContext, script: ScriptedTurn[]): Promise<AnthropicStub> {
+export async function stubAnthropic(context: BrowserContext, script: Script): Promise<AnthropicStub> {
   const requests: RecordedRequest[] = [];
   let overflow = 0;
   let gate: Promise<void> | null = null;
@@ -222,7 +237,8 @@ export async function stubAnthropic(context: BrowserContext, script: ScriptedTur
       apiKey: headers["x-api-key"] ?? null,
     });
 
-    const turn = script[requests.length - 1];
+    const index = requests.length - 1;
+    const turn = typeof script === "function" ? script(requests[index], index) : script[index];
     if (!turn) overflow++;
 
     if (gate) await gate;

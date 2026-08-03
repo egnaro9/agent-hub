@@ -55,9 +55,11 @@ test.describe("the topology runner", () => {
     await gotoHub(page, "/#/p/crashkit/work");
 
     // The price is on screen BEFORE anything is spent: 1 decompose + 3 workers
-    // + 1 synthesize, and not one request made yet.
+    // + 1 synthesize, and not one request made yet. It reads "5+", not "5" —
+    // nodes keep their tools, so a worker that reads the repo takes another
+    // turn. The floor is what can be promised; the run reports what it spent.
     await page.getByRole("button", { name: "fan-out" }).click();
-    await expect(page.getByText("5 model calls")).toBeVisible();
+    await expect(page.getByText("5+ model calls")).toBeVisible();
     expect(stub.requests).toHaveLength(0);
 
     // Hold the manager's turn open so the run is observable phase by phase.
@@ -135,7 +137,7 @@ test.describe("the topology runner", () => {
     await gotoHub(page, "/#/p/crashkit/work");
 
     await page.getByRole("button", { name: "fan-out" }).click();
-    await expect(page.getByText("5 model calls")).toBeVisible();
+    await expect(page.getByText("5+ model calls")).toBeVisible();
     await page.getByLabel("Topology task").fill(TASK);
     await page.getByRole("button", { name: "Launch topology" }).click();
 

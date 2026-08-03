@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { probeProvider, type ProbeResult, type ProbeStatus } from "../agents/providers";
+import StoredData from "./StoredData";
 import {
   VENDORS,
   getVendorKey,
@@ -66,6 +67,7 @@ export default function ProvidersPanel({ onClose }: { onClose: () => void }) {
   );
   const [probes, setProbes] = useState<Record<string, ProbeResult>>({});
   const [busy, setBusy] = useState<Record<string, boolean>>({});
+  const [storedOpen, setStoredOpen] = useState(false);
   // A probe in flight when the panel closes must not write into a dead tree.
   // Re-armed in the effect BODY, not just at init: StrictMode mounts, unmounts,
   // and remounts, so an init-only `true` is left permanently false by the first
@@ -236,9 +238,22 @@ export default function ProvidersPanel({ onClose }: { onClose: () => void }) {
         })}
       </div>
 
+      {/* This panel can only ever show the ✓ of a key it put here itself. The
+          GitHub write token, the room transcripts and the slots retired builds
+          left behind are equally resident and had no screen at all — so the way
+          out of the keys panel is the way into the full inventory. */}
+      <button
+        data-testid="open-stored-data"
+        onClick={() => setStoredOpen(true)}
+        className="mono mt-2.5 w-full cursor-pointer text-left text-[9.5px] text-slate-500 transition hover:text-slate-300"
+      >
+        what's stored in this browser →
+      </button>
+      {storedOpen && <StoredData onClose={() => setStoredOpen(false)} />}
+
       <button
         onClick={onClose}
-        className="mono mt-2.5 w-full cursor-pointer rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-[10.5px] text-slate-300 transition hover:bg-white/10"
+        className="mono mt-1.5 w-full cursor-pointer rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-[10.5px] text-slate-300 transition hover:bg-white/10"
       >
         done
       </button>

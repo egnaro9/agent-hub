@@ -4,6 +4,7 @@ import { useHub, agentInScope } from "../state/hub";
 import { getKey, setKey, clearKey, getModel, setModel, BRAIN_MODELS, getGhToken, setGhToken, clearGhToken, getRouting, setRouting } from "../agents/brain";
 import RosterPanel from "./RosterPanel";
 import ProvidersPanel from "./ProvidersPanel";
+import Tutorial from "./Tutorial";
 
 // "claude-haiku-4-5" → "haiku-4-5"; anything long gets clipped so the bar never blows out.
 const shortModel = (id: string) => {
@@ -348,6 +349,11 @@ export default function MissionControl() {
       >
         search <span className="text-slate-700">/</span>
       </button>
+
+      {/* The manual. It owns its own button, open state and first-run showing,
+          so this stays one element; its panel anchors to this bar rather than
+          to the button, which is why its position in the strip is free. */}
+      <Tutorial />
     </div>
   );
 }

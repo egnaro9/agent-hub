@@ -1,7 +1,8 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import type { Agent, Conversation, Message, MessageNode, Project, QueuedLine, StructuralEdge, Vec } from "../types";
-import { PRESETS, briefFor, plan, type Phase, type TopologyNode } from "../agents/topology";
+import { PRESETS, briefFor, callCount, plan, type Phase, type Topology, type TopologyNode } from "../agents/topology";
+import { getShape, toTopology, validateShape } from "../agents/customShapes";
 import { AGENTS, PROJECTS, STRUCTURAL, SEED_ASSIGNMENTS } from "../data/mock";
 import { personaFor, ERRORS, buildRoundtable, nextId } from "../sim/lines";
 import { fetchRecentCommits } from "../data/github";
@@ -17,12 +18,69 @@ export interface TurnBrief {
   brief?: string;
   /** Stamped onto the message this turn writes, so the transcript stays legible. */
   node?: MessageNode;
+  /** Where this turn adds up what it actually cost. Only a shape run passes one. */
+  spend?: RunSpend;
 }
+
+// BLOCKER (the quote was a fake exactness): callCount() counts NODES, but a node
+// is a runToolLoop — it goes back to the model once more for every tool result
+// it has to answer, up to the loop's own cap. So a node that reads a repo file
+// costs 2, a node whose propose_commit hits the gate costs at least 2, and a
+// shape quoted at 5 can spend 10. The plan cannot know that in advance; only the
+// run can. This is that count, kept at the call site — deriving it from the plan
+// afterwards would just repeat the original sin in a new place.
+//
+// Exact where it can be, a range where it can't. runToolLoop answers ALL of one
+// turn's tool calls in a SINGLE follow-up call, and from out here (the store
+// only sees `execute`, one call at a time) two tool calls are indistinguishable
+// from "one turn asked for two files" versus "two turns asked for one each". So
+// a node with t tool calls cost somewhere in [2, 1+t]. t of 0 or 1 — the ordinary
+// case — pins it exactly; anything more is reported as the range it truly is
+// rather than picking an end and being confidently wrong.
+export interface RunSpend {
+  /** Fewest model calls consistent with what was observed. */
+  low: number;
+  /** Most. Equal to `low` unless some node issued 2+ tool calls. */
+  high: number;
+}
+
+// runToolLoop's default turn cap (brain.ts). Mirrored rather than imported
+// because the runner deliberately does NOT pass maxTurns: tools stay available
+// inside a shape, and buying an exact quote by taking a worker's ability to read
+// the repo away is the wrong trade. A node therefore makes at most this many
+// calls, so at most this-minus-one of them are tool follow-ups.
+const MAX_TURNS_PER_NODE = 4;
+
+/** Fold one finished node turn into the run's tally. */
+const tally = (spend: RunSpend, toolCalls: number) => {
+  spend.low += 1 + (toolCalls > 0 ? 1 : 0);
+  spend.high += 1 + Math.min(toolCalls, MAX_TURNS_PER_NODE - 1);
+};
+
+/**
+ * The closing line of a run: what was quoted, what was spent, and — when the
+ * shape went over — that it went over, in the first clause rather than buried.
+ * A tool-heavy shape is otherwise invisible to the operator: the chip says 5, the
+ * bill says 10, and nothing on screen ever connects the two.
+ */
+const spendLine = (quoted: number, spend: RunSpend): string => {
+  const spent = spend.low === spend.high ? `${spend.low}` : `${spend.low}–${spend.high}`;
+  const calls = `${spent} model call${spend.high === 1 ? "" : "s"}`;
+  const head = `shape done · quoted ${quoted}+ · spent ${calls}`;
+  if (spend.low > quoted) {
+    return `${head} — ${spend.low - quoted} OVER the quote. Tools are why: a node that calls one has to answer the result in another call. That is what the "+" on the quote is for.`;
+  }
+  if (spend.high > quoted) {
+    return `${head} — tool use may have taken it past the quote of ${quoted}. A turn that asks for two files is answered in one call, so the true figure is inside that range.`;
+  }
+  return `${head} — inside the quote.`;
+};
 
 /** What the UI shows while a shape is executing. Never persisted — a run dies with the tab. */
 export interface TopologyRun {
   projectId: string;
-  presetId: string;
+  /** Preset id or a saved shape's id — the runner stopped distinguishing them. */
+  shapeId: string;
   /** 1-based phase index; 0 while queued behind another fan-out. */
   step: number;
   steps: number;
@@ -38,6 +96,12 @@ const phaseLabel = (phase: Phase): string => {
       return `fan-out · ${phase.nodes.length} worker${phase.nodes.length === 1 ? "" : "s"}`;
     case "sequence":
       return `sequence · ${phase.nodes.length} in turn`;
+    case "handoff":
+      // Deliberately not the sequence label with a different noun. The two
+      // phases run the same agents in the same order for the same price, so
+      // this strip is the only place the run itself tells the operator WHICH of
+      // the two is on screen — "in line" against "in turn".
+      return `hand-off · ${phase.nodes.length} in line`;
     case "synthesize":
       return `${phase.node.role === "judge" ? "judge" : "synthesize"} · ${phase.node.id}`;
   }
@@ -97,7 +161,13 @@ interface HubState {
   sendToChannel: (projectId: string, text: string) => void;
   streamAgent: (projectId: string, agentId: string, opts?: TurnBrief) => Promise<void>;
   topologyRun: TopologyRun | null;
-  runTopology: (projectId: string, presetId: string, task: string) => Promise<void>;
+  /**
+   * `quoted` is the number the launcher put on the button. Optional so callers
+   * that never showed a price (tests, programmatic runs) keep working; when it
+   * IS passed it is checked against the shape as resolved here, and a
+   * disagreement refuses the run.
+   */
+  runTopology: (projectId: string, shapeId: string, task: string, quoted?: number) => Promise<void>;
   streamDm: (agentId: string) => Promise<void>;
   approveAction: (projectId: string, msgId: string) => void;
   removeFromRoom: (projectId: string, agentId: string) => void;
@@ -124,6 +194,24 @@ const hydrationAttempted = new Set<string>();
 
 // One live stream per room at a time.
 const liveStreams = new Set<string>();
+
+// Where the shape in flight started in the room's transcript. A room turn reads
+// the last 20 messages, which is right for chat and wrong for a shape: a
+// multi-round shape can put more than 20 lines on the board, and the round-2
+// brief PROMISES that round 1 and the verdict on it are above. So a node's
+// window is widened back to the run's own first line — and no further. Not on
+// TopologyRun because it is not something the UI shows, and not persisted
+// because a run dies with the tab.
+//
+// A HAND-OFF phase drives the SAME dial the other way: instead of widening the
+// floor back to the task, it moves the floor FORWARD to the single message the
+// node was handed, and `exact` says that floor is the whole window rather than a
+// minimum. The flag is the part that matters — leave the 20-message chat memory
+// underneath and a link reads straight past its predecessor into the chain it is
+// not supposed to see, which is the one thing the shape exists to prevent. One
+// dial, two ends: a second context path beside this one would be a second thing
+// to keep true, and only one of them would get tested.
+let runFloor: { projectId: string; msgId: string; exact?: true } | null = null;
 
 // FAILURE MODE (silently swallowed follow-up): the composer stays enabled while
 // an agent streams, so an operator message sent mid-stream used to hit an
@@ -490,23 +578,36 @@ export const useHub = create<HubState>()(
   // independently. A `fanout` phase issues its nodes with Promise.all — they go
   // out together, none sees another's answer, and only the synthesize phase
   // reads all of them.
-  runTopology: async (projectId, presetId, task) => {
+  //
+  // On price: the quote is a FLOOR, not a promise. Tools stay live inside a
+  // shape — a worker that can read the repo is the point — so a node may take
+  // more than one model call, and no count made before the run can know how
+  // many. The launcher says "N+" for that reason, and the run closes by naming
+  // both numbers: what was quoted, and what it actually spent.
+  runTopology: async (projectId, shapeId, task, quoted) => {
     const trimmed = task.trim();
-    const build = PRESETS[presetId];
     const channel = get().channels[projectId];
-    if (!build || !channel || !trimmed) return;
+    if (!channel || !trimmed) return;
     // One shape at a time, hub-wide: two concurrent runs would interleave in the
     // transcript and quietly double the bill.
     if (get().topologyRun) return;
 
-    const note = (text: string) =>
+    // Returns the id it wrote. Most callers ignore it — but an empty hand-off is
+    // announced with this same note AND is then the only thing the next link is
+    // shown, so the run has to be able to point a floor at the line it just
+    // posted. One line doing both jobs is the point: the operator cannot be
+    // shown one explanation while the model is quietly given another.
+    const note = (text: string) => {
+      const id = nextId();
       set((s) => {
         const ch = s.channels[projectId];
         if (!ch) return {};
         return {
-          channels: { ...s.channels, [projectId]: { ...ch, messages: [...ch.messages, { id: nextId(), from: "ops", text }] } },
+          channels: { ...s.channels, [projectId]: { ...ch, messages: [...ch.messages, { id, from: "ops", text }] } },
         };
       });
+      return id;
+    };
 
     // No key, no run — and say so rather than failing silently or, worse,
     // pretending with canned lines. A topology's whole claim is that these are
@@ -516,7 +617,57 @@ export const useHub = create<HubState>()(
       return;
     }
 
-    const topology = build(channel.participants);
+    // A shape id is looked up in the operator's saved shapes FIRST and falls
+    // back to the presets. Both sides hand back the same thing — a Topology
+    // whose stages the planner reads — so nothing below this line knows or
+    // cares which one it got, and a composed shape runs the preset's path.
+    const saved = getShape(shapeId);
+    let topology: Topology;
+    if (saved) {
+      // The gate, here and not only in the composer: a shape is designed once
+      // and launched later, and the room it was composed against can lose an
+      // agent in between. validateShape is given the room's participants, so a
+      // departed agent is NAMED rather than quietly dropped — a shape that
+      // silently runs two-thirds of itself is worse than one that refuses.
+      // Before the plan, so a bad shape cannot reach a single model call.
+      const problems = validateShape(saved.stages, channel.participants);
+      if (problems.length > 0) {
+        note(`⚠ "${saved.label}" can't run as saved — nothing spent. ${problems.join(" ")}`);
+        return;
+      }
+      topology = toTopology(saved);
+    } else {
+      const build = PRESETS[shapeId];
+      // Neither saved nor preset: the launcher is holding an id that no longer
+      // exists — a shape deleted in this tab's other window. Say so; a launch
+      // button that does nothing at all reads as a broken app.
+      if (!build) {
+        note(`⚠ no shape called "${shapeId}" — it may have been deleted.`);
+        return;
+      }
+      // A preset is rebuilt from whoever is in the room at launch, so its
+      // agents are known by construction and the engine already skips a stage
+      // the room is too small to fill. Validating it would refuse rooms that
+      // work today: a one-agent fan-out has an empty worker stage.
+      topology = build(channel.participants);
+    }
+
+    // The chip that priced this run read the saved shapes when the strip
+    // mounted; the runner re-reads them at the click. A shape edited in another
+    // tab in between is therefore QUOTED at the old price and RUN at the new
+    // one, and the operator only finds out on the bill. Closed here rather than
+    // at the chip, because the runner is the only place that knows what is
+    // actually about to run: the launcher hands over the number it displayed,
+    // and that number has to still be true. Before the plan, so a mispriced
+    // shape cannot reach a single model call.
+    const price = callCount(topology);
+    if (quoted !== undefined && quoted !== price) {
+      note(
+        `⚠ "${topology.label}" was quoted at ${quoted}+ model calls but now plans ${price}+ — it changed after the launcher priced it (edited in another tab?). Nothing spent. Reload so the strip re-prices it, then run.`
+      );
+      return;
+    }
+
     const phases = plan(topology);
     if (phases.length === 0) {
       note("⚠ nobody in the room to run that shape — summon at least one agent first.");
@@ -524,41 +675,150 @@ export const useHub = create<HubState>()(
     }
 
     // The operator's task is the operator's line: it enters the transcript as
-    // theirs, so every node's context contains it verbatim.
+    // theirs, so every node's context contains it verbatim. Its id is also the
+    // floor of the run — every later stage reads back at least this far, which
+    // is how a round-2 worker sees round 1 and the verdict on it.
+    const taskMsgId = nextId();
     set((s) => {
       const ch = s.channels[projectId];
       if (!ch) return {};
       return {
-        channels: { ...s.channels, [projectId]: { ...ch, messages: [...ch.messages, { id: nextId(), from: "user", text: trimmed }] } },
+        channels: { ...s.channels, [projectId]: { ...ch, messages: [...ch.messages, { id: taskMsgId, from: "user", text: trimmed }] } },
       };
     });
+    runFloor = { projectId, msgId: taskMsgId };
+
+    // THE HAND: the one line a hand-off link is shown, and the only line it is
+    // shown. It starts at the operator's task, which is exactly what the FIRST
+    // node of a chain gets — nothing ran ahead of it, so there is nothing else
+    // it could honestly be handed, and `exact` above is what stops the room's
+    // ordinary chat window from quietly adding some.
+    let hand = taskMsgId;
+
+    // The wording an empty hand-off travels as. One line doing two jobs: the
+    // operator reads it in the transcript, and it is also the ENTIRE context the
+    // next link gets — so it has to say what happened and what to do about it,
+    // not just flag a gap.
+    const emptyHandoff = (subject: string) =>
+      `⚠ hand-off · ${subject} produced nothing — the hand-off is EMPTY. This line is what travels on in its place: there is no artifact to work from, and the task is NOT being handed back, so name what is missing rather than inventing what was lost.`;
+
+    /**
+     * The line a node left in the room, or null if it left nothing to hand on.
+     * There is no separate bookkeeping for this because none is needed:
+     * streamAgent DELETES a turn's message when the model produced no text at
+     * all, and replaces it with a "⚠ …" line when the stream died before a
+     * single token — so the transcript already records whether an artifact
+     * exists, and the operator is looking at the same evidence the runner is.
+     * A turn that failed PART-WAY keeps what it streamed, and that partial is
+     * handed on: it is real work, and telling the next link the hand-off was
+     * empty when it was not is the same lie pointing the other way.
+     */
+    const leftBy = (node: TopologyNode): string | null => {
+      const msgs = get().channels[projectId]?.messages ?? [];
+      // From the run's own floor, because a previous run of the same shape left
+      // the same node ids in this transcript and the first match room-wide
+      // would be that one. FIRST match from there, not last: a gated proposal
+      // appends a second card under the same stamp, and what gets handed on is
+      // the turn's own line. And the STAMP rather than the agent id, because one
+      // agent can speak twice in a shape.
+      const from = msgs.findIndex((m) => m.id === taskMsgId);
+      const line = msgs
+        .slice(from < 0 ? 0 : from)
+        .find((m) => m.node?.topology === topology.id && m.node.id === node.id);
+      if (!line) return null;
+      const text = line.text.trim();
+      return text.length > 0 && !text.startsWith("⚠") ? line.id : null;
+    };
 
     // Marked running BEFORE queueing, so the launch button disables on the click
     // rather than whenever an in-flight roundtable happens to finish.
-    set({ topologyRun: { projectId, presetId, step: 0, steps: phases.length, label: "queued" } });
+    set({ topologyRun: { projectId, shapeId, step: 0, steps: phases.length, label: "queued" } });
     // Shares the room's fan-out lock with @team: a shape never interleaves with
     // a roundtable that is already speaking.
     const releaseFanout = await takeTurn(`fan:${projectId}`);
+    // Every node turn adds itself here as it finishes, so what the closing line
+    // reports is measured, not planned.
+    const spend: RunSpend = { low: 0, high: 0 };
     try {
       for (let i = 0; i < phases.length; i++) {
         const phase = phases[i];
-        set({ topologyRun: { projectId, presetId, step: i + 1, steps: phases.length, label: phaseLabel(phase) } });
+        set({ topologyRun: { projectId, shapeId, step: i + 1, steps: phases.length, label: phaseLabel(phase) } });
+        // Where this phase starts writing, so a hand-off stage that does NOT
+        // open the run can be handed what the step immediately before it left.
+        const mark = get().channels[projectId]?.messages.length ?? 0;
         const turn = (node: TopologyNode) =>
           get().streamAgent(projectId, node.agentId, {
             brief: briefFor(phase.kind, node, trimmed),
             node: { topology: topology.id, phase: phase.kind, id: node.id, role: node.role },
+            spend,
           });
-        if (phase.kind === "fanout") {
-          // CONCURRENT — the point of the shape. Each node takes its own
-          // per-agent turn ticket, so serialization per agent is untouched.
-          await Promise.all(phase.nodes.map(turn));
-        } else if (phase.kind === "sequence") {
-          for (const node of phase.nodes) await turn(node);
+        if (phase.kind === "handoff") {
+          // THE ASSEMBLY LINE. Same nodes, same order and same price as a
+          // sequence — the entire difference is which floor is under each one,
+          // and this loop is the only place it is set. Note what does NOT
+          // change: the transcript. Every link still writes into the room in
+          // full, so the operator watches the whole line even though no agent
+          // on it can see past one station. Narrowing what the MODEL reads is
+          // not narrowing what the operator reads, and conflating the two would
+          // hide exactly the drift this shape is built to expose.
+          if (!phase.nodes[0]?.head && hand === taskMsgId) {
+            // `head` is off precisely because something DID run ahead of this
+            // chain — so if `hand` is still the task, that upstream step left
+            // nothing. Falling back to the task here would hand the first link
+            // the run's opening line and let it answer as though the chain
+            // started with it, contradicting the flag the engine set.
+            hand = note(emptyHandoff("the step before this chain"));
+          }
+          for (const node of phase.nodes) {
+            runFloor = { projectId, msgId: hand, exact: true };
+            await turn(node);
+            // An upstream node that produced nothing must not leave the next
+            // link reading whatever sits above IT — with the floor unmoved that
+            // is the task, and the link would answer as a first agent, which is
+            // the one lie the chain's opening brief exists to prevent. The
+            // hand-off travels as an explicit empty instead.
+            hand = leftBy(node) ?? note(emptyHandoff(`${node.id} (${node.agentId})`));
+          }
+          // Back to the run's own window. A later stage is a conversation again
+          // unless it says otherwise, and leaving the last link's one-message
+          // floor in place would blind it.
+          runFloor = { projectId, msgId: taskMsgId };
         } else {
-          await turn(phase.node);
+          if (phase.kind === "fanout") {
+            // CONCURRENT — the point of the shape. Each node takes its own
+            // per-agent turn ticket, so serialization per agent is untouched.
+            await Promise.all(phase.nodes.map(turn));
+          } else if (phase.kind === "sequence") {
+            for (const node of phase.nodes) await turn(node);
+          } else {
+            await turn(phase.node);
+          }
+          // What a FOLLOWING hand-off stage gets handed: this step's output,
+          // from its first line on. For a solo that is one line; for a fan-out
+          // it is all of them, because what a chain takes is whatever ran
+          // immediately before it, and picking one worker out of three to keep
+          // the hand down to a single message would bin two answers the
+          // operator paid for.
+          // Held to the SAME bar leftBy applies inside a chain: a turn that
+          // errored keeps its node stamp (streamAgent rewrites the text to a ⚠
+          // line rather than deleting it), so a bare `find(m => m.node)` would
+          // hand an error string to the first link as if it were the artifact.
+          // hand is reset first so a stale one from two phases back can never be
+          // handed on in its place. Back to taskMsgId, which is this function's
+          // existing "nothing was handed" sentinel — the branch above turns it
+          // into an explicit empty hand-off rather than a silent restart.
+          hand = taskMsgId;
+          const opened = (get().channels[projectId]?.messages ?? [])
+            .slice(mark)
+            .find((m) => m.node && m.text.trim().length > 0 && !m.text.trim().startsWith("⚠"));
+          if (opened) hand = opened.id;
         }
       }
     } finally {
+      // Posted in the finally, so a run that dies half-way still says what it
+      // burned getting there.
+      note(spendLine(price, spend));
+      runFloor = null;
       set({ topologyRun: null });
       releaseFanout();
     }
@@ -578,6 +838,13 @@ export const useHub = create<HubState>()(
     const releaseTurn = await takeTurn(streamKey);
     liveStreams.add(streamKey);
     const msgId = nextId();
+    // What this ONE turn costs, counted where the calls are actually made. A node
+    // is not one model call: the loop below answers every tool result with
+    // another call, which is the whole reason a shape can overrun its quote.
+    // `reached` guards the early return above the loop — a turn that never got
+    // to the model must not bill for one.
+    let reached = false;
+    let toolCalls = 0;
     try {
       const { projects, channels } = get();
       const project = projects.find((p) => p.id === projectId);
@@ -596,7 +863,31 @@ export const useHub = create<HubState>()(
       const transcript = (get().channels[projectId]?.messages ?? channel.messages).filter(
         (m) => !(m.streaming && m.text.length === 0)
       );
-      const turns = toTurns(transcript, agentId);
+      // A phase threads context the only way it ever did — by reading the room
+      // back off the transcript, which is why a later stage sees the earlier
+      // ones at all. The one thing that breaks is the WINDOW: the default 20
+      // messages is a chat-sized memory, and a multi-round shape can lay down
+      // more than that before round 2 speaks, silently cutting round 1 out of
+      // the context the round-2 brief says is there. During a run the window
+      // reaches back to the run's first line and stops — bounded by the shape's
+      // own caps, so it can't quietly grow into a bill nobody quoted.
+      //
+      // A HAND-OFF node is the same read with the floor pushed the other way:
+      // its floor is the ONE message it was handed, and `exact` drops the 20 the
+      // room would otherwise keep underneath. That subtraction is the whole
+      // shape — hold the agents, the order and the price fixed against a
+      // sequence, vary only this, and what is left is a controlled experiment in
+      // context visibility. The room's chat memory quietly restoring the two
+      // links back would not look like a bug; it would look like a result.
+      const win = runFloor?.projectId === projectId ? runFloor : null;
+      const floor = win ? transcript.findIndex((m) => m.id === win.msgId) : -1;
+      const back = transcript.length - floor;
+      const turns = toTurns(
+        transcript,
+        agentId,
+        floor >= 0 ? (win!.exact ? back : Math.max(20, back)) : undefined,
+        floor >= 0 && !!win?.exact
+      );
       set((s) => {
         const ch = s.channels[projectId];
         if (!ch) return {};
@@ -628,6 +919,7 @@ export const useHub = create<HubState>()(
           };
         });
       };
+      reached = true;
       await runToolLoop({
         system,
         turns,
@@ -644,6 +936,11 @@ export const useHub = create<HubState>()(
         },
         execute: async (name, input) => {
           needBreak = acc.length > 0;
+          // Counted for EVERY branch below, the gate included: a gated tool is
+          // not executed, but its refusal still goes back to the model as a
+          // tool_result, and answering that costs another call. propose_commit
+          // is the common case — it is why a "1 call" node routinely costs 2.
+          toolCalls++;
           if (GATED_TOOLS.has(name)) {
             proposed = true;
             let before: string | undefined;
@@ -736,6 +1033,10 @@ export const useHub = create<HubState>()(
         };
       });
     } finally {
+      // In the finally, not after the loop: a turn that threw part-way through
+      // (a 401, a dropped stream) has already made the calls it made, and a run
+      // that hides them under-reports the bill.
+      if (reached && opts?.spend) tally(opts.spend, toolCalls);
       liveStreams.delete(streamKey);
       releaseTurn();
     }

@@ -140,7 +140,23 @@ export interface BrainTurn {
   content: string;
 }
 
-export const toTurns = (messages: Message[], selfId: string, limit = 20): BrainTurn[] => {
+/**
+ * @param asHandoff the window IS a hand-off — exactly the artifact the previous
+ * link produced. Without this, a link whose predecessor was the SAME agent gets
+ * an assistant-only window, the leading-assistant trim below empties it, and the
+ * agent is told "directly above you is ONE thing" while being handed the
+ * room-is-quiet placeholder. A hand-off is incoming work, so it is a user turn
+ * whoever wrote it.
+ */
+export const toTurns = (messages: Message[], selfId: string, limit = 20, asHandoff = false): BrainTurn[] => {
+  if (asHandoff) {
+    const handed = messages
+      .slice(-limit)
+      .map((m) => m.text.trim())
+      .filter(Boolean)
+      .join("\n\n");
+    if (handed) return [{ role: "user", content: handed }];
+  }
   const turns: BrainTurn[] = [];
   for (const m of messages.slice(-limit)) {
     const role = m.from === selfId ? "assistant" : "user";
