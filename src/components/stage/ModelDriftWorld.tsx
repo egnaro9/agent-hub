@@ -41,10 +41,10 @@ export default function ModelDriftWorld() {
 
   const mx = useMotionValue(0);
   const my = useMotionValue(0);
-  const rx = useSpring(useTransform(my, [-0.5, 0.5], [4, -4]), { stiffness: 60, damping: 15 });
-  const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-5, 5]), { stiffness: 60, damping: 15 });
-  const backX = useSpring(useTransform(mx, [-0.5, 0.5], [24, -24]), { stiffness: 50, damping: 18 });
-  const midX = useSpring(useTransform(mx, [-0.5, 0.5], [10, -10]), { stiffness: 50, damping: 18 });
+  const rx = useSpring(useTransform(my, [-0.5, 0.5], [7, -7]), { stiffness: 60, damping: 15 });
+  const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-9, 9]), { stiffness: 60, damping: 15 });
+  const backX = useSpring(useTransform(mx, [-0.5, 0.5], [44, -44]), { stiffness: 50, damping: 18 });
+  const midX = useSpring(useTransform(mx, [-0.5, 0.5], [20, -20]), { stiffness: 50, damping: 18 });
 
   const onMove = (e: React.PointerEvent) => {
     if (reduced) return;
@@ -55,10 +55,10 @@ export default function ModelDriftWorld() {
   };
 
   const facts = [
-    { k: "the fleet", big: "16 models", sub: "5 labs", w: 200, z: 40, x: "7%", y: "50%", tilt: -6, hot: true },
-    { k: "the suite", big: "35 tasks", sub: "frozen · deterministically graded", w: 230, z: 15, x: "26%", y: "66%", tilt: -2, hot: false },
-    { k: "scored on", big: "5 metrics", sub: "accuracy · speed · verbosity · reliability · refusal", w: 250, z: 25, x: "58%", y: "56%", tilt: 5, hot: false },
-    { k: "the cadence", big: "daily", sub: "cron · public board", w: 180, z: -15, x: "79%", y: "22%", tilt: 8, hot: false },
+    { k: "the fleet", big: "16 models", sub: "5 labs", w: 200, z: 66, x: "7%", y: "50%", tilt: -6, hot: true },
+    { k: "the suite", big: "35 tasks", sub: "frozen · deterministically graded", w: 230, z: 25, x: "26%", y: "66%", tilt: -2, hot: false },
+    { k: "scored on", big: "5 metrics", sub: "accuracy · speed · verbosity · reliability · refusal", w: 250, z: 41, x: "58%", y: "56%", tilt: 5, hot: false },
+    { k: "the cadence", big: "daily", sub: "cron · public board", w: 180, z: -25, x: "79%", y: "22%", tilt: 8, hot: false },
   ];
 
   return (
@@ -91,7 +91,7 @@ export default function ModelDriftWorld() {
         <motion.svg
           viewBox="0 0 900 490"
           className="absolute top-[3%] left-1/2 w-[860px] -translate-x-1/2 opacity-40"
-          style={{ x: backX, transform: "translateZ(-180px)", filter: "blur(0.5px) drop-shadow(0 0 12px #2dd4bf44)" }}
+          style={{ x: backX, transform: "translateZ(-297px)", filter: "blur(0.5px) drop-shadow(0 0 12px #2dd4bf44)" }}
         >
           {[60, 110, 160].map((r) => (
             <circle key={r} cx={CX} cy={CY} r={r} fill="none" stroke="#2dd4bf" strokeOpacity={0.16} strokeWidth={1} />
@@ -165,7 +165,7 @@ export default function ModelDriftWorld() {
           className="glass absolute bottom-[8%] left-1/2 -translate-x-1/2 rounded-xl border-rose-300/40 px-5 py-2.5"
           animate={{ y: [0, -6, 0] }}
           transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-          style={{ transform: "translateZ(60px)", boxShadow: "0 20px 60px rgba(251,113,133,.12)" }}
+          style={{ transform: "translateZ(99px)", boxShadow: "0 20px 60px rgba(251,113,133,.12)" }}
         >
           <span className="mono text-[11.5px] text-rose-200">
             alarm: <span className="text-rose-300">same task flips on five providers at once</span> → suspect the harness, not the models
@@ -173,7 +173,7 @@ export default function ModelDriftWorld() {
         </motion.div>
 
         {/* front layer: title + actions */}
-        <div className="absolute top-[9%] left-[6%]" style={{ transform: "translateZ(90px)" }}>
+        <div className="absolute top-[9%] left-[6%]" style={{ transform: "translateZ(148px)" }}>
           <div className="mono text-[10px] tracking-[0.35em] text-teal-300/80 uppercase">project world</div>
           <h2 className="mono mt-2 text-[44px] leading-none font-semibold tracking-tight text-slate-50" style={{ textShadow: "0 0 40px #2dd4bf66" }}>
             model-drift

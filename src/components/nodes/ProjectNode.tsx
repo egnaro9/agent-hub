@@ -1,16 +1,26 @@
 import { Handle, Position } from "@xyflow/react";
 import { motion } from "framer-motion";
 import { useHub } from "../../state/hub";
+import { COUNTER_YAW, useOrrery } from "../orrery";
 
 export default function ProjectNode({ id }: { id: string }) {
   const project = useHub((s) => s.projects.find((p) => p.id === id));
   const agents = useHub((s) => s.agents);
   const assignments = useHub((s) => s.assignments);
   const openStage = useHub((s) => s.openStage);
+  // Orrery counter-rotation, on a WRAPPER and not the motion.div: framer owns
+  // that element's transform (whileHover writes it), and two owners of one
+  // property means the hover scale would stomp the yaw. A rotateZ is exactly
+  // invertible even though React Flow's viewport flattens 3D, so the card's
+  // text stays dead upright while the field sways; the 10° tilt it keeps is
+  // deliberate (see orrery.ts — counter-tilting through a flattened context
+  // would double the squash, and at 10° there is nothing worth undoing).
+  const flat = useOrrery((s) => s.flat);
   if (!project) return null;
   const workedBy = agents.filter((a) => assignments[a.id] === id);
 
   return (
+    <div style={flat ? undefined : { transform: COUNTER_YAW }}>
     <motion.div
       whileHover={{ scale: 1.04, y: -2 }}
       onClick={() => openStage(project.id)}
@@ -58,5 +68,6 @@ export default function ProjectNode({ id }: { id: string }) {
         ))}
       </div>
     </motion.div>
+    </div>
   );
 }

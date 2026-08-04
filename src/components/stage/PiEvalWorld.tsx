@@ -27,10 +27,10 @@ export default function PiEvalWorld() {
 
   const mx = useMotionValue(0);
   const my = useMotionValue(0);
-  const rx = useSpring(useTransform(my, [-0.5, 0.5], [4, -4]), { stiffness: 60, damping: 15 });
-  const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-5, 5]), { stiffness: 60, damping: 15 });
-  const backX = useSpring(useTransform(mx, [-0.5, 0.5], [24, -24]), { stiffness: 50, damping: 18 });
-  const midX = useSpring(useTransform(mx, [-0.5, 0.5], [10, -10]), { stiffness: 50, damping: 18 });
+  const rx = useSpring(useTransform(my, [-0.5, 0.5], [7, -7]), { stiffness: 60, damping: 15 });
+  const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-9, 9]), { stiffness: 60, damping: 15 });
+  const backX = useSpring(useTransform(mx, [-0.5, 0.5], [44, -44]), { stiffness: 50, damping: 18 });
+  const midX = useSpring(useTransform(mx, [-0.5, 0.5], [20, -20]), { stiffness: 50, damping: 18 });
 
   const onMove = (e: React.PointerEvent) => {
     if (REDUCE) return;
@@ -79,7 +79,7 @@ export default function PiEvalWorld() {
         <motion.svg
           viewBox="-100 -50 1000 440"
           className="absolute top-[2%] left-1/2 w-[960px] -translate-x-1/2 opacity-[0.34]"
-          style={{ x: backX, z: -180, filter: "blur(0.6px) drop-shadow(0 0 16px #2dd4bf55)" }}
+          style={{ x: backX, z: -297, filter: "blur(0.6px) drop-shadow(0 0 16px #2dd4bf55)" }}
         >
           {/* faint orbit lines around the bench */}
           <ellipse cx="400" cy="150" rx="470" ry="182" fill="none" stroke="#2dd4bf" strokeWidth="1" opacity="0.12" />
@@ -160,7 +160,7 @@ export default function PiEvalWorld() {
           className="glass absolute w-[252px] rounded-2xl p-4"
           animate={{ y: [0, -8, 0] }}
           transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-          style={{ left: "7%", top: "52%", x: midX, z: 30, rotateY: -6, borderTop: "2px solid #2dd4bf", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
+          style={{ left: "7%", top: "52%", x: midX, z: 50, rotateY: -6, borderTop: "2px solid #2dd4bf", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
         >
           <div className="mono flex gap-2.5 text-[15px] text-teal-300" style={{ textShadow: "0 0 14px #2dd4bf66" }}>
             {GLYPHS.map((g) => (
@@ -186,7 +186,7 @@ export default function PiEvalWorld() {
           className="glass absolute w-[236px] rounded-2xl p-4"
           animate={{ y: [0, -7, 0] }}
           transition={{ duration: 6.5, repeat: Infinity, ease: "easeInOut" }}
-          style={{ left: "74%", top: "12%", x: midX, z: 36, rotateY: 6, borderTop: "2px solid #2dd4bf", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
+          style={{ left: "74%", top: "12%", x: midX, z: 59, rotateY: 6, borderTop: "2px solid #2dd4bf", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
         >
           <div className="mono text-[9px] tracking-[0.22em] text-teal-300/80 uppercase">sequence</div>
           <div className="mono mt-2 text-[10.5px] leading-relaxed text-slate-300">
@@ -199,7 +199,7 @@ export default function PiEvalWorld() {
           className="glass absolute w-[268px] rounded-2xl p-4"
           animate={{ y: [0, 7, 0] }}
           transition={{ duration: 7.5, repeat: Infinity, ease: "easeInOut" }}
-          style={{ left: "36%", top: "58%", x: midX, z: 14, rotateY: -3, borderTop: "2px solid #2dd4bf", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
+          style={{ left: "36%", top: "58%", x: midX, z: 23, rotateY: -3, borderTop: "2px solid #2dd4bf", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
         >
           <div className="mono text-[9px] tracking-[0.22em] text-teal-300/80 uppercase">lineage</div>
           <div className="mono mt-2 text-[10.5px] leading-relaxed text-slate-300">
@@ -211,7 +211,7 @@ export default function PiEvalWorld() {
           className="glass absolute rounded-xl px-4 py-2"
           animate={{ y: [0, 6, 0] }}
           transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut" }}
-          style={{ right: "6%", bottom: "9%", x: midX, z: 50, rotateY: 3 }}
+          style={{ right: "6%", bottom: "9%", x: midX, z: 82, rotateY: 3 }}
         >
           <span className="mono text-[10.5px] text-slate-300">
             <span className="breathe" style={{ color: "#2dd4bf" }}>●</span> live + verified
@@ -221,19 +221,19 @@ export default function PiEvalWorld() {
         {/* the teal ribbon — the one sentence the bench exists to enforce */}
         <div
           className="absolute right-[10%] bottom-[23.5%] left-[10%] h-px"
-          style={{ transform: "translateZ(40px)", background: "linear-gradient(90deg, transparent, #2dd4bf55 30%, #2dd4bf88 50%, #2dd4bf55 70%, transparent)" }}
+          style={{ transform: "translateZ(66px)", background: "linear-gradient(90deg, transparent, #2dd4bf55 30%, #2dd4bf88 50%, #2dd4bf55 70%, transparent)" }}
         />
         <motion.div
           className="glass absolute bottom-[21%] left-1/2 -translate-x-1/2 rounded-xl border-teal-300/40 px-5 py-2.5"
           animate={{ y: [0, -6, 0] }}
           transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-          style={{ z: 60 }}
+          style={{ z: 99 }}
         >
           <span className="mono text-[11.5px] text-teal-200">a grade that can't reproduce isn't a grade</span>
         </motion.div>
 
         {/* front layer: title + actions */}
-        <div className="absolute top-[9%] left-[6%]" style={{ transform: "translateZ(90px)" }}>
+        <div className="absolute top-[9%] left-[6%]" style={{ transform: "translateZ(148px)" }}>
           <div className="mono text-[10px] tracking-[0.35em] text-teal-300/80 uppercase">project world</div>
           <h2 className="mono mt-2 text-[44px] leading-none font-semibold tracking-tight text-slate-50" style={{ textShadow: "0 0 40px #2dd4bf66" }}>
             pi-eval

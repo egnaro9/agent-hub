@@ -14,13 +14,15 @@ export default function PulseEdge(props: EdgeProps) {
   const color = (props.data?.color as string) ?? "#22d3ee";
   return (
     <>
-      <BaseEdge id={`${props.id}-halo`} path={path} style={{ stroke: color, strokeWidth: 6, opacity: 0.12 }} />
+      {/* Nudged up alongside the structural edges' lift (HubCanvas) so the
+          hierarchy holds: work edges must stay unmistakably ABOVE them. */}
+      <BaseEdge id={`${props.id}-halo`} path={path} style={{ stroke: color, strokeWidth: 7, opacity: 0.16 }} />
       <BaseEdge
         id={props.id}
         path={path}
         style={{
           stroke: color,
-          strokeWidth: 1.8,
+          strokeWidth: 2.1,
           opacity: 0.95,
           strokeDasharray: "7 7",
           animation: "dashflow 0.7s linear infinite",

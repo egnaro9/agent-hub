@@ -20,13 +20,13 @@ const REDUCE =
 // The strata — deeper is older, further back, dimmer. The gap at ~48% is
 // deliberate: that's where the regression seam runs.
 const STRATA = [
-  { top: "21%", z: -250, o: 0.16, inset: "6%", blur: true },
-  { top: "27.5%", z: -215, o: 0.2, inset: "3%", blur: true },
-  { top: "34%", z: -180, o: 0.26, inset: "5%", blur: false },
-  { top: "40.5%", z: -148, o: 0.32, inset: "2%", blur: false },
-  { top: "55%", z: -88, o: 0.4, inset: "4%", blur: false },
-  { top: "61.5%", z: -60, o: 0.46, inset: "1%", blur: false },
-  { top: "68%", z: -34, o: 0.52, inset: "5%", blur: false },
+  { top: "21%", z: -412, o: 0.16, inset: "6%", blur: true },
+  { top: "27.5%", z: -355, o: 0.2, inset: "3%", blur: true },
+  { top: "34%", z: -297, o: 0.26, inset: "5%", blur: false },
+  { top: "40.5%", z: -244, o: 0.32, inset: "2%", blur: false },
+  { top: "55%", z: -145, o: 0.4, inset: "4%", blur: false },
+  { top: "61.5%", z: -99, o: 0.46, inset: "1%", blur: false },
+  { top: "68%", z: -56, o: 0.52, inset: "5%", blur: false },
 ];
 
 export default function EvalHistoryWorld() {
@@ -35,10 +35,10 @@ export default function EvalHistoryWorld() {
 
   const mx = useMotionValue(0);
   const my = useMotionValue(0);
-  const rx = useSpring(useTransform(my, [-0.5, 0.5], [4, -4]), { stiffness: 60, damping: 15 });
-  const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-5, 5]), { stiffness: 60, damping: 15 });
-  const backX = useSpring(useTransform(mx, [-0.5, 0.5], [24, -24]), { stiffness: 50, damping: 18 });
-  const midX = useSpring(useTransform(mx, [-0.5, 0.5], [10, -10]), { stiffness: 50, damping: 18 });
+  const rx = useSpring(useTransform(my, [-0.5, 0.5], [7, -7]), { stiffness: 60, damping: 15 });
+  const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-9, 9]), { stiffness: 60, damping: 15 });
+  const backX = useSpring(useTransform(mx, [-0.5, 0.5], [44, -44]), { stiffness: 50, damping: 18 });
+  const midX = useSpring(useTransform(mx, [-0.5, 0.5], [20, -20]), { stiffness: 50, damping: 18 });
 
   const onMove = (e: React.PointerEvent) => {
     if (REDUCE) return;
@@ -89,7 +89,7 @@ export default function EvalHistoryWorld() {
         ))}
 
         {/* the one seam that matters — amber, between the layers above and below */}
-        <motion.div className="absolute right-0 left-0" style={{ top: "48%", x: backX, z: -118 }}>
+        <motion.div className="absolute right-0 left-0" style={{ top: "48%", x: backX, z: -195 }}>
           <div
             className="h-[3px] rounded-full"
             style={{
@@ -111,7 +111,7 @@ export default function EvalHistoryWorld() {
           className="glass absolute w-[212px] rounded-2xl p-4"
           animate={{ y: [0, -8, 0] }}
           transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-          style={{ left: "7%", top: "57%", x: midX, z: 35, rotateY: -6, borderTop: "2px solid #f472b6", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
+          style={{ left: "7%", top: "57%", x: midX, z: 58, rotateY: -6, borderTop: "2px solid #f472b6", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
         >
           <svg viewBox="0 0 120 44" className="w-[104px]">
             {[
@@ -134,7 +134,7 @@ export default function EvalHistoryWorld() {
           className="glass absolute w-[304px] rounded-2xl p-4"
           animate={{ y: [0, 8, 0] }}
           transition={{ duration: 6.5, repeat: Infinity, ease: "easeInOut" }}
-          style={{ left: "34%", top: "47%", x: midX, z: 20, rotateY: 2, borderTop: "2px solid #f472b6", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
+          style={{ left: "34%", top: "47%", x: midX, z: 33, rotateY: 2, borderTop: "2px solid #f472b6", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
         >
           <div className="mono text-[12.5px] text-slate-300">
             <span className="text-teal-300">5 cases better</span> · <span className="text-amber-300">1 worse</span> → verdict:{" "}
@@ -156,7 +156,7 @@ export default function EvalHistoryWorld() {
           className="glass absolute w-[248px] rounded-2xl p-4"
           animate={{ y: [0, -7, 0] }}
           transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
-          style={{ left: "69%", top: "17%", x: midX, z: -20, rotateY: 7, borderTop: "2px solid #f472b6", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
+          style={{ left: "69%", top: "17%", x: midX, z: -33, rotateY: 7, borderTop: "2px solid #f472b6", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
         >
           <div className="flex items-start gap-3">
             <svg viewBox="0 0 24 30" className="mt-0.5 w-[20px] shrink-0">
@@ -173,7 +173,7 @@ export default function EvalHistoryWorld() {
           className="glass absolute rounded-xl px-4 py-2"
           animate={{ y: [0, 6, 0] }}
           transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut" }}
-          style={{ left: "73%", top: "58%", x: midX, z: 40, rotateY: -4 }}
+          style={{ left: "73%", top: "58%", x: midX, z: 66, rotateY: -4 }}
         >
           <span className="mono text-[10.5px] text-slate-400">
             CI on{" "}
@@ -188,7 +188,7 @@ export default function EvalHistoryWorld() {
           className="glass absolute bottom-[9%] left-1/2 w-[560px] max-w-[92%] -translate-x-1/2 rounded-xl border-teal-300/40 px-5 py-2.5"
           animate={{ y: [0, -6, 0] }}
           transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-          style={{ z: 60 }}
+          style={{ z: 99 }}
         >
           <span className="mono text-[10.5px] leading-relaxed text-teal-200">
             rag-eval-lab's CI posts its runs here automatically —{" "}
@@ -197,7 +197,7 @@ export default function EvalHistoryWorld() {
         </motion.div>
 
         {/* front layer: title + actions */}
-        <div className="absolute top-[9%] left-[6%]" style={{ transform: "translateZ(90px)" }}>
+        <div className="absolute top-[9%] left-[6%]" style={{ transform: "translateZ(148px)" }}>
           <div className="mono text-[10px] tracking-[0.35em] text-pink-300/80 uppercase">project world</div>
           <h2 className="mono mt-2 text-[44px] leading-none font-semibold tracking-tight text-slate-50" style={{ textShadow: "0 0 40px #f472b666" }}>
             eval-history

@@ -54,10 +54,10 @@ export default function DifferentialOracleWorld() {
 
   const mx = useMotionValue(0);
   const my = useMotionValue(0);
-  const rx = useSpring(useTransform(my, [-0.5, 0.5], [4, -4]), { stiffness: 60, damping: 15 });
-  const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-5, 5]), { stiffness: 60, damping: 15 });
-  const backX = useSpring(useTransform(mx, [-0.5, 0.5], [24, -24]), { stiffness: 50, damping: 18 });
-  const midX = useSpring(useTransform(mx, [-0.5, 0.5], [10, -10]), { stiffness: 50, damping: 18 });
+  const rx = useSpring(useTransform(my, [-0.5, 0.5], [7, -7]), { stiffness: 60, damping: 15 });
+  const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-9, 9]), { stiffness: 60, damping: 15 });
+  const backX = useSpring(useTransform(mx, [-0.5, 0.5], [44, -44]), { stiffness: 50, damping: 18 });
+  const midX = useSpring(useTransform(mx, [-0.5, 0.5], [20, -20]), { stiffness: 50, damping: 18 });
 
   const onMove = (e: React.PointerEvent) => {
     if (REDUCE) return;
@@ -108,7 +108,7 @@ export default function DifferentialOracleWorld() {
         <div
           className="absolute top-0 bottom-0 left-1/2 w-px"
           style={{
-            transform: "translateZ(10px)",
+            transform: "translateZ(16px)",
             background:
               "linear-gradient(180deg, transparent, rgba(226,232,240,.45) 30%, rgba(226,232,240,.65) 50%, rgba(226,232,240,.45) 70%, transparent)",
           }}
@@ -116,7 +116,7 @@ export default function DifferentialOracleWorld() {
         <div
           className="breathe absolute top-0 bottom-0 left-1/2 w-[3px] -translate-x-1/2"
           style={{
-            transform: "translateZ(10px)",
+            transform: "translateZ(16px)",
             filter: "blur(4px)",
             background: "linear-gradient(180deg, transparent, #22d3ee55 35%, #e2e8f066 50%, #a78bfa55 65%, transparent)",
           }}
@@ -126,7 +126,7 @@ export default function DifferentialOracleWorld() {
         <motion.svg
           viewBox="0 0 1000 440"
           className="absolute top-[5%] left-1/2 w-[900px] -translate-x-1/2 opacity-40"
-          style={{ x: backX, z: -180, filter: "blur(0.6px) drop-shadow(0 0 14px #22d3ee33) drop-shadow(0 0 14px #a78bfa33)" }}
+          style={{ x: backX, z: -297, filter: "blur(0.6px) drop-shadow(0 0 14px #22d3ee33) drop-shadow(0 0 14px #a78bfa33)" }}
         >
           <defs>
             <linearGradient id="oracle-seam-arc" x1="0" y1="0" x2="1" y2="0">
@@ -170,7 +170,7 @@ export default function DifferentialOracleWorld() {
           className="glass absolute w-[248px] rounded-2xl p-4"
           animate={{ y: [0, -8, 0] }}
           transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-          style={{ left: "7%", top: "50%", x: midX, z: 30, rotateY: -6, borderTop: "2px solid #2dd4bf", boxShadow: "0 20px 60px rgba(45,212,191,.15)" }}
+          style={{ left: "7%", top: "50%", x: midX, z: 50, rotateY: -6, borderTop: "2px solid #2dd4bf", boxShadow: "0 20px 60px rgba(45,212,191,.15)" }}
         >
           <div className="mono text-[9px] tracking-[0.22em] text-teal-300/80 uppercase">the prediction held</div>
           <div className="mono mt-2 text-[15px] leading-snug font-semibold text-teal-300" style={{ textShadow: "0 0 22px #2dd4bf66" }}>
@@ -202,7 +202,7 @@ export default function DifferentialOracleWorld() {
           className="glass absolute w-[248px] rounded-2xl p-4"
           animate={{ y: [0, -8, 0] }}
           transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
-          style={{ left: "70%", top: "48%", x: midX, z: 20, rotateY: 7, borderTop: "2px solid #a78bfa", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
+          style={{ left: "70%", top: "48%", x: midX, z: 33, rotateY: 7, borderTop: "2px solid #a78bfa", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
         >
           <div className="mono text-[12px] leading-snug text-slate-300">
             seeded — <span className="text-violet-300">a prediction, not a sample</span>
@@ -214,7 +214,7 @@ export default function DifferentialOracleWorld() {
           className="glass absolute bottom-[21%] left-1/2 max-w-[620px] -translate-x-1/2 rounded-xl border-white/25 px-5 py-2.5 text-center"
           animate={{ y: [0, -6, 0] }}
           transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-          style={{ z: 60 }}
+          style={{ z: 99 }}
         >
           <span className="mono text-[11.5px] text-slate-300">
             where they disagree, <span className="text-slate-100">one of them is wrong</span> — and no one had to know the right answer to
@@ -223,7 +223,7 @@ export default function DifferentialOracleWorld() {
         </motion.div>
 
         {/* front layer: title + actions */}
-        <div className="absolute top-[9%] left-[6%]" style={{ transform: "translateZ(90px)" }}>
+        <div className="absolute top-[9%] left-[6%]" style={{ transform: "translateZ(148px)" }}>
           <div
             className="mono text-[10px] tracking-[0.35em] uppercase"
             style={{ backgroundImage: "linear-gradient(90deg, #22d3ee, #a78bfa)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}

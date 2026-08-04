@@ -30,10 +30,10 @@ export default function EvalDashboardWorld() {
 
   const mx = useMotionValue(0);
   const my = useMotionValue(0);
-  const rx = useSpring(useTransform(my, [-0.5, 0.5], [4, -4]), { stiffness: 60, damping: 15 });
-  const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-5, 5]), { stiffness: 60, damping: 15 });
-  const backX = useSpring(useTransform(mx, [-0.5, 0.5], [24, -24]), { stiffness: 50, damping: 18 });
-  const midX = useSpring(useTransform(mx, [-0.5, 0.5], [10, -10]), { stiffness: 50, damping: 18 });
+  const rx = useSpring(useTransform(my, [-0.5, 0.5], [7, -7]), { stiffness: 60, damping: 15 });
+  const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-9, 9]), { stiffness: 60, damping: 15 });
+  const backX = useSpring(useTransform(mx, [-0.5, 0.5], [44, -44]), { stiffness: 50, damping: 18 });
+  const midX = useSpring(useTransform(mx, [-0.5, 0.5], [20, -20]), { stiffness: 50, damping: 18 });
 
   const onMove = (e: React.PointerEvent) => {
     if (REDUCE) return;
@@ -68,7 +68,7 @@ export default function EvalDashboardWorld() {
         <motion.svg
           viewBox="0 0 800 520"
           className="absolute top-[7%] left-[calc(50%-330px)] w-[660px] opacity-35"
-          style={{ x: backX, z: -180, rotateX: 24, filter: "blur(0.6px) drop-shadow(0 0 16px #60a5fa55)" }}
+          style={{ x: backX, z: -297, rotateX: 24, filter: "blur(0.6px) drop-shadow(0 0 16px #60a5fa55)" }}
         >
           {/* corner registration marks */}
           {[
@@ -144,7 +144,7 @@ export default function EvalDashboardWorld() {
           className="glass absolute w-[272px] rounded-2xl p-4"
           animate={{ y: [0, -8, 0] }}
           transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-          style={{ left: "38%", top: "46%", x: midX, z: 20, rotateY: 3, borderTop: "2px solid #60a5fa", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
+          style={{ left: "38%", top: "46%", x: midX, z: 33, rotateY: 3, borderTop: "2px solid #60a5fa", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
         >
           <svg viewBox="0 0 220 96" className="w-full">
             {/* metric cards */}
@@ -177,7 +177,7 @@ export default function EvalDashboardWorld() {
           className="glass absolute w-[238px] rounded-2xl p-4"
           animate={{ y: [0, -7, 0] }}
           transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
-          style={{ left: "69%", top: "14%", x: midX, z: -10, rotateY: -6, borderTop: "2px solid #fb7185", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
+          style={{ left: "69%", top: "14%", x: midX, z: -16, rotateY: -6, borderTop: "2px solid #fb7185", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
         >
           <svg viewBox="0 0 200 46" className="w-full">
             <rect x="0" y="0" width="200" height="12" rx="3" fill="#94a3b8" opacity="0.1" />
@@ -196,13 +196,13 @@ export default function EvalDashboardWorld() {
         {/* the teal beam — the wire format cutting under the human-facing glass */}
         <div
           className="absolute right-[10%] bottom-[23.5%] left-[10%] h-px"
-          style={{ transform: "translateZ(40px)", background: "linear-gradient(90deg, transparent, #2dd4bf55 30%, #2dd4bf88 50%, #2dd4bf55 70%, transparent)" }}
+          style={{ transform: "translateZ(66px)", background: "linear-gradient(90deg, transparent, #2dd4bf55 30%, #2dd4bf88 50%, #2dd4bf55 70%, transparent)" }}
         />
         <motion.div
           className="glass absolute bottom-[21%] left-1/2 rounded-xl border-teal-300/40 px-5 py-2.5"
           animate={{ y: [0, -6, 0] }}
           transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-          style={{ x: "-50%", z: 60 }}
+          style={{ x: "-50%", z: 99 }}
         >
           <span className="mono text-[11.5px] text-teal-200">
             the dashboard is for the human — <span className="text-teal-300">the wire format is for everything else</span>
@@ -214,7 +214,7 @@ export default function EvalDashboardWorld() {
           className="glass absolute rounded-xl px-4 py-2"
           animate={{ y: [0, 6, 0] }}
           transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut" }}
-          style={{ left: "8%", bottom: "8%", x: midX, z: 50 }}
+          style={{ left: "8%", bottom: "8%", x: midX, z: 82 }}
         >
           <span className="mono text-[10.5px] text-slate-400">
             strict TypeScript · runtime schema validation ·{" "}
@@ -225,7 +225,7 @@ export default function EvalDashboardWorld() {
         </motion.div>
 
         {/* front layer: title + actions */}
-        <div className="absolute top-[9%] left-[6%]" style={{ transform: "translateZ(90px)" }}>
+        <div className="absolute top-[9%] left-[6%]" style={{ transform: "translateZ(148px)" }}>
           <div className="mono text-[10px] tracking-[0.35em] text-blue-300/80 uppercase">project world</div>
           <h2 className="mono mt-2 text-[44px] leading-none font-semibold tracking-tight text-slate-50" style={{ textShadow: "0 0 40px #60a5fa66" }}>
             eval-dashboard

@@ -27,10 +27,10 @@ export default function TapdodgeWorld() {
 
   const mx = useMotionValue(0);
   const my = useMotionValue(0);
-  const rx = useSpring(useTransform(my, [-0.5, 0.5], [4, -4]), { stiffness: 60, damping: 15 });
-  const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-5, 5]), { stiffness: 60, damping: 15 });
-  const backX = useSpring(useTransform(mx, [-0.5, 0.5], [24, -24]), { stiffness: 50, damping: 18 });
-  const midX = useSpring(useTransform(mx, [-0.5, 0.5], [10, -10]), { stiffness: 50, damping: 18 });
+  const rx = useSpring(useTransform(my, [-0.5, 0.5], [7, -7]), { stiffness: 60, damping: 15 });
+  const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-9, 9]), { stiffness: 60, damping: 15 });
+  const backX = useSpring(useTransform(mx, [-0.5, 0.5], [44, -44]), { stiffness: 50, damping: 18 });
+  const midX = useSpring(useTransform(mx, [-0.5, 0.5], [20, -20]), { stiffness: 50, damping: 18 });
 
   const onMove = (e: React.PointerEvent) => {
     if (REDUCE) return;
@@ -54,7 +54,7 @@ export default function TapdodgeWorld() {
       lead: "a golden file of the JVM trace passed too",
       rest: "the JVM side never moved",
       dot: "#2dd4bf",
-      w: 272, x: "66%", y: "48%", z: 15, tilt: 7, dur: 7,
+      w: 272, x: "66%", y: "48%", z: 25, tilt: 7, dur: 7,
     },
   ];
 
@@ -84,7 +84,7 @@ export default function TapdodgeWorld() {
         <motion.svg
           viewBox="0 0 900 430"
           className="absolute top-[4%] left-1/2 w-[880px] -translate-x-1/2 opacity-35"
-          style={{ x: backX, z: -180, filter: "blur(0.6px) drop-shadow(0 0 14px #60a5fa55)" }}
+          style={{ x: backX, z: -297, filter: "blur(0.6px) drop-shadow(0 0 14px #60a5fa55)" }}
         >
           {/* one seed feeding both lanes */}
           <circle cx="30" cy="230" r="5" fill="#60a5fa" style={{ filter: "drop-shadow(0 0 8px #60a5fa)" }} />
@@ -155,7 +155,7 @@ export default function TapdodgeWorld() {
           className="glass absolute w-[240px] rounded-2xl p-4"
           animate={{ y: [0, -9, 0] }}
           transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-          style={{ left: "6%", top: "50%", x: midX, z: 30, rotateY: -6, borderTop: "2px solid #60a5fa", boxShadow: "0 20px 60px rgba(96,165,250,.15)" }}
+          style={{ left: "6%", top: "50%", x: midX, z: 50, rotateY: -6, borderTop: "2px solid #60a5fa", boxShadow: "0 20px 60px rgba(96,165,250,.15)" }}
         >
           <div className="mono text-[9px] tracking-[0.22em] text-blue-300/80 uppercase">from one seed</div>
           <div className="mono mt-1 text-[34px] leading-none font-semibold text-blue-300" style={{ textShadow: "0 0 24px #60a5fa66" }}>
@@ -185,13 +185,13 @@ export default function TapdodgeWorld() {
         {/* the rose beam — the only instrument that saw it */}
         <div
           className="absolute right-[10%] bottom-[23.5%] left-[10%] h-px"
-          style={{ transform: "translateZ(40px)", background: "linear-gradient(90deg, transparent, #fb718555 30%, #fb718588 50%, #fb718555 70%, transparent)" }}
+          style={{ transform: "translateZ(66px)", background: "linear-gradient(90deg, transparent, #fb718555 30%, #fb718588 50%, #fb718555 70%, transparent)" }}
         />
         <motion.div
           className="glass absolute bottom-[21%] left-1/2 -translate-x-1/2 rounded-xl border-rose-300/40 px-5 py-2.5"
           animate={{ y: [0, -6, 0] }}
           transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-          style={{ z: 60 }}
+          style={{ z: 99 }}
         >
           <span className="mono text-[11.5px] text-rose-200">
             only the diff between them <span className="font-semibold text-rose-300" style={{ textShadow: "0 0 14px #fb718566" }}>fails</span>
@@ -203,7 +203,7 @@ export default function TapdodgeWorld() {
           className="glass absolute rounded-xl px-4 py-2"
           animate={{ y: [0, 6, 0] }}
           transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut" }}
-          style={{ left: "8%", bottom: "8%", x: midX, z: 50 }}
+          style={{ left: "8%", bottom: "8%", x: midX, z: 82 }}
         >
           <span className="mono text-[10.5px] text-slate-400">
             live on <span className="font-semibold text-blue-300" style={{ textShadow: "0 0 14px #60a5fa66" }}>Google Play</span>
@@ -211,7 +211,7 @@ export default function TapdodgeWorld() {
         </motion.div>
 
         {/* front layer: title + actions */}
-        <div className="absolute top-[9%] left-[6%]" style={{ transform: "translateZ(90px)" }}>
+        <div className="absolute top-[9%] left-[6%]" style={{ transform: "translateZ(148px)" }}>
           <div className="mono text-[10px] tracking-[0.35em] text-blue-300/80 uppercase">project world</div>
           <h2 className="mono mt-2 text-[44px] leading-none font-semibold tracking-tight text-slate-50" style={{ textShadow: "0 0 40px #60a5fa66" }}>
             tapdodge-engine

@@ -23,10 +23,10 @@ export default function PiGatesWorld() {
 
   const mx = useMotionValue(0);
   const my = useMotionValue(0);
-  const rx = useSpring(useTransform(my, [-0.5, 0.5], [4, -4]), { stiffness: 60, damping: 15 });
-  const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-5, 5]), { stiffness: 60, damping: 15 });
-  const backX = useSpring(useTransform(mx, [-0.5, 0.5], [24, -24]), { stiffness: 50, damping: 18 });
-  const midX = useSpring(useTransform(mx, [-0.5, 0.5], [10, -10]), { stiffness: 50, damping: 18 });
+  const rx = useSpring(useTransform(my, [-0.5, 0.5], [7, -7]), { stiffness: 60, damping: 15 });
+  const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-9, 9]), { stiffness: 60, damping: 15 });
+  const backX = useSpring(useTransform(mx, [-0.5, 0.5], [44, -44]), { stiffness: 50, damping: 18 });
+  const midX = useSpring(useTransform(mx, [-0.5, 0.5], [20, -20]), { stiffness: 50, damping: 18 });
 
   const onMove = (e: React.PointerEvent) => {
     if (REDUCE) return;
@@ -44,7 +44,7 @@ export default function PiGatesWorld() {
       w: 288,
       x: "5%",
       y: "47%",
-      z: 26,
+      z: 43,
       tilt: -6,
       dur: 6,
       drift: -8,
@@ -55,7 +55,7 @@ export default function PiGatesWorld() {
       w: 246,
       x: "71%",
       y: "44%",
-      z: 14,
+      z: 23,
       tilt: 7,
       dur: 7,
       drift: 8,
@@ -87,7 +87,7 @@ export default function PiGatesWorld() {
         <motion.svg
           viewBox="0 0 800 800"
           className="absolute top-[0%] left-1/2 w-[640px] -translate-x-1/2 opacity-30"
-          style={{ x: backX, z: -180, filter: "blur(0.6px) drop-shadow(0 0 18px #fb718555)" }}
+          style={{ x: backX, z: -297, filter: "blur(0.6px) drop-shadow(0 0 18px #fb718555)" }}
         >
           {/* door slab + concentric rings */}
           <circle cx="400" cy="400" r="356" fill="#fb718506" stroke={ACCENT} strokeWidth="2.5" />
@@ -130,7 +130,7 @@ export default function PiGatesWorld() {
           className="glass absolute left-1/2 -translate-x-1/2 rounded-xl px-5 py-2.5"
           animate={{ y: [0, -7, 0] }}
           transition={{ duration: 6.5, repeat: Infinity, ease: "easeInOut" }}
-          style={{ top: "24%", x: midX, z: 40, borderLeft: `2px solid ${ACCENT}`, boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
+          style={{ top: "24%", x: midX, z: 66, borderLeft: `2px solid ${ACCENT}`, boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
         >
           <span className="mono text-[11.5px] whitespace-nowrap text-slate-300">
             <span className="text-slate-500">$ </span>
@@ -170,13 +170,13 @@ export default function PiGatesWorld() {
         {/* the teal ribbon — the failure posture, cutting through the rose world */}
         <div
           className="absolute right-[10%] bottom-[24.5%] left-[10%] h-px"
-          style={{ transform: "translateZ(40px)", background: "linear-gradient(90deg, transparent, #2dd4bf55 30%, #2dd4bf88 50%, #2dd4bf55 70%, transparent)" }}
+          style={{ transform: "translateZ(66px)", background: "linear-gradient(90deg, transparent, #2dd4bf55 30%, #2dd4bf88 50%, #2dd4bf55 70%, transparent)" }}
         />
         <motion.div
           className="glass absolute bottom-[22%] left-1/2 -translate-x-1/2 rounded-xl border-teal-300/40 px-5 py-2.5"
           animate={{ y: [0, -6, 0] }}
           transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-          style={{ z: 60 }}
+          style={{ z: 99 }}
         >
           <span className="mono text-[11.5px] whitespace-nowrap text-teal-200">
             fail closed when they cannot tell
@@ -188,7 +188,7 @@ export default function PiGatesWorld() {
           className="glass absolute rounded-xl px-4 py-2"
           animate={{ y: [0, 6, 0] }}
           transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut" }}
-          style={{ right: "6%", bottom: "8%", x: midX, z: 50 }}
+          style={{ right: "6%", bottom: "8%", x: midX, z: 82 }}
         >
           <span className="mono text-[10.5px] text-slate-400">
             if you do not see the armed line, <span className="text-rose-300">the gates are not running</span>
@@ -196,7 +196,7 @@ export default function PiGatesWorld() {
         </motion.div>
 
         {/* front layer: title + actions */}
-        <div className="absolute top-[9%] left-[6%]" style={{ transform: "translateZ(90px)" }}>
+        <div className="absolute top-[9%] left-[6%]" style={{ transform: "translateZ(148px)" }}>
           <div className="mono text-[10px] tracking-[0.35em] text-rose-300/80 uppercase">project world</div>
           <h2 className="mono mt-2 text-[44px] leading-none font-semibold tracking-tight text-slate-50" style={{ textShadow: "0 0 40px #fb718566" }}>
             pi-gates

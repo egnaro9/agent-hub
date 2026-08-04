@@ -29,10 +29,10 @@ export default function McpToolsWorld() {
 
   const mx = useMotionValue(0);
   const my = useMotionValue(0);
-  const rx = useSpring(useTransform(my, [-0.5, 0.5], [4, -4]), { stiffness: 60, damping: 15 });
-  const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-5, 5]), { stiffness: 60, damping: 15 });
-  const backX = useSpring(useTransform(mx, [-0.5, 0.5], [24, -24]), { stiffness: 50, damping: 18 });
-  const midX = useSpring(useTransform(mx, [-0.5, 0.5], [10, -10]), { stiffness: 50, damping: 18 });
+  const rx = useSpring(useTransform(my, [-0.5, 0.5], [7, -7]), { stiffness: 60, damping: 15 });
+  const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-9, 9]), { stiffness: 60, damping: 15 });
+  const backX = useSpring(useTransform(mx, [-0.5, 0.5], [44, -44]), { stiffness: 50, damping: 18 });
+  const midX = useSpring(useTransform(mx, [-0.5, 0.5], [20, -20]), { stiffness: 50, damping: 18 });
 
   const onMove = (e: React.PointerEvent) => {
     if (REDUCE) return;
@@ -44,12 +44,12 @@ export default function McpToolsWorld() {
 
   // The mid-layer claims — verbatim from the facts, do not embellish.
   const panels = [
-    { tag: "the pattern", text: "each tool is a repo doing its day job, exposed over MCP", w: 258, x: "7%", y: "52%", z: 30, tilt: -6, dur: 6 },
+    { tag: "the pattern", text: "each tool is a repo doing its day job, exposed over MCP", w: 258, x: "7%", y: "52%", z: 50, tilt: -6, dur: 6 },
     { tag: "calc", text: "agent-graph's AST-sandboxed evaluator is the calc tool", w: 246, x: "40%", y: "58%", z: 0, tilt: 2, dur: 7 },
-    { tag: "grade_answer", text: "grade_answer names the sentences your sources don't support", w: 268, x: "66%", y: "20%", z: 20, tilt: 7, dur: 5.5 },
-    { tag: "compare_runs", text: "eval-history answers compare_runs — did the latest run regress, per case", w: 280, x: "69%", y: "46%", z: 24, tilt: 6, dur: 6.5 },
-    { tag: "board", text: "a fifth tool reads the live board", w: 204, x: "76%", y: "72%", z: 44, tilt: 5, dur: 5 },
-    { tag: "claude desktop", text: "wire the server into Claude Desktop and the page's opening line stops being a claim", w: 300, x: "5%", y: "72%", z: 36, tilt: -5, dur: 7.5 },
+    { tag: "grade_answer", text: "grade_answer names the sentences your sources don't support", w: 268, x: "66%", y: "20%", z: 33, tilt: 7, dur: 5.5 },
+    { tag: "compare_runs", text: "eval-history answers compare_runs — did the latest run regress, per case", w: 280, x: "69%", y: "46%", z: 40, tilt: 6, dur: 6.5 },
+    { tag: "board", text: "a fifth tool reads the live board", w: 204, x: "76%", y: "72%", z: 73, tilt: 5, dur: 5 },
+    { tag: "claude desktop", text: "wire the server into Claude Desktop and the page's opening line stops being a claim", w: 300, x: "5%", y: "72%", z: 59, tilt: -5, dur: 7.5 },
   ];
 
   return (
@@ -77,7 +77,7 @@ export default function McpToolsWorld() {
         <div
           className="absolute top-[-6%] right-[6%] left-[6%] h-[58%] opacity-10"
           style={{
-            transform: "translateZ(-240px)",
+            transform: "translateZ(-396px)",
             background:
               "linear-gradient(rgba(167,139,250,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(167,139,250,.5) 1px, transparent 1px)",
             backgroundSize: "68px 68px",
@@ -89,7 +89,7 @@ export default function McpToolsWorld() {
         <motion.svg
           viewBox="0 0 200 200"
           className="absolute top-[5%] right-[3%] w-[150px] opacity-20"
-          style={{ x: backX, z: -120 }}
+          style={{ x: backX, z: -198 }}
         >
           <circle cx="100" cy="100" r="72" fill="none" stroke="#2dd4bf" strokeWidth="1" opacity="0.6" strokeDasharray="3 9" />
           <circle cx="100" cy="100" r="44" fill="none" stroke="#a78bfa" strokeWidth="1.5" opacity="0.8" />
@@ -106,7 +106,7 @@ export default function McpToolsWorld() {
         <motion.svg
           viewBox="0 0 800 800"
           className="absolute top-[-3%] left-1/2 w-[720px] -translate-x-1/2 opacity-[0.34]"
-          style={{ x: backX, z: -180, filter: "blur(0.6px) drop-shadow(0 0 20px #a78bfa55)" }}
+          style={{ x: backX, z: -297, filter: "blur(0.6px) drop-shadow(0 0 20px #a78bfa55)" }}
         >
           {/* wall plate with corner screws */}
           <rect x="252" y="108" width="326" height="582" rx="16" fill="#a78bfa06" stroke="#a78bfa" strokeWidth="2" />
@@ -227,13 +227,13 @@ export default function McpToolsWorld() {
         {/* the teal ribbon — the point of the whole panel */}
         <div
           className="absolute right-[10%] bottom-[23.5%] left-[10%] h-px"
-          style={{ transform: "translateZ(40px)", background: "linear-gradient(90deg, transparent, #2dd4bf55 30%, #2dd4bf88 50%, #2dd4bf55 70%, transparent)" }}
+          style={{ transform: "translateZ(66px)", background: "linear-gradient(90deg, transparent, #2dd4bf55 30%, #2dd4bf88 50%, #2dd4bf55 70%, transparent)" }}
         />
         <motion.div
           className="glass absolute bottom-[21%] left-1/2 -translate-x-1/2 rounded-xl border-teal-300/40 px-5 py-2.5"
           animate={{ y: [0, -6, 0] }}
           transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-          style={{ z: 60 }}
+          style={{ z: 99 }}
         >
           <span className="mono text-[11.5px] text-teal-200">
             “an agent that checks its own work before it answers”
@@ -241,7 +241,7 @@ export default function McpToolsWorld() {
         </motion.div>
 
         {/* front layer: title + actions */}
-        <div className="absolute top-[9%] left-[6%]" style={{ transform: "translateZ(90px)" }}>
+        <div className="absolute top-[9%] left-[6%]" style={{ transform: "translateZ(148px)" }}>
           <div className="mono text-[10px] tracking-[0.35em] text-violet-300/80 uppercase">project world</div>
           <h2 className="mono mt-2 text-[44px] leading-none font-semibold tracking-tight text-slate-50" style={{ textShadow: "0 0 40px #a78bfa66" }}>
             mcp-tools

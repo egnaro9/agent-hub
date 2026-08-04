@@ -32,10 +32,10 @@ export default function LlmGatewayWorld() {
 
   const mx = useMotionValue(0);
   const my = useMotionValue(0);
-  const rx = useSpring(useTransform(my, [-0.5, 0.5], [4, -4]), { stiffness: 60, damping: 15 });
-  const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-5, 5]), { stiffness: 60, damping: 15 });
-  const backX = useSpring(useTransform(mx, [-0.5, 0.5], [24, -24]), { stiffness: 50, damping: 18 });
-  const midX = useSpring(useTransform(mx, [-0.5, 0.5], [10, -10]), { stiffness: 50, damping: 18 });
+  const rx = useSpring(useTransform(my, [-0.5, 0.5], [7, -7]), { stiffness: 60, damping: 15 });
+  const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-9, 9]), { stiffness: 60, damping: 15 });
+  const backX = useSpring(useTransform(mx, [-0.5, 0.5], [44, -44]), { stiffness: 50, damping: 18 });
+  const midX = useSpring(useTransform(mx, [-0.5, 0.5], [20, -20]), { stiffness: 50, damping: 18 });
 
   const onMove = (e: React.PointerEvent) => {
     if (REDUCE) return;
@@ -47,9 +47,9 @@ export default function LlmGatewayWorld() {
 
   // What the gateway actually does — panel copy is verbatim, do not embellish.
   const panels = [
-    { text: "one OpenAI-shaped endpoint fronting many providers", w: 240, x: "7%", y: "55%", z: 30, tilt: -6, dur: 5.5 },
-    { text: "auth · per-key rate limiting · caching · retries · per-model cost accounting", w: 258, x: "67%", y: "44%", z: 10, tilt: 6, dur: 6.5 },
-    { text: "the real ASGI app answers in the demo tab", w: 224, x: "70%", y: "11%", z: -10, tilt: -7, dur: 7 },
+    { text: "one OpenAI-shaped endpoint fronting many providers", w: 240, x: "7%", y: "55%", z: 50, tilt: -6, dur: 5.5 },
+    { text: "auth · per-key rate limiting · caching · retries · per-model cost accounting", w: 258, x: "67%", y: "44%", z: 16, tilt: 6, dur: 6.5 },
+    { text: "the real ASGI app answers in the demo tab", w: 224, x: "70%", y: "11%", z: -16, tilt: -7, dur: 7 },
   ];
 
   return (
@@ -77,7 +77,7 @@ export default function LlmGatewayWorld() {
         <motion.svg
           viewBox="0 0 800 520"
           className="absolute top-[5%] left-1/2 w-[660px] -translate-x-1/2 opacity-30"
-          style={{ x: backX, z: -180, filter: "blur(0.6px) drop-shadow(0 0 16px #34d39955)" }}
+          style={{ x: backX, z: -297, filter: "blur(0.6px) drop-shadow(0 0 16px #34d39955)" }}
         >
           {/* the inlet — the only way in */}
           <line x1="56" y1="250" x2="280" y2="250" stroke="#34d399" strokeWidth="2.5" opacity="0.8" />
@@ -152,19 +152,19 @@ export default function LlmGatewayWorld() {
         {/* the amber ribbon — the rate limiter is an invitation, not a footnote */}
         <div
           className="absolute right-[10%] bottom-[23.5%] left-[10%] h-px"
-          style={{ transform: "translateZ(40px)", background: "linear-gradient(90deg, transparent, #fbbf2455 30%, #fbbf2488 50%, #fbbf2455 70%, transparent)" }}
+          style={{ transform: "translateZ(66px)", background: "linear-gradient(90deg, transparent, #fbbf2455 30%, #fbbf2488 50%, #fbbf2455 70%, transparent)" }}
         />
         <motion.div
           className="glass absolute bottom-[21%] left-1/2 -translate-x-1/2 rounded-xl border-amber-300/40 px-5 py-2.5"
           animate={{ y: [0, -6, 0] }}
           transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-          style={{ z: 60 }}
+          style={{ z: 99 }}
         >
           <span className="mono text-[11.5px] text-amber-200">flood it for a 429</span>
         </motion.div>
 
         {/* front layer: title + actions */}
-        <div className="absolute top-[9%] left-[6%]" style={{ transform: "translateZ(90px)" }}>
+        <div className="absolute top-[9%] left-[6%]" style={{ transform: "translateZ(148px)" }}>
           <div className="mono text-[10px] tracking-[0.35em] text-emerald-300/80 uppercase">project world</div>
           <h2 className="mono mt-2 text-[44px] leading-none font-semibold tracking-tight text-slate-50" style={{ textShadow: "0 0 40px #34d39966" }}>
             llm-gateway

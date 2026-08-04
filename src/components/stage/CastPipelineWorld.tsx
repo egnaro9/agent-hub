@@ -28,10 +28,10 @@ export default function CastPipelineWorld() {
 
   const mx = useMotionValue(0);
   const my = useMotionValue(0);
-  const rx = useSpring(useTransform(my, [-0.5, 0.5], [4, -4]), { stiffness: 60, damping: 15 });
-  const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-5, 5]), { stiffness: 60, damping: 15 });
-  const backX = useSpring(useTransform(mx, [-0.5, 0.5], [24, -24]), { stiffness: 50, damping: 18 });
-  const midX = useSpring(useTransform(mx, [-0.5, 0.5], [10, -10]), { stiffness: 50, damping: 18 });
+  const rx = useSpring(useTransform(my, [-0.5, 0.5], [7, -7]), { stiffness: 60, damping: 15 });
+  const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-9, 9]), { stiffness: 60, damping: 15 });
+  const backX = useSpring(useTransform(mx, [-0.5, 0.5], [44, -44]), { stiffness: 50, damping: 18 });
+  const midX = useSpring(useTransform(mx, [-0.5, 0.5], [20, -20]), { stiffness: 50, damping: 18 });
 
   const onMove = (e: React.PointerEvent) => {
     if (REDUCE) return;
@@ -43,9 +43,9 @@ export default function CastPipelineWorld() {
 
   // Pipeline doctrine, floating mid-depth — verbatim, do not embellish.
   const panels = [
-    { label: "record", text: "record a terminal demo once, fan it out to every surface", w: 252, x: "7%", y: "52%", z: 30, tilt: -6, dur: 5.5 },
+    { label: "record", text: "record a terminal demo once, fan it out to every surface", w: 252, x: "7%", y: "52%", z: 50, tilt: -6, dur: 5.5 },
     { label: "doctrine", text: "every scene ends on a failure being caught — casts of tests passing are decoration", w: 300, x: "36%", y: "58%", z: 0, tilt: 2, dur: 6.5 },
-    { label: "palette", text: "two-layer palette: vars hold hex, tokens name the job", w: 252, x: "70%", y: "14%", z: -10, tilt: -6, dur: 7 },
+    { label: "palette", text: "two-layer palette: vars hold hex, tokens name the job", w: 252, x: "70%", y: "14%", z: -16, tilt: -6, dur: 7 },
   ];
 
   return (
@@ -85,7 +85,7 @@ export default function CastPipelineWorld() {
         <motion.svg
           viewBox="0 0 800 600"
           className="absolute top-[2%] left-1/2 w-[720px] -translate-x-1/2 opacity-[0.34]"
-          style={{ x: backX, z: -180, filter: "blur(0.6px) drop-shadow(0 0 18px #fb718555)" }}
+          style={{ x: backX, z: -297, filter: "blur(0.6px) drop-shadow(0 0 18px #fb718555)" }}
         >
           {/* registration marks — the projectionist's test pattern */}
           {[
@@ -253,7 +253,7 @@ export default function CastPipelineWorld() {
           className="glass absolute rounded-2xl p-4"
           animate={{ y: [0, -7, 0] }}
           transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-          style={{ width: 280, left: "69%", top: "40%", x: midX, z: 24, rotateY: -7, borderTop: "2px solid #fb7185", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
+          style={{ width: 280, left: "69%", top: "40%", x: midX, z: 40, rotateY: -7, borderTop: "2px solid #fb7185", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
         >
           <div className="mono text-[9px] tracking-[0.22em] text-rose-300/80 uppercase">surfaces</div>
           <div className="mono mt-2 space-y-1.5 text-[10.5px] leading-relaxed text-slate-300">
@@ -274,7 +274,7 @@ export default function CastPipelineWorld() {
           className="glass absolute rounded-2xl p-4"
           animate={{ y: [0, 7, 0] }}
           transition={{ duration: 7.5, repeat: Infinity, ease: "easeInOut" }}
-          style={{ width: 266, left: "7.5%", bottom: "8%", x: midX, z: 36, rotateY: 6, borderTop: "2px solid #fb7185", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
+          style={{ width: 266, left: "7.5%", bottom: "8%", x: midX, z: 59, rotateY: 6, borderTop: "2px solid #fb7185", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
         >
           <div className="mono text-[9px] tracking-[0.22em] text-rose-300/80 uppercase">tooling</div>
           <div className="mono mt-2 text-[10.5px] leading-relaxed text-slate-300">
@@ -290,7 +290,7 @@ export default function CastPipelineWorld() {
           className="glass absolute rounded-xl px-4 py-2.5"
           animate={{ y: [0, 6, 0] }}
           transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut" }}
-          style={{ right: "5%", bottom: "9%", x: midX, z: 50, borderLeft: "2px solid #2dd4bf", boxShadow: "0 16px 40px rgba(0,0,0,.45)" }}
+          style={{ right: "5%", bottom: "9%", x: midX, z: 82, borderLeft: "2px solid #2dd4bf", boxShadow: "0 16px 40px rgba(0,0,0,.45)" }}
         >
           <div className="mono text-[9px] tracking-[0.22em] text-teal-300/70 uppercase">gotcha</div>
           <div className="mono mt-1 max-w-[34ch] text-[10.5px] leading-relaxed text-slate-400">
@@ -301,26 +301,26 @@ export default function CastPipelineWorld() {
         {/* the teal ribbon — the reason the room exists */}
         <div
           className="absolute right-[10%] bottom-[23.5%] left-[10%] h-px"
-          style={{ transform: "translateZ(40px)", background: "linear-gradient(90deg, transparent, #2dd4bf55 30%, #2dd4bf88 50%, #2dd4bf55 70%, transparent)" }}
+          style={{ transform: "translateZ(66px)", background: "linear-gradient(90deg, transparent, #2dd4bf55 30%, #2dd4bf88 50%, #2dd4bf55 70%, transparent)" }}
         />
         <motion.div
           className="glass absolute bottom-[21%] left-1/2 -translate-x-1/2 rounded-xl border-teal-300/40 px-5 py-2.5"
           animate={{ y: [0, -6, 0] }}
           transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-          style={{ z: 60 }}
+          style={{ z: 99 }}
         >
           <span className="mono text-[11.5px] text-teal-300">the artifact is the evidence</span>
         </motion.div>
 
         {/* footer strip — the pipeline in one line */}
-        <div className="absolute right-0 bottom-[3%] left-0 text-center" style={{ transform: "translateZ(70px)" }}>
+        <div className="absolute right-0 bottom-[3%] left-0 text-center" style={{ transform: "translateZ(116px)" }}>
           <span className="mono text-[9px] tracking-[0.3em] whitespace-nowrap text-slate-600">
             record.sh — frame.py — .cast · .gif · .mp4
           </span>
         </div>
 
         {/* front layer: title + actions */}
-        <div className="absolute top-[9%] left-[6%]" style={{ transform: "translateZ(90px)" }}>
+        <div className="absolute top-[9%] left-[6%]" style={{ transform: "translateZ(148px)" }}>
           <div className="mono text-[10px] tracking-[0.35em] text-rose-300/80 uppercase">project world</div>
           <h2 className="mono mt-2 text-[44px] leading-none font-semibold tracking-tight text-slate-50" style={{ textShadow: "0 0 40px #fb718566" }}>
             cast-pipeline

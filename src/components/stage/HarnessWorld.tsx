@@ -21,10 +21,10 @@ export default function HarnessWorld() {
 
   const mx = useMotionValue(0);
   const my = useMotionValue(0);
-  const rx = useSpring(useTransform(my, [-0.5, 0.5], [4, -4]), { stiffness: 60, damping: 15 });
-  const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-5, 5]), { stiffness: 60, damping: 15 });
-  const backX = useSpring(useTransform(mx, [-0.5, 0.5], [24, -24]), { stiffness: 50, damping: 18 });
-  const midX = useSpring(useTransform(mx, [-0.5, 0.5], [10, -10]), { stiffness: 50, damping: 18 });
+  const rx = useSpring(useTransform(my, [-0.5, 0.5], [7, -7]), { stiffness: 60, damping: 15 });
+  const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-9, 9]), { stiffness: 60, damping: 15 });
+  const backX = useSpring(useTransform(mx, [-0.5, 0.5], [44, -44]), { stiffness: 50, damping: 18 });
+  const midX = useSpring(useTransform(mx, [-0.5, 0.5], [20, -20]), { stiffness: 50, damping: 18 });
 
   const onMove = (e: React.PointerEvent) => {
     if (REDUCE) return;
@@ -35,9 +35,9 @@ export default function HarnessWorld() {
   };
 
   const cards = [
-    { name: "one drafter", score: "95%", cost: "$0.031", time: "2.2s", z: 40, x: "8%", y: "52%", tilt: -6, win: true },
-    { name: "planner → drafter", score: "90%", cost: "$0.264", time: "9.1s", z: 10, x: "38%", y: "48%", tilt: 2, win: false },
-    { name: "planner → 2 drafters → judge", score: "80%", cost: "$0.692", time: "18.3s", z: -20, x: "66%", y: "26%", tilt: 7, win: false },
+    { name: "one drafter", score: "95%", cost: "$0.031", time: "2.2s", z: 66, x: "8%", y: "52%", tilt: -6, win: true },
+    { name: "planner → drafter", score: "90%", cost: "$0.264", time: "9.1s", z: 16, x: "38%", y: "48%", tilt: 2, win: false },
+    { name: "planner → 2 drafters → judge", score: "80%", cost: "$0.692", time: "18.3s", z: -33, x: "66%", y: "26%", tilt: 7, win: false },
   ];
 
   return (
@@ -65,7 +65,7 @@ export default function HarnessWorld() {
         <motion.svg
           viewBox="0 0 900 420"
           className="absolute top-[8%] left-1/2 w-[880px] -translate-x-1/2 opacity-35"
-          style={{ x: backX, transform: "translateZ(-180px)", filter: "blur(0.6px) drop-shadow(0 0 14px #fbbf2455)" }}
+          style={{ x: backX, transform: "translateZ(-297px)", filter: "blur(0.6px) drop-shadow(0 0 14px #fbbf2455)" }}
         >
           {[
             "M150,210 C260,210 260,110 380,110",
@@ -122,7 +122,7 @@ export default function HarnessWorld() {
           className="glass absolute left-1/2 bottom-[24%] -translate-x-1/2 rounded-xl border-teal-300/40 px-5 py-2.5"
           animate={REDUCE ? undefined : { y: [0, -6, 0] }}
           transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-          style={{ transform: "translateZ(60px)" }}
+          style={{ transform: "translateZ(99px)" }}
         >
           <span className="mono text-[11.5px] text-teal-200">
             verdict: <span className="text-teal-300">“this suite cannot decide between them”</span> — 17 of 20 tasks tied; p&lt;0.05 unreachable
@@ -130,7 +130,7 @@ export default function HarnessWorld() {
         </motion.div>
 
         {/* front layer: title + actions */}
-        <div className="absolute top-[10%] left-[6%]" style={{ transform: "translateZ(90px)" }}>
+        <div className="absolute top-[10%] left-[6%]" style={{ transform: "translateZ(148px)" }}>
           <div className="mono text-[10px] tracking-[0.35em] text-amber-300/80 uppercase">project world</div>
           <h2 className="mono mt-2 text-[44px] leading-none font-semibold tracking-tight text-slate-50" style={{ textShadow: "0 0 40px #fbbf2466" }}>
             harness-builder

@@ -181,6 +181,8 @@ interface HubState {
   hydrateWork: (projectId: string) => Promise<void>;
 
   moveNode: (id: string, pos: Vec) => void;
+  /** moveNode, many at once — how the arrange button lands a computed layout. */
+  applyLayout: (positions: Record<string, Vec>) => void;
   openStage: (projectId: string) => void;
   backToGraph: () => void;
   setProjectMode: (m: ProjectMode) => void;
@@ -369,6 +371,17 @@ export const useHub = create<HubState>()(
     set((s) => ({
       projects: s.projects.map((p) => (p.id === id ? { ...p, pos } : p)),
       agents: s.agents.map((a) => (a.id === id ? { ...a, pos } : a)),
+    })),
+
+  // The arrange button's write path: the same projects/agents `pos` fields a
+  // hand-drag goes through (so partialize's `positions` persists the arranged
+  // map identically), but in ONE set — 25 sequential moveNode calls would fan
+  // out 25 store updates and 25 persist writes for a single gesture. Ids the
+  // layout doesn't know (none today) are simply left where they were.
+  applyLayout: (positions) =>
+    set((s) => ({
+      projects: s.projects.map((p) => (positions[p.id] ? { ...p, pos: positions[p.id] } : p)),
+      agents: s.agents.map((a) => (positions[a.id] ? { ...a, pos: positions[a.id] } : a)),
     })),
 
   openStage: (projectId) => {

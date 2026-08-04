@@ -1,6 +1,7 @@
 import { Handle, Position } from "@xyflow/react";
 import { motion } from "framer-motion";
 import { useHub } from "../../state/hub";
+import { COUNTER_YAW, useOrrery } from "../orrery";
 
 export default function AgentNode({ id }: { id: string }) {
   const agent = useHub((s) => s.agents.find((a) => a.id === id));
@@ -12,6 +13,11 @@ export default function AgentNode({ id }: { id: string }) {
   const inTray = useHub((s) => s.tray.includes(id));
   const openChat = useHub((s) => s.openChat);
   const toggleTray = useHub((s) => s.toggleTray);
+  // Same counter-rotation as ProjectNode, same wrapper-not-motion.div reason
+  // (framer owns the motion.div's transform). The name and the chat/+ buttons
+  // have to stay flat to camera and clickable; the orb itself is round, so it
+  // loses nothing to the tilt it keeps.
+  const flat = useOrrery((s) => s.flat);
   if (!agent) return null;
 
   const active = agent.status.kind === "thinking" || agent.status.kind === "talking";
@@ -27,6 +33,7 @@ export default function AgentNode({ id }: { id: string }) {
     agent.status.kind === "idle" ? "#64748b" : agent.status.kind === "working" ? agent.color : "#e2e8f0";
 
   return (
+    <div style={flat ? undefined : { transform: COUNTER_YAW }}>
     <motion.div whileHover={{ scale: 1.05 }} className="relative w-[164px] select-none">
       <Handle type="source" position={Position.Right} style={{ opacity: 0 }} />
       <Handle type="target" position={Position.Left} style={{ opacity: 0 }} />
@@ -88,5 +95,6 @@ export default function AgentNode({ id }: { id: string }) {
         </div>
       </div>
     </motion.div>
+    </div>
   );
 }

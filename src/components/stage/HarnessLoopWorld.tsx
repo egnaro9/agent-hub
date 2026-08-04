@@ -21,11 +21,11 @@ const STAGES = ["Strategy", "Execution", "Critic", "Evaluation", "Ops"];
 
 // The autonomy ladder, top rung first. L2 is where the harness stands today.
 const RUNGS = [
-  { id: "L4", top: "16%", z: 44, tilt: -4, dur: 7, lit: false },
-  { id: "L3", top: "26%", z: 36, tilt: -2, dur: 6, lit: false },
-  { id: "L2", top: "36%", z: 28, tilt: 0, dur: 5.5, lit: true },
-  { id: "L1", top: "46%", z: 20, tilt: 2, dur: 6.5, lit: false },
-  { id: "L0", top: "56%", z: 12, tilt: 4, dur: 7.5, lit: false },
+  { id: "L4", top: "16%", z: 73, tilt: -4, dur: 7, lit: false },
+  { id: "L3", top: "26%", z: 59, tilt: -2, dur: 6, lit: false },
+  { id: "L2", top: "36%", z: 46, tilt: 0, dur: 5.5, lit: true },
+  { id: "L1", top: "46%", z: 33, tilt: 2, dur: 6.5, lit: false },
+  { id: "L0", top: "56%", z: 20, tilt: 4, dur: 7.5, lit: false },
 ];
 
 export default function HarnessLoopWorld() {
@@ -34,10 +34,10 @@ export default function HarnessLoopWorld() {
 
   const mx = useMotionValue(0);
   const my = useMotionValue(0);
-  const rx = useSpring(useTransform(my, [-0.5, 0.5], [4, -4]), { stiffness: 60, damping: 15 });
-  const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-5, 5]), { stiffness: 60, damping: 15 });
-  const backX = useSpring(useTransform(mx, [-0.5, 0.5], [24, -24]), { stiffness: 50, damping: 18 });
-  const midX = useSpring(useTransform(mx, [-0.5, 0.5], [10, -10]), { stiffness: 50, damping: 18 });
+  const rx = useSpring(useTransform(my, [-0.5, 0.5], [7, -7]), { stiffness: 60, damping: 15 });
+  const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-9, 9]), { stiffness: 60, damping: 15 });
+  const backX = useSpring(useTransform(mx, [-0.5, 0.5], [44, -44]), { stiffness: 50, damping: 18 });
+  const midX = useSpring(useTransform(mx, [-0.5, 0.5], [20, -20]), { stiffness: 50, damping: 18 });
 
   const onMove = (e: React.PointerEvent) => {
     if (REDUCE) return;
@@ -77,7 +77,7 @@ export default function HarnessLoopWorld() {
         <motion.svg
           viewBox="0 0 1000 340"
           className="absolute top-[20%] left-1/2 w-[880px] -translate-x-1/2 opacity-[0.35]"
-          style={{ x: backX, z: -180, filter: "blur(0.5px) drop-shadow(0 0 16px #22d3ee55)" }}
+          style={{ x: backX, z: -297, filter: "blur(0.5px) drop-shadow(0 0 16px #22d3ee55)" }}
         >
           {/* connector rail + traveling signal pulse (dash crawl, gated) */}
           <line x1="130" y1="150" x2="870" y2="150" stroke="#22d3ee33" strokeWidth="1.5" />
@@ -151,7 +151,7 @@ export default function HarnessLoopWorld() {
         {/* mid layer: the autonomy ladder — five floating rungs, L2 is home */}
         <motion.div
           className="mono absolute text-[9px] tracking-[0.22em] text-cyan-300/70 uppercase"
-          style={{ left: "71%", top: "11.5%", x: midX, z: 44 }}
+          style={{ left: "71%", top: "11.5%", x: midX, z: 73 }}
         >
           autonomy ladder
         </motion.div>
@@ -162,7 +162,7 @@ export default function HarnessLoopWorld() {
             top: "14%",
             height: "48%",
             x: midX,
-            z: 6,
+            z: 10,
             background: "linear-gradient(transparent, #22d3ee44 15%, #22d3ee44 85%, transparent)",
           }}
         />
@@ -204,7 +204,7 @@ export default function HarnessLoopWorld() {
           className="glass absolute rounded-2xl p-4"
           animate={{ y: [0, -8, 0] }}
           transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-          style={{ width: 268, left: "6%", top: "56%", x: midX, z: 30, rotateY: 5, borderTop: "2px solid #22d3ee", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
+          style={{ width: 268, left: "6%", top: "56%", x: midX, z: 50, rotateY: 5, borderTop: "2px solid #22d3ee", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
         >
           <div className="mono text-[9px] tracking-[0.22em] text-cyan-300/80 uppercase">stop hook</div>
           <div className="mono mt-2 text-[10.5px] leading-relaxed text-slate-300">
@@ -217,7 +217,7 @@ export default function HarnessLoopWorld() {
           className="glass absolute rounded-2xl p-4"
           animate={{ y: [0, 7, 0] }}
           transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
-          style={{ width: 244, left: "34%", top: "52%", x: midX, z: 10, rotateY: -6, borderTop: "2px solid #22d3ee", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
+          style={{ width: 244, left: "34%", top: "52%", x: midX, z: 16, rotateY: -6, borderTop: "2px solid #22d3ee", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
         >
           <div className="mono text-[9px] tracking-[0.22em] text-cyan-300/80 uppercase">judgment tier</div>
           <div className="mono mt-2 text-[10.5px] leading-relaxed text-slate-300">
@@ -228,13 +228,13 @@ export default function HarnessLoopWorld() {
         {/* the amber ribbon — the safety rule cutting through the cyan world */}
         <div
           className="absolute right-[12%] bottom-[24.5%] left-[12%] h-px"
-          style={{ transform: "translateZ(40px)", background: "linear-gradient(90deg, transparent, #fbbf2455 30%, #fbbf2488 50%, #fbbf2455 70%, transparent)" }}
+          style={{ transform: "translateZ(66px)", background: "linear-gradient(90deg, transparent, #fbbf2455 30%, #fbbf2488 50%, #fbbf2455 70%, transparent)" }}
         />
         <motion.div
           className="glass absolute bottom-[22%] left-1/2 -translate-x-1/2 rounded-xl border-amber-300/40 px-5 py-2.5"
           animate={{ y: [0, -6, 0] }}
           transition={{ duration: 6.5, repeat: Infinity, ease: "easeInOut" }}
-          style={{ z: 60 }}
+          style={{ z: 99 }}
         >
           <span className="mono text-[11.5px] whitespace-nowrap text-amber-200">
             reliability earns launch-automation — it never earns gate-removal
@@ -242,7 +242,7 @@ export default function HarnessLoopWorld() {
         </motion.div>
 
         {/* front layer: title + actions */}
-        <div className="absolute top-[9%] left-[6%]" style={{ transform: "translateZ(90px)" }}>
+        <div className="absolute top-[9%] left-[6%]" style={{ transform: "translateZ(148px)" }}>
           <div className="mono text-[10px] tracking-[0.35em] text-cyan-300/80 uppercase">project world</div>
           <h2
             className="mono mt-2 text-[36px] leading-none font-semibold tracking-tight text-slate-50"

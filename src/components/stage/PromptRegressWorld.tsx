@@ -30,10 +30,10 @@ export default function PromptRegressWorld() {
 
   const mx = useMotionValue(0);
   const my = useMotionValue(0);
-  const rx = useSpring(useTransform(my, [-0.5, 0.5], [4, -4]), { stiffness: 60, damping: 15 });
-  const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-5, 5]), { stiffness: 60, damping: 15 });
-  const backX = useSpring(useTransform(mx, [-0.5, 0.5], [24, -24]), { stiffness: 50, damping: 18 });
-  const midX = useSpring(useTransform(mx, [-0.5, 0.5], [10, -10]), { stiffness: 50, damping: 18 });
+  const rx = useSpring(useTransform(my, [-0.5, 0.5], [7, -7]), { stiffness: 60, damping: 15 });
+  const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-9, 9]), { stiffness: 60, damping: 15 });
+  const backX = useSpring(useTransform(mx, [-0.5, 0.5], [44, -44]), { stiffness: 50, damping: 18 });
+  const midX = useSpring(useTransform(mx, [-0.5, 0.5], [20, -20]), { stiffness: 50, damping: 18 });
 
   const onMove = (e: React.PointerEvent) => {
     if (REDUCE) return;
@@ -46,10 +46,10 @@ export default function PromptRegressWorld() {
   // The pipeline, stage by stage — each claim verbatim, floating in depth.
   // The baseline and blocks claims are the money lines, so they run bigger.
   const panels = [
-    { text: "runs your evals on every pull request", w: 238, x: "5%", y: "54%", z: 30, tilt: -6, dur: 5, accent: GREEN, fs: 11.5, glow: false },
-    { text: "compares them to the main-branch baseline", w: 274, x: "30%", y: "66%", z: 12, tilt: 2, dur: 6.5, accent: GREEN, fs: 12.5, glow: false },
-    { text: "blocks the merge if the answers got worse", w: 280, x: "65%", y: "50%", z: 46, tilt: 7, dur: 5.5, accent: ROSE, fs: 12.5, glow: true },
-    { text: "ships as a GitHub Action", w: 206, x: "71%", y: "13%", z: -10, tilt: -7, dur: 7, accent: GREEN, fs: 11.5, glow: false },
+    { text: "runs your evals on every pull request", w: 238, x: "5%", y: "54%", z: 50, tilt: -6, dur: 5, accent: GREEN, fs: 11.5, glow: false },
+    { text: "compares them to the main-branch baseline", w: 274, x: "30%", y: "66%", z: 20, tilt: 2, dur: 6.5, accent: GREEN, fs: 12.5, glow: false },
+    { text: "blocks the merge if the answers got worse", w: 280, x: "65%", y: "50%", z: 76, tilt: 7, dur: 5.5, accent: ROSE, fs: 12.5, glow: true },
+    { text: "ships as a GitHub Action", w: 206, x: "71%", y: "13%", z: -16, tilt: -7, dur: 7, accent: GREEN, fs: 11.5, glow: false },
   ];
 
   return (
@@ -81,7 +81,7 @@ export default function PromptRegressWorld() {
         <motion.svg
           viewBox="0 0 800 420"
           className="absolute top-[3%] left-1/2 w-[860px] -translate-x-1/2 opacity-[0.32]"
-          style={{ x: backX, z: -180, filter: `blur(0.6px) drop-shadow(0 0 18px ${GREEN}55)` }}
+          style={{ x: backX, z: -297, filter: `blur(0.6px) drop-shadow(0 0 18px ${GREEN}55)` }}
         >
           {/* orbit rings around the gate — the field the barrier commands */}
           <ellipse cx="500" cy="230" rx="240" ry="140" fill="none" stroke={GREEN} strokeWidth="1" opacity="0.14" />
@@ -174,7 +174,7 @@ export default function PromptRegressWorld() {
           className="absolute w-[52px]"
           animate={{ y: [0, -6, 0] }}
           transition={{ duration: 7.5, repeat: Infinity, ease: "easeInOut" }}
-          style={{ right: "9%", top: "35%", x: midX, z: 4, opacity: 0.5 }}
+          style={{ right: "9%", top: "35%", x: midX, z: 7, opacity: 0.5 }}
         >
           <circle cx="30" cy="30" r="26" fill="none" stroke={GREEN} strokeWidth="1.5" opacity="0.5" />
           <circle cx="30" cy="30" r="20" fill={`${GREEN}0d`} />
@@ -187,7 +187,7 @@ export default function PromptRegressWorld() {
           className="absolute w-[48px]"
           animate={{ y: [0, 5, 0] }}
           transition={{ duration: 6.8, repeat: Infinity, ease: "easeInOut" }}
-          style={{ left: "5%", bottom: "7%", x: midX, z: 8, opacity: 0.45 }}
+          style={{ left: "5%", bottom: "7%", x: midX, z: 13, opacity: 0.45 }}
         >
           <circle cx="30" cy="30" r="26" fill="none" stroke={ROSE} strokeWidth="1.5" opacity="0.6" />
           <circle cx="30" cy="30" r="20" fill={`${ROSE}0d`} />
@@ -228,7 +228,7 @@ export default function PromptRegressWorld() {
           className="glass absolute rounded-2xl p-4"
           animate={{ y: [0, 7, 0] }}
           transition={{ duration: 6.2, repeat: Infinity, ease: "easeInOut" }}
-          style={{ width: 300, left: "69%", top: "64%", x: midX, z: 22, rotateY: -5, borderTop: `2px solid ${GREEN}`, boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
+          style={{ width: 300, left: "69%", top: "64%", x: midX, z: 36, rotateY: -5, borderTop: `2px solid ${GREEN}`, boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
         >
           <div className="mono text-[9px] tracking-[0.22em] text-emerald-300/80 uppercase">the gap</div>
           <div className="mono mt-2 text-[10.5px] leading-relaxed text-slate-300">
@@ -239,19 +239,19 @@ export default function PromptRegressWorld() {
         {/* the teal beam — the self-referential story cutting through the green world */}
         <div
           className="absolute right-[10%] bottom-[23.5%] left-[10%] h-px"
-          style={{ transform: "translateZ(40px)", background: "linear-gradient(90deg, transparent, #2dd4bf55 30%, #2dd4bf88 50%, #2dd4bf55 70%, transparent)" }}
+          style={{ transform: "translateZ(66px)", background: "linear-gradient(90deg, transparent, #2dd4bf55 30%, #2dd4bf88 50%, #2dd4bf55 70%, transparent)" }}
         />
         <motion.div
           className="glass absolute bottom-[21%] left-1/2 -translate-x-1/2 rounded-xl border-teal-300/40 px-5 py-2.5"
           animate={{ y: [0, -6, 0] }}
           transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-          style={{ z: 60 }}
+          style={{ z: 99 }}
         >
           <span className="mono text-[11.5px] text-teal-200">it gates these very repos</span>
         </motion.div>
 
         {/* front layer: title + actions */}
-        <div className="absolute top-[9%] left-[6%]" style={{ transform: "translateZ(90px)" }}>
+        <div className="absolute top-[9%] left-[6%]" style={{ transform: "translateZ(148px)" }}>
           <div className="mono text-[10px] tracking-[0.35em] text-emerald-300/80 uppercase">project world</div>
           <h2 className="mono mt-2 text-[44px] leading-none font-semibold tracking-tight text-slate-50" style={{ textShadow: `0 0 40px ${GREEN}66` }}>
             prompt-regress

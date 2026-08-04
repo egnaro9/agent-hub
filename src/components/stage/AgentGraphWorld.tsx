@@ -38,10 +38,10 @@ export default function AgentGraphWorld() {
 
   const mx = useMotionValue(0);
   const my = useMotionValue(0);
-  const rx = useSpring(useTransform(my, [-0.5, 0.5], [4, -4]), { stiffness: 60, damping: 15 });
-  const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-5, 5]), { stiffness: 60, damping: 15 });
-  const backX = useSpring(useTransform(mx, [-0.5, 0.5], [24, -24]), { stiffness: 50, damping: 18 });
-  const midX = useSpring(useTransform(mx, [-0.5, 0.5], [10, -10]), { stiffness: 50, damping: 18 });
+  const rx = useSpring(useTransform(my, [-0.5, 0.5], [7, -7]), { stiffness: 60, damping: 15 });
+  const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-9, 9]), { stiffness: 60, damping: 15 });
+  const backX = useSpring(useTransform(mx, [-0.5, 0.5], [44, -44]), { stiffness: 50, damping: 18 });
+  const midX = useSpring(useTransform(mx, [-0.5, 0.5], [20, -20]), { stiffness: 50, damping: 18 });
 
   const onMove = (e: React.PointerEvent) => {
     if (REDUCE) return;
@@ -53,9 +53,9 @@ export default function AgentGraphWorld() {
 
   // The guardrail panels — verbatim, do not embellish.
   const panels = [
-    { eyebrow: "guardrail", text: "an AST-sandboxed evaluator — arithmetic and nothing else", w: 262, x: "6%", y: "56%", z: 30, tilt: -6, dur: 6 },
+    { eyebrow: "guardrail", text: "an AST-sandboxed evaluator — arithmetic and nothing else", w: 262, x: "6%", y: "56%", z: 50, tilt: -6, dur: 6 },
     { eyebrow: "guardrail", text: "a step budget, both tested", w: 206, x: "36%", y: "46%", z: 0, tilt: 3, dur: 5 },
-    { eyebrow: "runtime", text: "the demo runs real LangGraph in your tab", w: 244, x: "69%", y: "15%", z: -10, tilt: -7, dur: 7.5 },
+    { eyebrow: "runtime", text: "the demo runs real LangGraph in your tab", w: 244, x: "69%", y: "15%", z: -16, tilt: -7, dur: 7.5 },
   ];
 
   return (
@@ -83,7 +83,7 @@ export default function AgentGraphWorld() {
         <motion.svg
           viewBox="0 0 800 800"
           className="absolute top-[2%] left-1/2 w-[620px] -translate-x-1/2 opacity-30"
-          style={{ x: backX, z: -180, filter: "blur(0.6px) drop-shadow(0 0 16px #a78bfa55)" }}
+          style={{ x: backX, z: -297, filter: "blur(0.6px) drop-shadow(0 0 16px #a78bfa55)" }}
         >
           <defs>
             <marker id="ag-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -157,13 +157,13 @@ export default function AgentGraphWorld() {
         {/* the rose ribbon — the standing invitation to attack the sandbox */}
         <div
           className="absolute right-[10%] bottom-[23.5%] left-[10%] h-px"
-          style={{ transform: "translateZ(40px)", background: "linear-gradient(90deg, transparent, #fb718555 30%, #fb718588 50%, #fb718555 70%, transparent)" }}
+          style={{ transform: "translateZ(66px)", background: "linear-gradient(90deg, transparent, #fb718555 30%, #fb718588 50%, #fb718555 70%, transparent)" }}
         />
         <motion.div
           className="glass absolute bottom-[21%] left-1/2 -translate-x-1/2 rounded-xl border-rose-300/40 px-5 py-2.5 whitespace-nowrap"
           animate={{ y: [0, -6, 0] }}
           transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-          style={{ z: 60 }}
+          style={{ z: 99 }}
         >
           <span className="mono text-[11.5px] text-rose-200">
             try breaking the calculator with <span className="text-rose-300" style={{ textShadow: "0 0 14px #fb718566" }}>__import__('os')</span>
@@ -171,7 +171,7 @@ export default function AgentGraphWorld() {
         </motion.div>
 
         {/* front layer: title + actions */}
-        <div className="absolute top-[9%] left-[6%]" style={{ transform: "translateZ(90px)" }}>
+        <div className="absolute top-[9%] left-[6%]" style={{ transform: "translateZ(148px)" }}>
           <div className="mono text-[10px] tracking-[0.35em] text-violet-300/80 uppercase">project world</div>
           <h2 className="mono mt-2 text-[44px] leading-none font-semibold tracking-tight text-slate-50" style={{ textShadow: "0 0 40px #a78bfa66" }}>
             agent-graph
