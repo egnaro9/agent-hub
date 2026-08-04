@@ -5,6 +5,7 @@ import { getKey, setKey, clearKey, getModel, setModel, BRAIN_MODELS, getGhToken,
 import RosterPanel from "./RosterPanel";
 import ProvidersPanel from "./ProvidersPanel";
 import Tutorial from "./Tutorial";
+import { PHONE_QUERY, useMediaQuery } from "../hooks/useMediaQuery";
 
 // "claude-haiku-4-5" → "haiku-4-5"; anything long gets clipped so the bar never blows out.
 const shortModel = (id: string) => {
@@ -13,7 +14,9 @@ const shortModel = (id: string) => {
 };
 
 // The thin command strip over the stage: where you are, who's active, summon.
-export default function MissionControl() {
+// `onMenu` arrives only on phone (App wires it below sm): it opens the nav
+// drawer, and its presence is also what puts the hamburger in the strip.
+export default function MissionControl({ onMenu }: { onMenu?: () => void }) {
   const stage = useHub((s) => s.stage);
   const projects = useHub((s) => s.projects);
   const agents = useHub((s) => s.agents);
@@ -36,11 +39,16 @@ export default function MissionControl() {
   const [activeModel, setActiveModel] = useState(getModel());
   const commitsArmed = useHub((s) => s.commitsArmed);
   const setCommitsArmed = useHub((s) => s.setCommitsArmed);
+  // Below sm the strip condenses: summon/roster/keys/brain/search collapse
+  // into one ⋯ menu. Same popover discipline as everything else in the strip.
+  const isPhone = useMediaQuery(PHONE_QUERY);
+  const [moreOpen, setMoreOpen] = useState(false);
   const summonRef = useRef<HTMLDivElement>(null);
   const brainRef = useRef<HTMLDivElement>(null);
   const keysRef = useRef<HTMLDivElement>(null);
+  const moreRef = useRef<HTMLDivElement>(null);
 
-  const anyOpen = summonOpen || brainOpen || keysOpen;
+  const anyOpen = summonOpen || brainOpen || keysOpen || moreOpen;
 
   // One handler for both popovers: click outside dismisses, Escape dismisses the whole stack.
   useEffect(() => {
@@ -50,6 +58,7 @@ export default function MissionControl() {
       if (summonRef.current && !summonRef.current.contains(t)) setSummonOpen(false);
       if (brainRef.current && !brainRef.current.contains(t)) setBrainOpen(false);
       if (keysRef.current && !keysRef.current.contains(t)) setKeysOpen(false);
+      if (moreRef.current && !moreRef.current.contains(t)) setMoreOpen(false);
     };
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
@@ -57,6 +66,7 @@ export default function MissionControl() {
       setBrainOpen(false);
       setDangerOpen(false);
       setKeysOpen(false);
+      setMoreOpen(false);
     };
     document.addEventListener("mousedown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
@@ -73,6 +83,7 @@ export default function MissionControl() {
     setDangerOpen(false);
     setRosterOpen(false);
     setKeysOpen(false);
+    setMoreOpen(false);
   }, [stage]);
 
   const project = stage.kind === "project" ? projects.find((p) => p.id === stage.id) : undefined;
@@ -82,8 +93,61 @@ export default function MissionControl() {
     ? agents.filter((a) => agentInScope(a, project.id) && assignments[a.id] !== project.id)
     : [];
 
+  // Shared by the desktop chip and the phone menu row, so both reset the
+  // drafts the same way — a stale key draft must never survive a reopen.
+  const toggleBrain = () => {
+    setBrainOpen((v) => !v);
+    setKeyDraft("");
+    setModelDraft(getModel());
+    setActiveModel(getModel());
+  };
+
+  // The popovers, shared verbatim by the desktop strip and the phone ⋯ menu —
+  // each renders inside a `relative` wrapper carrying its outside-click ref,
+  // so whichever surface mounts it gets the same dismiss behavior for free.
+  const summonPopover = (
+    <AnimatePresence>
+      {summonOpen && project && summonable.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.15 }}
+          className="glass absolute top-9 right-0 w-52 overflow-hidden rounded-xl p-1"
+        >
+          {summonable.map((a) => (
+            <button
+              key={a.id}
+              onClick={() => {
+                summon(a.id, project.id);
+                setSummonOpen(false);
+              }}
+              className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition hover:bg-white/8"
+            >
+              <span className="grid h-6 w-6 flex-none place-items-center rounded-full text-[9px] font-bold text-white" style={{ background: a.color }}>{a.glyph}</span>
+              <span className="min-w-0">
+                <span className="block text-[11.5px] text-slate-200">{a.name}</span>
+                <span className="mono block truncate text-[8.5px] text-slate-400">{a.role}</span>
+              </span>
+            </button>
+          ))}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
   return (
     <div className="relative z-30 flex min-h-11 shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-white/8 bg-[#070b17]/90 px-4 py-1 backdrop-blur">
+      {/* phone: the rail lives behind this hamburger (App owns the drawer) */}
+      {isPhone && onMenu && (
+        <button
+          onClick={onMenu}
+          aria-label="Open navigation"
+          className="mono -ml-2 grid h-10 w-10 flex-none cursor-pointer place-items-center rounded-md text-[15px] text-slate-300 transition hover:bg-white/10"
+        >
+          ☰
+        </button>
+      )}
       {/* location */}
       <button onClick={backToGraph} className={`mono cursor-pointer text-[11px] transition ${project ? "text-slate-500 hover:text-slate-300" : "text-slate-200"}`}>
         constellation
@@ -91,9 +155,11 @@ export default function MissionControl() {
       {project && (
         <>
           <span className="mono text-[11px] text-slate-700">/</span>
-          <span className="mono flex items-center gap-1.5 text-[11px] text-slate-100">
-            <span className="h-1.5 w-1.5 rounded-full" style={{ background: project.hue, boxShadow: `0 0 6px ${project.hue}` }} />
-            {project.name}
+          <span className="mono flex min-w-0 items-center gap-1.5 text-[11px] text-slate-100">
+            <span className="h-1.5 w-1.5 flex-none rounded-full" style={{ background: project.hue, boxShadow: `0 0 6px ${project.hue}` }} />
+            {/* phone-only cap: a long project name must not shove the mode
+                tabs off the strip. Desktop keeps the full name, unclipped. */}
+            <span className={isPhone ? "max-w-[8.5rem] truncate" : ""}>{project.name}</span>
           </span>
           <div className="ml-2 flex overflow-hidden rounded-md border border-white/10">
             {(["overview", "work"] as const).map((m) => (
@@ -126,51 +192,26 @@ export default function MissionControl() {
         {agents.length} agents
       </span>
 
-      {/* summon */}
-      <div ref={summonRef} className="relative">
+      {/* summon — on phone the chip hides and the wrapper parks at the strip's
+          right edge, so the popover the ⋯ menu opens still drops from the bar */}
+      <div ref={summonRef} className="relative max-sm:absolute max-sm:top-1 max-sm:right-2">
         <button
           onClick={() => setSummonOpen((v) => !v)}
           disabled={!project || summonable.length === 0}
-          className="mono cursor-pointer rounded-md border border-cyan-300/40 bg-cyan-400/10 px-2.5 py-1 text-[10px] text-cyan-200 transition hover:bg-cyan-400/25 disabled:cursor-default disabled:border-white/10 disabled:text-slate-600 disabled:hover:bg-transparent"
+          className="mono cursor-pointer rounded-md border border-cyan-300/40 bg-cyan-400/10 px-2.5 py-1 text-[10px] text-cyan-200 transition max-sm:hidden hover:bg-cyan-400/25 disabled:cursor-default disabled:border-white/10 disabled:text-slate-600 disabled:hover:bg-transparent"
           title={project ? "Summon an agent onto this project" : "Select a project first"}
         >
           + summon agent
         </button>
-        <AnimatePresence>
-          {summonOpen && project && summonable.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.15 }}
-              className="glass absolute top-9 right-0 w-52 overflow-hidden rounded-xl p-1"
-            >
-              {summonable.map((a) => (
-                <button
-                  key={a.id}
-                  onClick={() => {
-                    summon(a.id, project.id);
-                    setSummonOpen(false);
-                  }}
-                  className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition hover:bg-white/8"
-                >
-                  <span className="grid h-6 w-6 flex-none place-items-center rounded-full text-[9px] font-bold text-white" style={{ background: a.color }}>{a.glyph}</span>
-                  <span className="min-w-0">
-                    <span className="block text-[11.5px] text-slate-200">{a.name}</span>
-                    <span className="mono block truncate text-[8.5px] text-slate-400">{a.role}</span>
-                  </span>
-                </button>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {summonPopover}
       </div>
 
-      {/* per-agent brains */}
-      <div className="relative">
+      {/* per-agent brains — the max-sm scale squeezes the fixed 25rem panel
+          inside a 390px viewport without touching RosterPanel itself */}
+      <div className="relative max-sm:absolute max-sm:top-1 max-sm:right-2 max-sm:origin-top-right max-sm:scale-[0.93]">
         <button
           onClick={() => setRosterOpen((v) => !v)}
-          className="mono cursor-pointer rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] text-slate-400 transition hover:text-slate-200"
+          className="mono cursor-pointer rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] text-slate-400 transition max-sm:hidden hover:text-slate-200"
           title="Choose the provider and model for each agent"
         >
           ⚙ roster
@@ -179,11 +220,11 @@ export default function MissionControl() {
       </div>
 
       {/* provider credentials — one key per provider, plus an honest reachability probe */}
-      <div ref={keysRef} className="relative">
+      <div ref={keysRef} className="relative max-sm:absolute max-sm:top-1 max-sm:right-2 max-sm:origin-top-right max-sm:scale-[0.93]">
         <button
           data-testid="keys-button"
           onClick={() => setKeysOpen((v) => !v)}
-          className="mono cursor-pointer rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] text-slate-400 transition hover:text-slate-200"
+          className="mono cursor-pointer rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] text-slate-400 transition max-sm:hidden hover:text-slate-200"
           title="Store a key per provider and test that it actually reaches them"
         >
           ◇ keys
@@ -192,15 +233,10 @@ export default function MissionControl() {
       </div>
 
       {/* brain — BYOK live-agent connection */}
-      <div ref={brainRef} className="relative">
+      <div ref={brainRef} className="relative max-sm:absolute max-sm:top-1 max-sm:right-2">
         <button
-          onClick={() => {
-            setBrainOpen((v) => !v);
-            setKeyDraft("");
-            setModelDraft(getModel());
-            setActiveModel(getModel());
-          }}
-          className={`mono cursor-pointer rounded-md border px-2.5 py-1 text-[10px] whitespace-nowrap transition ${
+          onClick={toggleBrain}
+          className={`mono cursor-pointer rounded-md border px-2.5 py-1 text-[10px] whitespace-nowrap transition max-sm:hidden ${
             brainConnected
               ? "border-teal-300/50 bg-teal-400/10 text-teal-200 hover:bg-teal-400/25"
               : "border-white/10 bg-white/5 text-slate-500 hover:text-slate-300"
@@ -340,6 +376,81 @@ export default function MissionControl() {
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
+
+      {/* phone ⋯ menu — the whole right-hand cluster, one row each. The rows
+          only flip the SAME open-states the chips do; the panels themselves
+          stay mounted in the bar (parked wrappers above), so dismiss refs,
+          Escape and outside-click keep working without a second copy of any
+          panel. panel-solid, not bare glass: this sits over the canvas and
+          backdrop-filter can't be trusted across the RF stacking contexts. */}
+      <div ref={moreRef} className="relative sm:hidden">
+        <button
+          onClick={() => setMoreOpen((v) => !v)}
+          aria-label="More controls"
+          aria-expanded={moreOpen}
+          className="mono grid h-10 w-10 cursor-pointer place-items-center rounded-md border border-white/10 bg-white/5 text-[16px] text-slate-300 transition hover:text-slate-100"
+        >
+          ⋯
+        </button>
+        {moreOpen && (
+          <div className="glass panel-solid absolute top-11 right-0 z-40 w-60 rounded-xl p-1.5">
+            <div className="mono px-2.5 pt-1.5 pb-1 text-[9px] tracking-[0.2em] text-slate-500 uppercase">
+              <span className="text-teal-300">{active}</span> active
+              {errored > 0 && <span className="text-rose-400"> · {errored} error</span>} · {agents.length} agents
+            </div>
+            <button
+              onClick={() => {
+                setMoreOpen(false);
+                setSummonOpen(true);
+              }}
+              disabled={!project || summonable.length === 0}
+              className="mono flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2.5 text-left text-[11px] text-cyan-200 transition hover:bg-white/8 disabled:cursor-default disabled:text-slate-600"
+            >
+              + summon agent
+            </button>
+            <button
+              onClick={() => {
+                setMoreOpen(false);
+                setRosterOpen(true);
+              }}
+              className="mono flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2.5 text-left text-[11px] text-slate-300 transition hover:bg-white/8"
+            >
+              ⚙ roster
+            </button>
+            <button
+              onClick={() => {
+                setMoreOpen(false);
+                setKeysOpen(true);
+              }}
+              className="mono flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2.5 text-left text-[11px] text-slate-300 transition hover:bg-white/8"
+            >
+              ◇ keys
+            </button>
+            <button
+              onClick={() => {
+                setMoreOpen(false);
+                toggleBrain();
+              }}
+              className="mono flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2.5 text-left text-[11px] text-slate-300 transition hover:bg-white/8"
+            >
+              ◈ brain: {brainConnected ? <span className="text-teal-200">live</span> : "mock"}
+              <span className="text-slate-600">· {shortModel(activeModel)}</span>
+            </button>
+            <button
+              onClick={() => {
+                setMoreOpen(false);
+                // Search lives in the drawer on phone — open it, then focus
+                // once the slide-in has landed (matches the drawer spring).
+                onMenu?.();
+                setTimeout(() => document.getElementById("hub-search")?.focus(), 350);
+              }}
+              className="mono flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2.5 text-left text-[11px] text-slate-300 transition hover:bg-white/8"
+            >
+              search
+            </button>
+          </div>
+        )}
       </div>
 
       {/* global search hint — focuses the sidebar search */}

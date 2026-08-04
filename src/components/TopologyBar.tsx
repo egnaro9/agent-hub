@@ -142,7 +142,10 @@ export default function TopologyBar({ projectId }: { projectId: string }) {
     <div
       className={`glass relative flex flex-none flex-col gap-2 rounded-2xl px-3.5 py-2.5 ${composing ? "z-10" : ""}`}
     >
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+      {/* Phone: the chip row scrolls sideways INSIDE this strip instead of
+          wrapping into a tower — the page itself must never scroll
+          horizontally. sm+ keeps today's wrap. */}
+      <div className="flex items-center gap-x-3 gap-y-1.5 overflow-x-auto sm:flex-wrap sm:overflow-x-visible">
         <span className="mono flex-none text-[9.5px] tracking-[0.25em] text-slate-500 uppercase">topology</span>
         <div className="flex flex-none overflow-hidden rounded-md border border-white/10">
           {PRESET_IDS.map((id) => chip(id, LABELS[id]))}

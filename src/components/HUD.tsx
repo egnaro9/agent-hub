@@ -114,8 +114,10 @@ export default function HUD() {
     useOrrery.getState().setDragging(false);
   };
 
+  // Phone-first sizing: 40px squares under a thumb, today's 28px from sm up —
+  // the cluster's layout is otherwise identical at every width.
   const ctl =
-    "mono grid h-7 w-7 cursor-pointer place-items-center rounded-md text-[13px] text-slate-300 transition hover:bg-white/10 hover:text-slate-100";
+    "mono grid h-10 w-10 cursor-pointer place-items-center rounded-md text-[13px] text-slate-300 transition hover:bg-white/10 hover:text-slate-100 sm:h-7 sm:w-7";
 
   return (
     // data-hub-overlay: lets the e2e alignment sweep tell "occluded by the
@@ -214,7 +216,7 @@ export default function HUD() {
               else return;
               o.markManual(); // the drift yields to the hand for a beat
             }}
-            className={`mono grid h-7 w-9 touch-none place-items-center rounded-md text-[12px] transition select-none ${
+            className={`mono grid h-10 w-10 touch-none place-items-center rounded-md text-[12px] transition select-none sm:h-7 sm:w-9 ${
               spinDisabled
                 ? "cursor-default text-slate-600"
                 : "cursor-ew-resize text-slate-300 hover:bg-white/10 hover:text-slate-100"
@@ -231,7 +233,7 @@ export default function HUD() {
                 ? "Flat view. Click to raise the 3D orrery — tilt, spin, depth."
                 : "3D orrery. Click to flatten to the classic top-down view."
             }
-            className={`mono flex cursor-pointer items-center rounded-md px-1.5 py-1 text-[10px] tracking-wider transition ${
+            className={`mono flex cursor-pointer items-center rounded-md px-1.5 py-3 text-[10px] tracking-wider transition sm:py-1 ${
               orreryFlat ? "text-slate-400 hover:bg-white/10 hover:text-slate-200" : "bg-cyan-400/15 text-cyan-200"
             }`}
           >
@@ -247,7 +249,7 @@ export default function HUD() {
                 ? "Locked: scroll and pinch won't zoom, cards can't be dragged, and the orrery spin is frozen. Drag to pan and the +/−/fit buttons still work. Click to unlock."
                 : "Lock the map: stops trackpad scroll from zooming, cards from being dragged, and the orrery from spinning. Panning stays on."
             }
-            className={`mono flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-[10px] tracking-wider transition ${
+            className={`mono flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-3 text-[10px] tracking-wider transition sm:py-1 ${
               mapLocked ? "bg-amber-400/20 text-amber-200" : "text-slate-400 hover:bg-white/10 hover:text-slate-200"
             }`}
           >

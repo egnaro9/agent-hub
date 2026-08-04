@@ -141,7 +141,9 @@ export default function ChatRoom({ projectId }: { projectId: string }) {
               key={a.id}
               onClick={() => assign(a.id, projectId)}
               title={`Summon ${a.name} — ${a.role}`}
-              className="mono grid h-6.5 w-6.5 cursor-pointer place-items-center rounded-full border border-dashed border-white/25 text-[9px] text-slate-500 transition hover:border-white/60 hover:text-slate-200"
+              /* Phone-first: a dashed 26px ring is a miss under a thumb, so it
+                 grows to 40px below sm and keeps today's size everywhere else. */
+              className="mono grid h-10 w-10 cursor-pointer place-items-center rounded-full border border-dashed border-white/25 text-[9px] text-slate-500 transition hover:border-white/60 hover:text-slate-200 sm:h-6.5 sm:w-6.5"
             >
               {a.glyph}
             </button>
@@ -310,7 +312,7 @@ export default function ChatRoom({ projectId }: { projectId: string }) {
           <button
             onClick={submit}
             aria-label={writing ? "Send — an agent is writing" : "Send"}
-            className={`mono cursor-pointer rounded-lg border px-2.5 py-1 text-[11px] transition ${
+            className={`mono cursor-pointer rounded-lg border px-3 py-2.5 text-[11px] transition sm:px-2.5 sm:py-1 ${
               writing
                 ? "border-teal-300/30 bg-teal-400/10 text-teal-200/80 hover:bg-teal-400/20"
                 : "border-cyan-300/40 bg-cyan-400/15 text-cyan-200 hover:bg-cyan-400/30"

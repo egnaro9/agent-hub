@@ -1,6 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
-import { AnimatePresence, MotionConfig } from "framer-motion";
+import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import Particles from "./components/Particles";
 import Sidebar from "./components/Sidebar";
 import MissionControl from "./components/MissionControl";
@@ -9,6 +9,7 @@ import HUD from "./components/HUD";
 import ProjectStage from "./components/stage/ProjectStage";
 import ChatPanel from "./components/panels/ChatPanel";
 import { useHub } from "./state/hub";
+import { PHONE_QUERY, useMediaQuery } from "./hooks/useMediaQuery";
 
 export default function App() {
   const stage = useHub((s) => s.stage);
@@ -16,6 +17,15 @@ export default function App() {
   const closePanels = useHub((s) => s.closePanels);
   const backToGraph = useHub((s) => s.backToGraph);
   const hasDm = useHub((s) => s.conversation !== null);
+
+  // Phone: the rail becomes a drawer. The open flag lives here and not in the
+  // store because it is chrome, not hub state — nothing else may react to it,
+  // and it must not persist. The ref mirror lets the long-lived Escape handler
+  // below read it without re-subscribing on every open/close.
+  const isPhone = useMediaQuery(PHONE_QUERY);
+  const [navOpen, setNavOpen] = useState(false);
+  const navOpenRef = useRef(navOpen);
+  navOpenRef.current = navOpen;
 
   useEffect(() => {
     const t = setInterval(tick, 4200);
@@ -65,6 +75,11 @@ export default function App() {
         t.blur();
         return;
       }
+      // The drawer is the topmost chrome when open, so it claims Escape first.
+      if (navOpenRef.current) {
+        setNavOpen(false);
+        return;
+      }
       const s = useHub.getState();
       if (s.conversation) s.closePanels();
       else if (s.tray.length > 0) s.clearTray();
@@ -78,9 +93,12 @@ export default function App() {
     <MotionConfig reducedMotion="user">
     <div className="vignette relative flex h-screen w-screen overflow-hidden">
       <Particles />
-      <Sidebar />
+      {/* Phone swaps the static rail for a drawer. This is a JS swap, not a
+          CSS hide: two mounted Sidebars would mean two #hub-search ids and
+          the second silently unreachable by getElementById. */}
+      {!isPhone && <Sidebar />}
       <div className="flex h-full min-w-0 flex-1 flex-col">
-      <MissionControl />
+      <MissionControl onMenu={isPhone ? () => setNavOpen(true) : undefined} />
       <main className="relative min-h-0 min-w-0 flex-1">
         <ReactFlowProvider>
           {/* The constellation stays mounted so positions & camera survive stage
@@ -111,6 +129,40 @@ export default function App() {
         </ReactFlowProvider>
       </main>
       </div>
+
+      {/* Phone nav drawer: the whole Sidebar, slid in over everything. The
+          scrim is a real element (not a backdrop-filter — that doesn't sample
+          across the RF/framer stacking contexts) and tapping it, Escape, or
+          navigating anywhere closes the drawer. The Sidebar itself is opaque
+          #070b17, so the canvas can't bleed through the list. */}
+      {isPhone && (
+        <AnimatePresence>
+          {navOpen && (
+            <>
+              <motion.div
+                key="nav-scrim"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.18 }}
+                onClick={() => setNavOpen(false)}
+                aria-hidden
+                className="fixed inset-0 z-40 bg-black/60"
+              />
+              <motion.div
+                key="nav-drawer"
+                initial={{ x: -264 }}
+                animate={{ x: 0 }}
+                exit={{ x: -264 }}
+                transition={{ type: "spring", stiffness: 380, damping: 36 }}
+                className="panel-solid fixed inset-y-0 left-0 z-50"
+              >
+                <Sidebar onNavigate={() => setNavOpen(false)} />
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+      )}
     </div>
     </MotionConfig>
   );

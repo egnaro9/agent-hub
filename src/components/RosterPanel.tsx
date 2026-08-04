@@ -20,7 +20,7 @@ export default function RosterPanel({ onClose }: { onClose: () => void }) {
   const [customFor, setCustomFor] = useState<string | null>(null);
 
   return (
-    <div className="glass panel-solid absolute top-9 right-0 z-40 w-[25rem] rounded-xl p-3">
+    <div className="glass panel-solid absolute top-9 right-0 z-40 w-[25rem] max-w-[calc(100vw-1.5rem)] rounded-xl p-3">
       <div className="flex items-center justify-between">
         <div className="mono text-[9px] tracking-[0.2em] text-slate-400 uppercase">who thinks with what</div>
         <button

@@ -21,7 +21,11 @@ const dotColor = (a: Agent) =>
         ? a.color
         : "#e2e8f0";
 
-export default function Sidebar() {
+// `onNavigate` exists for the phone drawer: picking a destination should close
+// the drawer over you, so every navigation (brand, project, agent) reports
+// itself. Pinning is not navigation — the star keeps the drawer open. The
+// static desktop rail passes nothing and behaves exactly as before.
+export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const projects = useHub((s) => s.projects);
   const agents = useHub((s) => s.agents);
   const assignments = useHub((s) => s.assignments);
@@ -56,7 +60,13 @@ export default function Sidebar() {
         className={`group flex w-full items-center gap-2.5 px-4 py-[7px] transition ${active ? "bg-white/8" : "hover:bg-white/4"}`}
         style={active ? { boxShadow: `inset 2px 0 0 ${p.hue}` } : undefined}
       >
-        <button onClick={() => openStage(p.id)} className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 text-left">
+        <button
+          onClick={() => {
+            openStage(p.id);
+            onNavigate?.();
+          }}
+          className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 text-left"
+        >
           <span className="h-1.5 w-1.5 flex-none rounded-full" style={{ background: p.hue, boxShadow: `0 0 6px ${p.hue}` }} />
           <span className={`mono flex-1 truncate text-[11.5px] ${active ? "text-slate-100" : "text-slate-400 group-hover:text-slate-200"}`}>
             {p.name}
@@ -91,7 +101,13 @@ export default function Sidebar() {
   return (
     <aside className="flex h-screen w-[252px] shrink-0 flex-col border-r border-white/8 bg-[#070b17]">
       {/* brand */}
-      <button onClick={backToGraph} className="cursor-pointer border-b border-white/8 p-4 pb-3 text-left transition hover:bg-white/4">
+      <button
+        onClick={() => {
+          backToGraph();
+          onNavigate?.();
+        }}
+        className="cursor-pointer border-b border-white/8 p-4 pb-3 text-left transition hover:bg-white/4"
+      >
         <div className="mono text-[9px] tracking-[0.3em] text-cyan-300/70 uppercase">seraphlight // ops</div>
         <div className="mt-0.5 flex items-baseline gap-2">
           <span className="text-[17px] font-semibold tracking-tight text-slate-100">Agent Hub</span>
@@ -139,7 +155,10 @@ export default function Sidebar() {
           return (
             <button
               key={a.id}
-              onClick={() => openChat(a.id)}
+              onClick={() => {
+                openChat(a.id);
+                onNavigate?.();
+              }}
               className="group flex w-full cursor-pointer items-center gap-2.5 px-4 py-[7px] text-left transition hover:bg-white/4"
               title={a.role}
             >

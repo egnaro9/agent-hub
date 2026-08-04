@@ -464,9 +464,12 @@ export default function ProjectStage({ projectId }: { projectId: string }) {
         </div>
       ) : (
         /* work mode — side column stacks above the room below lg (critic:
-           tablet squeezed the chat to ~168px) */
-        <div className="flex h-full min-h-0 flex-col gap-4 p-4 lg:flex-row">
-          <div className="flex max-h-[180px] min-h-0 w-full flex-none flex-row gap-4 lg:max-h-none lg:w-[300px] lg:flex-col">
+           tablet squeezed the chat to ~168px). Below sm the pair stacks
+           vertically too: two cards sharing 390px meant ~170px each and
+           mid-word truncation in the headers, so each card gets the full
+           width and the pair splits the same height budget. */
+        <div className="flex h-full min-h-0 flex-col gap-3 p-3 sm:gap-4 sm:p-4 lg:flex-row">
+          <div className="flex max-h-[240px] min-h-0 w-full flex-none flex-col gap-3 sm:max-h-[180px] sm:flex-row sm:gap-4 lg:max-h-none lg:w-[300px] lg:flex-col">
             <TasksCard work={repoWork} commits={project.liveActivity} />
             <FilesCard work={repoWork} hue={project.hue} />
           </div>

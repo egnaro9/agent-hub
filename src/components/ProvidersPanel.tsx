@@ -108,7 +108,7 @@ export default function ProvidersPanel({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div data-testid="providers-panel" className="glass panel-solid absolute top-9 right-0 z-40 w-[25rem] rounded-xl p-3">
+    <div data-testid="providers-panel" className="glass panel-solid absolute top-9 right-0 z-40 w-[25rem] max-w-[calc(100vw-1.5rem)] rounded-xl p-3">
       <div className="mono text-[9px] tracking-[0.2em] text-slate-400 uppercase">vendors &amp; keys</div>
       <p className="mt-1.5 text-[10.5px] leading-relaxed text-slate-400">
         Keys live <span className="text-slate-200">only in this browser</span> and go straight to the vendor — nothing
