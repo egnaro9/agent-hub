@@ -38,6 +38,15 @@ test.describe("collapsible chrome", () => {
     await expect(page.locator("#hub-search")).toHaveCount(0);
     const agentsRow = await page.getByRole("button", { name: /agents · \d+/ }).boundingBox();
     expect(agentsRow!.y).toBeLessThan(160);
+
+    // with all THREE folded the rail yields its width to the map
+    await page.getByRole("button", { name: "Collapse header" }).click();
+    // the width TRANSITIONS 252→168 — a one-shot sample races the ease
+    await expect
+      .poll(async () => (await page.locator("aside").boundingBox())!.width)
+      .toBeLessThan(200);
+    await page.getByRole("button", { name: "Expand header" }).click();
+
     await page.getByRole("button", { name: /projects · \d+/ }).click();
     await expect(page.locator("#hub-search")).toBeVisible();
     await page.getByRole("button", { name: /agents · \d+/ }).click();
@@ -62,5 +71,16 @@ test.describe("collapsible chrome", () => {
     await expect(page.getByRole("button", { name: "galaxy" })).toHaveCount(0);
     await page.getByRole("button", { name: "Expand top bar" }).click();
     await expect(page.getByRole("button", { name: "galaxy" })).toBeVisible();
+
+    // the workstation's parts fold too: side cards and the topology bar
+    await page.evaluate(() => { location.hash = "#/p/crashkit/work"; });
+    await expect(page.getByLabel("Collapse tasks")).toBeVisible();
+    await page.getByLabel("Collapse tasks").click();
+    await expect(page.getByLabel("Expand tasks")).toBeVisible();
+    await page.getByLabel("Collapse topology").click();
+    await expect(page.getByLabel("Expand topology")).toBeVisible();
+    await page.getByLabel("Expand tasks").click();
+    await page.getByLabel("Expand topology").click();
+    await expect(page.getByLabel("Collapse topology")).toBeVisible();
   });
 });

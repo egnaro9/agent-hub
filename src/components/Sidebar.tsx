@@ -109,8 +109,11 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     );
   };
 
+  // Fully folded, the rail also yields its WIDTH — three thin rows do not
+  // justify 252px while the galaxy could be using it.
+  const railSlim = !sbHeader && !sbProjects && !sbAgents;
   return (
-    <aside className="flex h-screen w-[252px] shrink-0 flex-col border-r border-white/8 bg-[#070b17]">
+    <aside className={`flex h-screen shrink-0 flex-col border-r border-white/8 bg-[#070b17] transition-[width] duration-300 ${railSlim ? "w-[168px]" : "w-[252px]"}`}>
       {/* brand — collapsible; the whole-rail collapse lives here too (desktop
           only: in the phone drawer the drawer itself is the collapse) */}
       <div className="relative border-b border-white/8">
@@ -181,7 +184,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         <button
           aria-expanded={sbProjects}
           onClick={() => toggleChrome("sbProjects")}
-          className="mono flex w-full cursor-pointer items-center gap-1.5 px-4 pb-2 text-left text-[9.5px] tracking-[0.25em] text-slate-400 uppercase transition hover:text-slate-200"
+          className={`mono flex w-full cursor-pointer items-center gap-1.5 px-4 text-left text-[9.5px] tracking-[0.25em] whitespace-nowrap text-slate-400 uppercase transition hover:text-slate-200 ${sbProjects ? "pb-2" : ""}`}
         >
           <span className="text-slate-600">{sbProjects ? "▾" : "▸"}</span>
           projects <span className="text-slate-700">· {visible.length}</span>
@@ -195,7 +198,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         <button
           aria-expanded={sbAgents}
           onClick={() => toggleChrome("sbAgents")}
-          className="mono flex w-full cursor-pointer items-center gap-1.5 px-4 pb-2 text-left text-[9.5px] tracking-[0.25em] text-slate-400 uppercase transition hover:text-slate-200"
+          className={`mono flex w-full cursor-pointer items-center gap-1.5 px-4 text-left text-[9.5px] tracking-[0.25em] whitespace-nowrap text-slate-400 uppercase transition hover:text-slate-200 ${sbAgents ? "pb-2" : ""}`}
         >
           <span className="text-slate-600">{sbAgents ? "▾" : "▸"}</span>
           agents <span className="text-slate-700">· {visibleAgents.length}</span>

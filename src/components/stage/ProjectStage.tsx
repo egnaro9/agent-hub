@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useHub, type RepoWork } from "../../state/hub";
+import { useChrome, type ChromeKey } from "../../state/chrome";
 import { detailFor } from "../../data/detail";
 import ChatRoom from "./ChatRoom";
 import TopologyBar from "../TopologyBar";
@@ -90,6 +91,34 @@ const More = ({ n, label }: { n: number; label: string }) =>
 const WorkCard = ({ children }: { children: React.ReactNode }) => (
   <div className="glass min-h-0 flex-1 overflow-y-auto rounded-xl p-4">{children}</div>
 );
+
+/** A collapsible slot in the work column: open = the card with a corner
+    chevron; folded = a thin labeled row. The preference is global chrome,
+    not per-project — an operator who folds tasks folds them everywhere. */
+function Slot({ label, k, open, children }: { label: string; k: ChromeKey; open: boolean; children: React.ReactNode }) {
+  if (!open)
+    return (
+      <button
+        aria-label={`Expand ${label}`}
+        onClick={() => useChrome.getState().toggle(k)}
+        className="glass mono flex w-full flex-none cursor-pointer items-center gap-1.5 rounded-xl px-4 py-2 text-left text-[9.5px] tracking-[0.25em] whitespace-nowrap text-slate-500 uppercase transition hover:text-slate-200"
+      >
+        <span className="text-slate-600">▸</span> {label}
+      </button>
+    );
+  return (
+    <div className="relative flex min-h-0 flex-1 flex-col">
+      {children}
+      <button
+        aria-label={`Collapse ${label}`}
+        onClick={() => useChrome.getState().toggle(k)}
+        className="mono absolute top-2.5 right-2.5 grid h-5 w-5 cursor-pointer place-items-center rounded text-[9px] text-slate-600 transition hover:bg-white/10 hover:text-slate-200"
+      >
+        ▾
+      </button>
+    </div>
+  );
+}
 
 // GitHub reports bytes; printing "48213" makes the reader do the division.
 // Directories arrive unsized (the API doesn't count them), which is why null is
@@ -276,12 +305,19 @@ const PR_CHIP: Record<string, string> = {
   none: "text-amber-200 border-amber-300/40 bg-amber-400/10",
 };
 
+/** Whether GateOpsCard will render anything — its Slot must not float a
+    collapse chevron over a card that declined to exist. */
+const gateOpsVisible = (work: RepoWork | undefined, commitsArmed: boolean) => {
+  const branches = work?.branches;
+  if (!branches || branches.status === "empty") return false;
+  return branches.status === "ok" || commitsArmed;
+};
+
 function GateOpsCard({ work }: { work: RepoWork | undefined }) {
   const commitsArmed = useHub((s) => s.commitsArmed);
   const branches = work?.branches;
-  if (!branches || branches.status === "empty") return null;
+  if (!gateOpsVisible(work, commitsArmed) || !branches) return null;
   if (branches.status !== "ok") {
-    if (!commitsArmed) return null;
     return (
       <WorkCard>
         <CardHead label="gate ops" source={branches.status === "rate-limited" ? "rate limit" : "unavailable"} tone="warn" />
@@ -376,6 +412,8 @@ export default function ProjectStage({ projectId }: { projectId: string }) {
   const openStage = useHub((s) => s.openStage);
   const unassign = useHub((s) => s.unassign);
   const repoWork = useHub((s) => s.repoWork[projectId]);
+  const commitsArmed = useHub((s) => s.commitsArmed);
+  const wk = useChrome();
   const hydrateWork = useHub((s) => s.hydrateWork);
 
   // Fired HERE and only in work mode, not from openStage. These two requests
@@ -531,15 +569,45 @@ export default function ProjectStage({ projectId }: { projectId: string }) {
            mid-word truncation in the headers, so each card gets the full
            width and the pair splits the same height budget. */
         <div className="flex h-full min-h-0 flex-col gap-3 p-3 sm:gap-4 sm:p-4 lg:flex-row">
-          <div className="flex max-h-[240px] min-h-0 w-full flex-none flex-col gap-3 sm:max-h-[180px] sm:flex-row sm:gap-4 lg:max-h-none lg:w-[300px] lg:flex-col">
-            <TasksCard work={repoWork} commits={project.liveActivity} />
-            <FilesCard work={repoWork} hue={project.hue} />
-            <GateOpsCard work={repoWork} />
+          {/* fully folded, the side column also yields its width to the room */}
+          <div className={`flex max-h-[240px] min-h-0 w-full flex-none flex-col gap-3 sm:max-h-[180px] sm:flex-row sm:gap-4 lg:max-h-none lg:flex-col ${wk.wkTasks || wk.wkFiles || wk.wkGate ? "lg:w-[300px]" : "lg:w-[150px]"}`}>
+            <Slot label="tasks" k="wkTasks" open={wk.wkTasks}>
+              <TasksCard work={repoWork} commits={project.liveActivity} />
+            </Slot>
+            <Slot label="files" k="wkFiles" open={wk.wkFiles}>
+              <FilesCard work={repoWork} hue={project.hue} />
+            </Slot>
+            {gateOpsVisible(repoWork, commitsArmed) && (
+              <Slot label="gate ops" k="wkGate" open={wk.wkGate}>
+                <GateOpsCard work={repoWork} />
+              </Slot>
+            )}
           </div>
           {/* work mode gets the shape launcher over the room it runs in — the
               transcript and the composer below it are where the run lands. */}
           <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
-            <TopologyBar projectId={projectId} />
+            {wk.wkTopology ? (
+              <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <TopologyBar projectId={projectId} />
+                </div>
+                <button
+                  aria-label="Collapse topology"
+                  onClick={() => useChrome.getState().toggle("wkTopology")}
+                  className="mono mt-1 grid h-6 w-6 flex-none cursor-pointer place-items-center rounded text-[10px] text-slate-600 transition hover:bg-white/10 hover:text-slate-200"
+                >
+                  ▴
+                </button>
+              </div>
+            ) : (
+              <button
+                aria-label="Expand topology"
+                onClick={() => useChrome.getState().toggle("wkTopology")}
+                className="glass mono flex w-fit cursor-pointer items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-left text-[9.5px] tracking-[0.25em] text-slate-500 uppercase transition hover:text-slate-200"
+              >
+                <span className="text-slate-600">▸</span> topology
+              </button>
+            )}
             <div className="min-h-0 flex-1">
               <ChatRoom projectId={projectId} />
             </div>
