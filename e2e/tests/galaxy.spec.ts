@@ -63,6 +63,38 @@ test.describe("the galaxy map", () => {
     await expect(page.getByTestId("arrival-card")).toHaveCount(0);
   });
 
+  test("the sky behind a raised card is inert — wheel and drag past the card do nothing", async ({ page }) => {
+    await gotoHub(page);
+    await settleFlow(page);
+    await stillGalaxy(page);
+    await page.locator('[data-planet="crashkit"]').click();
+    await expect(page.getByTestId("arrival-card")).toBeVisible();
+    const galaxy = page.getByTestId("galaxy");
+    // let the fly-in land before sampling the camera
+    await expect(galaxy).toHaveAttribute("data-zoom-settled", "true");
+    const before = await galaxyZoom(page);
+    const box = (await galaxy.boundingBox())!;
+
+    // wheel near the top edge, well past the card — the scrim bubbles to the
+    // host's wheel handler, which must refuse while the card is up
+    await page.mouse.move(box.x + box.width / 2, box.y + 24);
+    await page.mouse.wheel(0, -600);
+    await page.waitForTimeout(300);
+    expect(await galaxyZoom(page)).toBe(before);
+
+    // drag past the card must not pan: a label's x-position holds while the
+    // pointer is down and moving (sampled BEFORE release — releasing on the
+    // scrim is the designed lower-the-card click)
+    const lab = page.locator('[data-planet="gradecore"]');
+    const leftBefore = await lab.evaluate((el) => (el as HTMLElement).style.left);
+    await page.mouse.move(box.x + box.width / 2, box.y + 20);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + 160, box.y + 80, { steps: 6 });
+    await page.waitForTimeout(200);
+    expect(await lab.evaluate((el) => (el as HTMLElement).style.left)).toBe(leftBefore);
+    await page.mouse.up();
+  });
+
   test("the immersive 3D mode is optional, entered and left by its own control", async ({ page }) => {
     await gotoHub(page);
     await settleFlow(page);

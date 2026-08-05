@@ -667,10 +667,14 @@ export default function GalaxyCanvas() {
       agents.forEach((ag, i) => {
         const m = moonState(ag, i);
         if (!m) return;
-        if (layer === "back") {
-          vx.strokeStyle = rgba(ag.color, 0.15); vx.lineWidth = 0.8;
-          vx.beginPath(); vx.ellipse(m.hx, m.hy, m.orb * 1.3, m.orb * 0.5, 0, 0, TAU); vx.stroke();
-        }
+        // Orbit path split like the ring paths — far half under the planet,
+        // near half over it. A full ellipse drawn in either single pass would
+        // cross the disc or vanish behind it.
+        vx.strokeStyle = rgba(ag.color, 0.15); vx.lineWidth = 0.8;
+        vx.beginPath();
+        if (layer === "back") vx.ellipse(m.hx, m.hy, m.orb * 1.3, m.orb * 0.5, 0, Math.PI, TAU);
+        else vx.ellipse(m.hx, m.hy, m.orb * 1.3, m.orb * 0.5, 0, 0, Math.PI);
+        vx.stroke();
         if ((layer === "back") !== m.behind) return;
         const talking = ag.status.kind === "talking";
         const mr = Math.max(2.4, 4 * cam.z) * (m.behind ? 0.82 : 1) * (talking ? 1.25 : 1);
@@ -774,9 +778,13 @@ export default function GalaxyCanvas() {
         if (sx < -drawS || sx > W + drawS || sy < -drawS || sy > H + drawS) return;
         const dim = 0.55 + (0.45 * Math.min(n.z, 1.06)) / 1.06;
         if (RINGED.has(id)) ringPath(sx, sy, sp.R * scale, p.hue, true);
-        vx.globalAlpha = dim;
+        // Depth-dim with a dark veil, never alpha — a translucent disc lets
+        // moons and stars ghost straight through the planet.
         vx.drawImage(sp.c, sx - drawS / 2, sy - drawS / 2, drawS, drawS);
-        vx.globalAlpha = 1;
+        if (dim < 0.995) {
+          vx.fillStyle = `rgba(4,6,13,${1 - dim})`;
+          vx.beginPath(); vx.arc(sx, sy, sp.R * scale, 0, TAU); vx.fill();
+        }
         if (RINGED.has(id)) ringPath(sx, sy, sp.R * scale, p.hue, false);
       });
       drawMoons(agents, "front");
@@ -784,6 +792,28 @@ export default function GalaxyCanvas() {
 
     const drawEmissive = (t: number, agents: Agent[]) => {
       ex.clearRect(0, 0, W, H);
+      // Bloom composites this canvas ADDITIVELY over the finished scene, so a
+      // glow left here by a moon on the far side of its planet shines straight
+      // through the disc. Far-side glows go down first, then every planet disc
+      // punches them out — the same occlusion the diffuse pass gets from draw
+      // order — and only then does the lit world paint on clean ground.
+      agents.forEach((ag, i) => {
+        const m = moonState(ag, i);
+        if (!m || !m.behind) return;
+        const g = ex.createRadialGradient(m.x, m.y, 0, m.x, m.y, 11 * cam.z + 5);
+        g.addColorStop(0, rgba(ag.color, 0.35));
+        g.addColorStop(1, rgba(ag.color, 0));
+        ex.fillStyle = g; ex.beginPath(); ex.arc(m.x, m.y, 11 * cam.z + 5, 0, TAU); ex.fill();
+      });
+      ex.globalCompositeOperation = "destination-out";
+      ex.fillStyle = "#000";
+      nodes.forEach((n, id) => {
+        const sp = sprites.get(id)!;
+        const [sx, syRaw] = w2s(n.x, n.y, 0.88 + n.z * 0.12);
+        const sy = syRaw + (reduced ? 0 : Math.sin(t * 0.12 + n.x * 0.01) * 2.2 * n.z);
+        ex.beginPath(); ex.arc(sx, sy, sp.R * cam.z * n.z, 0, TAU); ex.fill();
+      });
+      ex.globalCompositeOperation = "source-over";
       nodes.forEach((n, id) => {
         const sp = sprites.get(id)!;
         const p = useHub.getState().projects.find((pp) => pp.id === id)!;
@@ -821,10 +851,10 @@ export default function GalaxyCanvas() {
       ex.globalAlpha = 1;
       agents.forEach((ag, i) => {
         const m = moonState(ag, i);
-        if (!m) return;
+        if (!m || m.behind) return; // far-side glows already down (and occluded)
         const talking = ag.status.kind === "talking";
         const g = ex.createRadialGradient(m.x, m.y, 0, m.x, m.y, 11 * cam.z + 5);
-        g.addColorStop(0, rgba(ag.color, m.behind ? 0.35 : talking ? 1 : 0.9));
+        g.addColorStop(0, rgba(ag.color, talking ? 1 : 0.9));
         g.addColorStop(1, rgba(ag.color, 0));
         ex.fillStyle = g; ex.beginPath(); ex.arc(m.x, m.y, 11 * cam.z + 5, 0, TAU); ex.fill();
       });
@@ -975,9 +1005,15 @@ export default function GalaxyCanvas() {
           const sp = sprites.get(it.id)!;
           const p = useHub.getState().projects.find((pp) => pp.id === it.id)!;
           const d = sp.S * it.pr.s * 2.1;
+          const R = sp.R * it.pr.s * 2.1;
+          // Occlude the emissive layer painted so far — bloom would otherwise
+          // lift a farther moon's glow straight through this disc.
+          ex.globalCompositeOperation = "destination-out";
+          ex.fillStyle = "#000";
+          ex.beginPath(); ex.arc(it.pr.x, it.pr.y, R, 0, TAU); ex.fill();
+          ex.globalCompositeOperation = "source-over";
           vx.drawImage(sp.c, it.pr.x - d / 2, it.pr.y - d / 2, d, d);
           ex.drawImage(sp.e, it.pr.x - d / 2, it.pr.y - d / 2, d, d);
-          const R = sp.R * it.pr.s * 2.1;
           const g = ex.createRadialGradient(it.pr.x, it.pr.y, R * 0.7, it.pr.x, it.pr.y, R * 1.9);
           g.addColorStop(0, rgba(p.hue, 0.18)); g.addColorStop(1, rgba(p.hue, 0));
           ex.fillStyle = g; ex.beginPath(); ex.arc(it.pr.x, it.pr.y, R * 1.9, 0, TAU); ex.fill();
@@ -1009,12 +1045,18 @@ export default function GalaxyCanvas() {
       tNow = t; frame++;
       const agents = s.agents;
       host.dataset.zoom = cam.z.toFixed(3);
-      // The camera says for ITSELF whether zoom has arrived — tests that infer
+      // The camera says for ITSELF whether it has arrived — tests that infer
       // "settled" from two equal rounded reads can be lied to by a value still
-      // crossing a rounding boundary.
-      host.dataset.zoomSettled = String(cam.z === cam.tz);
+      // crossing a rounding boundary. The WHOLE camera, not just zoom: x/y
+      // ease slower than z, and "settled" with the pan still creeping misled
+      // a position assertion by 3px.
+      host.dataset.zoomSettled = String(cam.z === cam.tz && cam.x === cam.tx && cam.y === cam.ty);
       host.dataset.mode = mode;
       if (mode === "3d") {
+        // Planets ORBIT in 3D — a target set once at click time is a place
+        // the planet used to be. While its card is up, follow it round.
+        const cur = currentRef.current;
+        if (cur && nodes.has(cur)) cam3.ttarget = pos3(cur);
         if (driftOn && !hoverPause) cam3.tyaw += 0.0007;
         cam3.yaw += (cam3.tyaw - cam3.yaw) * 0.08;
         cam3.pitch += (cam3.tpitch - cam3.pitch) * 0.08;
@@ -1051,6 +1093,10 @@ export default function GalaxyCanvas() {
     let lastPinch = 0;
     let downAt = 0, downPos = { x: 0, y: 0 };
     const onDown = (e: PointerEvent) => {
+      // While the arrival card is up (or the camera is flying to it) the sky
+      // is scenery: scrim events bubble to this host, so without this guard a
+      // drag or pick "past the card" still steers the camera underneath it.
+      if (currentRef.current) return;
       // Drag arms only on the sky itself. Labels and HUD buttons are children
       // of the host, and pointer CAPTURE here would retarget their click
       // events to the host — a map you can pan from anywhere but whose
@@ -1088,7 +1134,7 @@ export default function GalaxyCanvas() {
       pointers.delete(e.pointerId);
       lastPinch = 0;
       // A short, unmoved press in 3D is a planet pick (2.5D picks via labels).
-      if (mode === "3d" && performance.now() - downAt < 240 &&
+      if (mode === "3d" && !currentRef.current && performance.now() - downAt < 240 &&
         Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y) < 6) {
         let best: { id: string; d: number } | null = null;
         nodes.forEach((_n, id) => {
@@ -1103,7 +1149,8 @@ export default function GalaxyCanvas() {
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       // The lock's contract, carried over: scroll-zoom is what it freezes.
-      if (useHub.getState().mapLocked) return;
+      // The raised card freezes it too — wheel past the card must be inert.
+      if (useHub.getState().mapLocked || currentRef.current) return;
       driftOn = false;
       if (mode === "3d") cam3.tdist = Math.max(DIST3.min, Math.min(DIST3.max, cam3.tdist * (e.deltaY > 0 ? 1.12 : 0.9)));
       else cam.tz = Math.max(0.2, Math.min(3.1, cam.tz * (e.deltaY > 0 ? 0.9 : 1.11)));
@@ -1123,9 +1170,10 @@ export default function GalaxyCanvas() {
     const hudZi = () => { if (mode === "3d") cam3.tdist = Math.max(420, cam3.tdist * 0.8); else cam.tz = Math.min(3.1, cam.tz * 1.25); cam.tz = cam.tz; };
     const zi = $("[data-hud=zi]"), zo = $("[data-hud=zo]"), fit = $("[data-hud=fit]"),
       drift = $("[data-hud=drift]"), m3d = $("[data-hud=m3d]");
-    zi.onclick = () => { if (useHub.getState().mapLocked) return; if (mode === "3d") cam3.tdist = Math.max(DIST3.min, cam3.tdist * 0.8); else cam.tz = Math.min(3.1, cam.tz * 1.25); };
-    zo.onclick = () => { if (useHub.getState().mapLocked) return; if (mode === "3d") cam3.tdist = Math.min(DIST3.max, cam3.tdist * 1.25); else cam.tz = Math.max(0.2, cam.tz * 0.8); };
+    zi.onclick = () => { if (useHub.getState().mapLocked || currentRef.current) return; if (mode === "3d") cam3.tdist = Math.max(DIST3.min, cam3.tdist * 0.8); else cam.tz = Math.min(3.1, cam.tz * 1.25); };
+    zo.onclick = () => { if (useHub.getState().mapLocked || currentRef.current) return; if (mode === "3d") cam3.tdist = Math.min(DIST3.max, cam3.tdist * 1.25); else cam.tz = Math.max(0.2, cam.tz * 0.8); };
     fit.onclick = () => {
+      if (currentRef.current) return; // mid-fly, the fly owns the camera
       if (mode === "3d") { cam3.tdist = 2600; cam3.ttarget = { x: 520, y: 0, z: 340 }; }
       else { cam.tx = HOME.x; cam.ty = HOME.y; cam.tz = HOME.z; }
     };
@@ -1133,9 +1181,10 @@ export default function GalaxyCanvas() {
       driftOn = v;
       drift.style.color = v ? "#5eead4" : "#8ea0bd";
     };
-    drift.onclick = () => { driftPref = !driftPref; setDrift(driftPref); };
+    drift.onclick = () => { if (currentRef.current) return; driftPref = !driftPref; setDrift(driftPref); };
     setDrift(driftOn);
     m3d.onclick = () => {
+      if (currentRef.current) return; // no mode flips under a raised card
       mode = mode === "map" ? "3d" : "map";
       setDrift(driftPref && !reduced);
       m3d.style.color = mode === "3d" ? "#5eead4" : "#8ea0bd";
@@ -1157,7 +1206,11 @@ export default function GalaxyCanvas() {
         cam3.ttarget = { ...pp };
         cam3.tdist = 470;
       } else {
-        cam.tx = n.x; cam.ty = n.y; cam.tz = 2.2;
+        // Planets render through a parallax factor; aim the camera at the
+        // point that puts THIS planet at screen center, not at the raw world
+        // coordinate — the difference is (1-p)·x, dozens of px out at the rim.
+        const par = 0.88 + n.z * 0.12;
+        cam.tx = n.x / par; cam.ty = n.y / par; cam.tz = 2.2;
       }
       setFlying(id);
       if (arriveTimer) clearTimeout(arriveTimer);
