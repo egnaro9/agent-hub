@@ -65,4 +65,21 @@ test.describe("deep links and mode switching", () => {
     await gotoHub(page);
     await expect(page.getByRole("button", { name: /◈ brain: mock/ })).toBeVisible();
   });
+
+  // The panel used to head itself "live brain · all agents" unconditionally —
+  // a fixed feature name sitting under a chip reading `brain: mock`, so opening
+  // the panel appeared to contradict the strip. Both now read the same state
+  // from the same source; this pins that they can never disagree again.
+  test("the brain PANEL agrees with the chip instead of contradicting it", async ({ page }) => {
+    await gotoHub(page);
+    await page.getByRole("button", { name: /◈ brain: mock/ }).click();
+
+    const state = page.getByTestId("brain-panel-state");
+    await expect(state).toBeVisible();
+    await expect(state).toHaveText(/brain: mock/i);
+    // The old wording must not survive anywhere in the open panel.
+    await expect(page.getByText(/live brain · all agents/i)).toHaveCount(0);
+    // And with no key, the panel says what mock actually means.
+    await expect(page.getByText(/answering from canned personas, not a model/i)).toBeVisible();
+  });
 });

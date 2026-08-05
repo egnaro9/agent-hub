@@ -270,7 +270,30 @@ export default function MissionControl({ onMenu }: { onMenu?: () => void }) {
               transition={{ duration: 0.15 }}
               className="glass absolute top-9 right-0 z-40 w-72 rounded-xl p-3"
             >
-              <div className="mono text-[9px] tracking-[0.2em] text-slate-400 uppercase">live brain · all agents</div>
+              {/* The header REPORTS state; it does not name the feature. It
+                  used to read "live brain · all agents" always — a fixed
+                  label sitting under a chip that says `brain: mock`, so the
+                  panel asserted the one thing the chip was denying. Same
+                  vocabulary as the chip, same source of truth. */}
+              <div className="mono flex items-center gap-1.5 text-[9px] tracking-[0.2em] text-slate-400 uppercase">
+                <span
+                  data-testid="brain-panel-state"
+                  className={`rounded border px-1.5 py-px ${
+                    brainConnected
+                      ? "border-teal-300/40 bg-teal-400/10 text-teal-200"
+                      : "border-white/15 bg-white/5 text-slate-400"
+                  }`}
+                >
+                  brain: {brainConnected ? "live" : "mock"}
+                </span>
+                <span>· all agents</span>
+              </div>
+              {!brainConnected && (
+                <p className="mt-1.5 text-[10.5px] leading-relaxed text-amber-200/90">
+                  No key in this browser — agents are answering from canned personas, not a model. Paste one below to
+                  make every room live.
+                </p>
+              )}
               <p className="mt-1.5 text-[10.5px] leading-relaxed text-slate-400">
                 Your key is stored <span className="text-slate-200">only in this browser</span> and sent{" "}
                 <span className="text-slate-200">only to api.anthropic.com</span>. Agents get the room transcript + live
