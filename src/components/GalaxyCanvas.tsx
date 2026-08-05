@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useHub } from "../state/hub";
+import { useChrome } from "../state/chrome";
 import { STRUCTURAL } from "../data/mock";
 import { PAINTERS } from "./planets";
 import type { Agent, Project } from "../types";
@@ -1268,6 +1269,7 @@ export default function GalaxyCanvas() {
 
   const mapLocked = useHub((s) => s.mapLocked);
   const toggleMapLock = useHub((s) => s.toggleMapLock);
+  const hudOpen = useChrome((s) => s.hud);
   // Selectors return STABLE references only — a fresh .filter() array per
   // getSnapshot is the documented infinite-loop trap this repo already ate
   // once. Derivations happen after the hook, on referentially-stable slices.
@@ -1373,6 +1375,10 @@ export default function GalaxyCanvas() {
         </div>
       )}
       <div className="glass absolute right-4 bottom-4 z-20 flex gap-2 rounded-xl px-2.5 py-2">
+        {/* Collapse hides the cluster with CSS, never unmounts it: the frame
+            loop wires these buttons by element reference once per bake — a
+            remounted button would come back deaf. */}
+        <div className={hudOpen ? "flex gap-2" : "hidden"}>
         <button data-hud="zo" aria-label="Zoom out" className="gal-hbtn">−</button>
         <button data-hud="zi" aria-label="Zoom in" className="gal-hbtn">+</button>
         <button data-hud="fit" aria-label="Fit view" className="gal-hbtn">⤢</button>
@@ -1394,6 +1400,15 @@ export default function GalaxyCanvas() {
           style={mapLocked ? { color: "#fbbf24", borderColor: "rgba(251,191,36,.5)" } : undefined}
         >
           {mapLocked ? "🔒" : "🔓"}
+        </button>
+        </div>
+        <button
+          aria-label={hudOpen ? "Collapse map controls" : "Expand map controls"}
+          aria-expanded={hudOpen}
+          onClick={() => useChrome.getState().toggle("hud")}
+          className="gal-hbtn"
+        >
+          {hudOpen ? "⌄" : "⌃"}
         </button>
       </div>
     </div>

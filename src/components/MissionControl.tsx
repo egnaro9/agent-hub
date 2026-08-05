@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useHub, agentInScope } from "../state/hub";
+import { useChrome } from "../state/chrome";
 import { getKey, setKey, clearKey, getModel, setModel, BRAIN_MODELS, getGhToken, setGhToken, clearGhToken, getRouting, setRouting } from "../agents/brain";
 import RosterPanel from "./RosterPanel";
 import ProvidersPanel from "./ProvidersPanel";
@@ -552,6 +553,13 @@ export default function MissionControl({ onMenu }: { onMenu?: () => void }) {
           so this stays one element; its panel anchors to this bar rather than
           to the button, which is why its position in the strip is free. */}
       <Tutorial />
+      <button
+        aria-label="Collapse top bar"
+        onClick={() => useChrome.getState().toggle("topBar")}
+        className="mono -mr-1 grid h-6 w-6 flex-none cursor-pointer place-items-center rounded text-[10px] text-slate-600 transition hover:bg-white/10 hover:text-slate-200"
+      >
+        ▴
+      </button>
     </div>
   );
 }

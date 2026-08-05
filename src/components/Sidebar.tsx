@@ -1,4 +1,5 @@
 import { useHub, agentInScope } from "../state/hub";
+import { useChrome } from "../state/chrome";
 import type { Agent } from "../types";
 
 const statusText = (a: Agent, projectName?: string) =>
@@ -26,6 +27,10 @@ const dotColor = (a: Agent) =>
 // itself. Pinning is not navigation — the star keeps the drawer open. The
 // static desktop rail passes nothing and behaves exactly as before.
 export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
+  const sbHeader = useChrome((s) => s.sbHeader);
+  const sbProjects = useChrome((s) => s.sbProjects);
+  const sbAgents = useChrome((s) => s.sbAgents);
+  const toggleChrome = useChrome((s) => s.toggle);
   const projects = useHub((s) => s.projects);
   const agents = useHub((s) => s.agents);
   const assignments = useHub((s) => s.assignments);
@@ -106,20 +111,46 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <aside className="flex h-screen w-[252px] shrink-0 flex-col border-r border-white/8 bg-[#070b17]">
-      {/* brand */}
-      <button
-        onClick={() => {
-          backToGraph();
-          onNavigate?.();
-        }}
-        className="cursor-pointer border-b border-white/8 p-4 pb-3 text-left transition hover:bg-white/4"
-      >
-        <div className="mono text-[9px] tracking-[0.3em] text-cyan-300/70 uppercase">seraphlight // ops</div>
-        <div className="mt-0.5 flex items-baseline gap-2">
-          <span className="text-[17px] font-semibold tracking-tight text-slate-100">Agent Hub</span>
-          <span className="mono text-[9px] text-slate-600">v0.3 · mock</span>
+      {/* brand — collapsible; the whole-rail collapse lives here too (desktop
+          only: in the phone drawer the drawer itself is the collapse) */}
+      <div className="relative border-b border-white/8">
+        {sbHeader ? (
+          <button
+            onClick={() => {
+              backToGraph();
+              onNavigate?.();
+            }}
+            className="w-full cursor-pointer p-4 pb-3 text-left transition hover:bg-white/4"
+          >
+            <div className="mono text-[9px] tracking-[0.3em] text-cyan-300/70 uppercase">erik hill // command</div>
+            <div className="mt-0.5 flex items-baseline gap-2">
+              <span className="text-[17px] font-semibold tracking-tight text-slate-100">Agent Hub</span>
+              <span className="mono text-[9px] text-slate-600">v0.3</span>
+            </div>
+          </button>
+        ) : (
+          <div className="mono px-4 py-1.5 pr-16 text-[9px] tracking-[0.3em] text-slate-500 uppercase">erik hill</div>
+        )}
+        <div className="absolute top-1.5 right-1.5 flex gap-1">
+          <button
+            aria-label={sbHeader ? "Collapse header" : "Expand header"}
+            aria-expanded={sbHeader}
+            onClick={() => toggleChrome("sbHeader")}
+            className="mono grid h-5 w-5 cursor-pointer place-items-center rounded text-[9px] text-slate-600 transition hover:bg-white/10 hover:text-slate-200"
+          >
+            {sbHeader ? "▾" : "▸"}
+          </button>
+          {!onNavigate && (
+            <button
+              aria-label="Collapse navigation"
+              onClick={() => toggleChrome("sidebar")}
+              className="mono grid h-5 w-5 cursor-pointer place-items-center rounded text-[10px] text-slate-600 transition hover:bg-white/10 hover:text-slate-200"
+            >
+              ⟨
+            </button>
+          )}
         </div>
-      </button>
+      </div>
 
       {/* search */}
       <div className="border-b border-white/8 p-3">
@@ -135,26 +166,36 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       {/* projects */}
       <div className="min-h-0 flex-1 overflow-y-auto py-3">
-        {pinned.length > 0 && (
+        {sbProjects && pinned.length > 0 && (
           <>
             <div className="mono px-4 pb-1 text-[9.5px] tracking-[0.25em] text-amber-300/70 uppercase">pinned</div>
             {pinned.map(projectRow)}
             <div className="mx-4 my-2 border-t border-white/6" />
           </>
         )}
-        <div className="mono px-4 pb-2 text-[9.5px] tracking-[0.25em] text-slate-400 uppercase">
+        <button
+          aria-expanded={sbProjects}
+          onClick={() => toggleChrome("sbProjects")}
+          className="mono flex w-full cursor-pointer items-center gap-1.5 px-4 pb-2 text-left text-[9.5px] tracking-[0.25em] text-slate-400 uppercase transition hover:text-slate-200"
+        >
+          <span className="text-slate-600">{sbProjects ? "▾" : "▸"}</span>
           projects <span className="text-slate-700">· {visible.length}</span>
-        </div>
-        {rest.map(projectRow)}
-        {visible.length === 0 && <div className="mono px-4 py-2 text-[10px] text-slate-500">nothing matches "{search}"</div>}
+        </button>
+        {sbProjects && rest.map(projectRow)}
+        {sbProjects && visible.length === 0 && <div className="mono px-4 py-2 text-[10px] text-slate-500">nothing matches "{search}"</div>}
       </div>
 
       {/* agents */}
       <div className="border-t border-white/8 py-3">
-        <div className="mono px-4 pb-2 text-[9.5px] tracking-[0.25em] text-slate-400 uppercase">
+        <button
+          aria-expanded={sbAgents}
+          onClick={() => toggleChrome("sbAgents")}
+          className="mono flex w-full cursor-pointer items-center gap-1.5 px-4 pb-2 text-left text-[9.5px] tracking-[0.25em] text-slate-400 uppercase transition hover:text-slate-200"
+        >
+          <span className="text-slate-600">{sbAgents ? "▾" : "▸"}</span>
           agents <span className="text-slate-700">· {visibleAgents.length}</span>
-        </div>
-        {visibleAgents.map((a) => {
+        </button>
+        {sbAgents && visibleAgents.map((a) => {
           const pid = assignments[a.id];
           const projectName = pid ? projects.find((p) => p.id === pid)?.name : undefined;
           const scoped = a.scope !== "global";

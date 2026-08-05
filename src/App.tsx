@@ -6,6 +6,7 @@ import GalaxyCanvas from "./components/GalaxyCanvas";
 import ProjectStage from "./components/stage/ProjectStage";
 import ChatPanel from "./components/panels/ChatPanel";
 import { useHub } from "./state/hub";
+import { useChrome } from "./state/chrome";
 import { PHONE_QUERY, useMediaQuery } from "./hooks/useMediaQuery";
 
 export default function App() {
@@ -20,6 +21,8 @@ export default function App() {
   // and it must not persist. The ref mirror lets the long-lived Escape handler
   // below read it without re-subscribing on every open/close.
   const isPhone = useMediaQuery(PHONE_QUERY);
+  const chromeSidebar = useChrome((s) => s.sidebar);
+  const topBarOpen = useChrome((s) => s.topBar);
   const [navOpen, setNavOpen] = useState(false);
   const navOpenRef = useRef(navOpen);
   navOpenRef.current = navOpen;
@@ -92,9 +95,30 @@ export default function App() {
       {/* Phone swaps the static rail for a drawer. This is a JS swap, not a
           CSS hide: two mounted Sidebars would mean two #hub-search ids and
           the second silently unreachable by getElementById. */}
-      {!isPhone && <Sidebar />}
-      <div className="flex h-full min-w-0 flex-1 flex-col">
-      <MissionControl onMenu={isPhone ? () => setNavOpen(true) : undefined} />
+      {!isPhone && chromeSidebar && <Sidebar />}
+      {!isPhone && !chromeSidebar && (
+        <div className="flex h-screen w-9 shrink-0 flex-col items-center border-r border-white/8 bg-[#070b17] pt-2">
+          <button
+            aria-label="Expand navigation"
+            onClick={() => useChrome.getState().toggle("sidebar")}
+            className="mono grid h-7 w-7 cursor-pointer place-items-center rounded text-[12px] text-slate-500 transition hover:bg-white/10 hover:text-slate-100"
+          >
+            ⟩
+          </button>
+        </div>
+      )}
+      <div className="relative flex h-full min-w-0 flex-1 flex-col">
+      {topBarOpen ? (
+        <MissionControl onMenu={isPhone ? () => setNavOpen(true) : undefined} />
+      ) : (
+        <button
+          aria-label="Expand top bar"
+          onClick={() => useChrome.getState().toggle("topBar")}
+          className="mono absolute top-2 right-2 z-40 grid h-6 w-8 cursor-pointer place-items-center rounded-md border border-white/10 bg-[#070b17]/85 text-[10px] text-slate-400 backdrop-blur transition hover:text-slate-100"
+        >
+          ▾
+        </button>
+      )}
       <main className="relative min-h-0 min-w-0 flex-1">
           {/* The galaxy stays mounted so positions & camera survive stage
               trips. opacity-0, not invisible: React Flow sets inline
