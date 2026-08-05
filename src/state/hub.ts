@@ -231,19 +231,32 @@ const restingStatus = (agentId: string, assignments: Record<string, string>) =>
  * and own the rest of their update.
  */
 const joinRoom = (
-  s: { assignments: Record<string, string>; agents: Agent[] },
+  s: { assignments: Record<string, string>; agents: Agent[]; channels: Record<string, Channel> },
   projectId: string,
   agentIds: string[]
-): { assignments: Record<string, string>; agents: Agent[] } => {
+): { assignments: Record<string, string>; agents: Agent[]; channels: Record<string, Channel> } => {
   // Only agents whose assignment actually changes — an agent already working
   // here keeps its status object, so a `talking` agent is not reset to
   // `working` mid-stream by its own arrival.
   const joining = agentIds.filter((id) => s.assignments[id] !== projectId);
-  if (joining.length === 0) return { assignments: s.assignments, agents: s.agents };
+  if (joining.length === 0) return { assignments: s.assignments, agents: s.agents, channels: s.channels };
   const assignments = { ...s.assignments };
-  for (const id of joining) assignments[id] = projectId;
+  let channels = s.channels;
+  for (const id of joining) {
+    // FAILURE MODE (the ghost resident): moving an agent to another project
+    // rewrote `assignments` but left them in the OLD room's participant list,
+    // so that room's header went on saying they were working there while the
+    // sidebar — which reads assignments — correctly showed them gone. An
+    // assignment move is a departure from the room the assignment named, the
+    // same eviction `unassign` performs, queued lines included.
+    const prev = s.assignments[id];
+    const prevCh = prev && prev !== projectId ? channels[prev] : undefined;
+    if (prev && prevCh) channels = { ...channels, [prev]: { ...prevCh, ...departure(prevCh, id) } };
+    assignments[id] = projectId;
+  }
   return {
     assignments,
+    channels,
     agents: s.agents.map((a) =>
       joining.includes(a.id) ? { ...a, status: { kind: "working" as const, projectId } } : a
     ),
@@ -613,19 +626,25 @@ export const useHub = create<HubState>()(
         { from: "oracle", text: "17 of 20 tasks tied. Three discordant pairs cannot clear p<0.05 — this suite cannot decide between them. That is a limit of the suite, not a finding about the harnesses." },
         { from: "critic", text: "Confirming the refusal is correct: a leaderboard would have printed 95 vs 80 and let you conclude. The honest output is the instrument statement." },
       ];
-      set((s) => ({
-        harnessSweepDone: true,
-        channels: {
-          ...s.channels,
-          [projectId]: {
-            ...channel,
-            participants: Array.from(new Set([...channel.participants, "oracle", "critic"])),
-            messages: [...channel.messages, { id: nextId(), from: "user", text }],
-            queue: [...sweep, ...channel.queue],
+      set((s) => {
+        // the join is composed FIRST so this room's own edit lands on top of
+        // any eviction it performed elsewhere
+        const joined = joinRoom(s, projectId, ["oracle", "critic"]);
+        return {
+          harnessSweepDone: true,
+          assignments: joined.assignments,
+          agents: joined.agents,
+          channels: {
+            ...joined.channels,
+            [projectId]: {
+              ...channel,
+              participants: Array.from(new Set([...channel.participants, "oracle", "critic"])),
+              messages: [...channel.messages, { id: nextId(), from: "user", text }],
+              queue: [...sweep, ...channel.queue],
+            },
           },
-        },
-        ...joinRoom(s, projectId, ["oracle", "critic"]),
-      }));
+        };
+      });
       return;
     }
 
@@ -680,9 +699,11 @@ export const useHub = create<HubState>()(
     // Brain connected → every responder answers for real, sequentially, each
     // seeing the replies before it (a genuine roundtable). No key → personas.
     if (get().brainConnected && responders.length > 0) {
-      set((s) => ({
+      set((s) => {
+        const joined = joinRoom(s, projectId, participants);
+        return {
         channels: {
-          ...s.channels,
+          ...joined.channels,
           [projectId]: {
             ...channel,
             participants,
@@ -692,8 +713,10 @@ export const useHub = create<HubState>()(
         // An @mention pulls an agent into the room; being in the room is being
         // on the project. streamAgent would join them anyway, but not until it
         // actually starts streaming — the map should not lag the transcript.
-        ...joinRoom(s, projectId, participants),
-      }));
+        assignments: joined.assignments,
+        agents: joined.agents,
+      };
+      });
       // FAILURE MODE (replies attached to the wrong question): a second @team
       // message used to start its own fan-out immediately — the busy agent was
       // skipped and the NEXT agent began streaming concurrently, answering
@@ -716,21 +739,25 @@ export const useHub = create<HubState>()(
         ? [{ from: responders[0], text: personaFor(responders[0]).reply(text, projectId) }]
         : responders.map((p) => ({ from: p, text: personaFor(p).ack(text) }));
 
-    set((s) => ({
-      channels: {
-        ...s.channels,
-        [projectId]: {
-          ...channel,
-          participants,
-          messages: [...channel.messages, { id: nextId(), from: "user", text }],
-          queue: [...replies, ...channel.queue],
-        },
-      },
+    set((s) => {
       // The mock path never reaches streamAgent — its replies are drained from
       // the queue — so without this an agent could answer in a room all session
       // and never appear on the map.
-      ...joinRoom(s, projectId, participants),
-    }));
+      const joined = joinRoom(s, projectId, participants);
+      return {
+        assignments: joined.assignments,
+        agents: joined.agents,
+        channels: {
+          ...joined.channels,
+          [projectId]: {
+            ...channel,
+            participants,
+            messages: [...channel.messages, { id: nextId(), from: "user", text }],
+            queue: [...replies, ...channel.queue],
+          },
+        },
+      };
+    });
   },
 
   topologyRun: null,
@@ -1124,7 +1151,7 @@ export const useHub = create<HubState>()(
         const joined = joinRoom(s, projectId, [agentId]);
         return {
           channels: {
-            ...s.channels,
+            ...joined.channels,
             [projectId]: {
               ...ch,
               participants: ch.participants.includes(agentId) ? ch.participants : [...ch.participants, agentId],
@@ -1695,21 +1722,26 @@ export const useHub = create<HubState>()(
 
   assign: (agentId, projectId) =>
     set((s) => {
-      const channel = s.channels[projectId];
       const project = s.projects.find((p) => p.id === projectId)!;
+      // ONE door for "this agent works here now". This used to write the
+      // assignment itself, which meant the reassignment case skipped the
+      // eviction joinRoom performs — the old room kept the agent as a
+      // participant and its header went on claiming them.
+      const joined = joinRoom(s, projectId, [agentId]);
+      const channel = joined.channels[projectId];
       return {
-        assignments: { ...s.assignments, [agentId]: projectId },
-        agents: s.agents.map((a) => (a.id === agentId ? { ...a, status: { kind: "working", projectId } } : a)),
+        assignments: joined.assignments,
+        agents: joined.agents,
         channels: channel
           ? {
-              ...s.channels,
+              ...joined.channels,
               [projectId]: {
                 ...channel,
                 participants: Array.from(new Set([...channel.participants, agentId])),
                 queue: [...channel.queue, { from: agentId, text: personaFor(agentId).open(project.name) }],
               },
             }
-          : s.channels,
+          : joined.channels,
       };
     }),
 

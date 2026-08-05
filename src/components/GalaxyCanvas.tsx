@@ -576,7 +576,10 @@ export default function GalaxyCanvas() {
       bl2.width = W >> 2 || 1; bl2.height = H >> 2 || 1;
     };
     sizeAll();
-    const ro = new ResizeObserver(sizeAll);
+    // Re-framing on resize is declared after the fit solvers exist; this
+    // observer only sizes the buffers until then.
+    let onResize: () => void = sizeAll;
+    const ro = new ResizeObserver(() => onResize());
     ro.observe(host);
 
     const cam = { x: HOME.x, y: HOME.y, z: HOME.z, tx: HOME.x, ty: HOME.y, tz: HOME.z };
@@ -591,6 +594,128 @@ export default function GalaxyCanvas() {
       target: { ...CENTER3 }, ttarget: { ...CENTER3 } };
     const F3 = 980, NEAR = 80;
     let mode: "map" | "3d" = "map";
+
+    // ── fit: MEASURED, not assumed ────────────────────────────────────────
+    // A fixed home zoom fits one viewport. These solve for the camera that
+    // frames every planet in the CURRENT canvas, so the same button gives a
+    // whole system on a laptop half-window and on a 5K display.
+    const MARGIN = { x: 74, top: 58, bottom: 104 }; // labels hang below; HUD owns the bottom-right
+
+    /** 2.5D: planets ride a parallax factor, so the fit is solved iteratively
+        — each recentring changes every node's effective offset. Radii scale
+        with zoom exactly like positions, which is what lets one z fall out. */
+    const fitMap = () => {
+      if (nodes.size === 0 || W === 0) return { x: HOME.x, y: HOME.y, z: HOME.z };
+      let cx = 0, cy = 0;
+      nodes.forEach((n) => { cx += n.x; cy += n.y; });
+      cx /= nodes.size; cy /= nodes.size;
+      let z = HOME.z;
+      for (let pass = 0; pass < 6; pass++) {
+        let uMin = Infinity, uMax = -Infinity, vMin = Infinity, vMax = -Infinity;
+        nodes.forEach((n, id) => {
+          const p = 0.88 + n.z * 0.12;
+          const sp = sprites.get(id)!;
+          // a ring is WIDE and FLAT (ringPath: rx 2.1R, ry 0.62R) — reserving
+          // its width vertically shrank the whole frame for two planets
+          const ring = RINGED.has(id);
+          const rx = sp.R * n.z * (ring ? 2.25 : 1.2);
+          const ry = sp.R * n.z * (ring ? 1.2 : 1.2);
+          const u = n.x - cx * p, v = n.y - cy * p;
+          uMin = Math.min(uMin, u - rx); uMax = Math.max(uMax, u + rx);
+          vMin = Math.min(vMin, v - ry); vMax = Math.max(vMax, v + ry);
+        });
+        const availW = Math.max(140, W - MARGIN.x * 2);
+        const availH = Math.max(140, H - MARGIN.top - MARGIN.bottom);
+        z = Math.max(0.2, Math.min(3.1, Math.min(availW / Math.max(1, uMax - uMin), availH / Math.max(1, vMax - vMin))));
+        // land the content's midpoint on the viewport's optical centre
+        const wantV = (MARGIN.top - MARGIN.bottom) / (2 * z);
+        cx += (uMin + uMax) / 2 / 0.94;
+        cy += ((vMin + vMax) / 2 - wantV) / 0.94;
+      }
+      return { x: cx, y: cy, z };
+    };
+
+    /** The system's TRUE 3D centre — the midpoint of what is actually out
+        there, measured from the bodies. CENTER3 was hand-set for an earlier
+        layout, and every change to clusters, spread or sizing silently moved
+        the real centre away from it. */
+    const center3 = () => {
+      if (nodes.size === 0) return { ...CENTER3 };
+      let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+      nodes.forEach((_n, id) => {
+        const q = pos3(id);
+        x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x);
+        y0 = Math.min(y0, q.y); y1 = Math.max(y1, q.y);
+        z0 = Math.min(z0, q.z); z1 = Math.max(z1, q.z);
+      });
+      return { x: (x0 + x1) / 2, y: (y0 + y1) / 2, z: (z0 + z1) / 2 };
+    };
+
+    /** 3D: solve the aim AND the dolly together. Perspective is why this can't
+        be one shot — under it the geometric centre of the bodies is NOT the
+        centre of their projection (near bodies throw further from centre than
+        far ones), which parked the whole system low on tall screens. So:
+        distance from the current aim, then measure the PROJECTED box and slide
+        the aim along the camera's own right/up axes to centre it. Converges in
+        a couple of passes. */
+    const fit3 = () => {
+      const fallback = { target: center3(), dist: DIST3.home };
+      if (nodes.size === 0 || W === 0) return fallback;
+      const c = cam3;
+      const cyw = Math.cos(c.tyaw), syw = Math.sin(c.tyaw);
+      const cp = Math.cos(c.tpitch), sp2 = Math.sin(c.tpitch);
+      // camera-space basis in WORLD terms: x1 = d·right, y2 = d·down
+      const right = { x: cyw, y: 0, z: -syw };
+      const down = { x: -syw * sp2, y: cp, z: -cyw * sp2 };
+      const halfW = Math.max(80, W / 2 - MARGIN.x), halfH = Math.max(80, H / 2 - MARGIN.top);
+      const target = center3();
+      let dist = DIST3.home;
+      for (let pass = 0; pass < 4; pass++) {
+        // 1. the dolly this aim needs
+        let need = DIST3.min;
+        const cam: { x1: number; y2: number; z2: number; r: number }[] = [];
+        nodes.forEach((_n, id) => {
+          const q = pos3(id), sp = sprites.get(id)!;
+          const dx = q.x - target.x, dy = q.y - target.y, dz = q.z - target.z;
+          const x1 = dx * cyw - dz * syw, z1 = dx * syw + dz * cyw;
+          const y2 = dy * cp - z1 * sp2, z2 = dy * sp2 + z1 * cp;
+          const r = sp.R * 2.1;
+          cam.push({ x1, y2, z2, r });
+          need = Math.max(need, (Math.abs(x1) + r) * F3 / halfW - z2, (Math.abs(y2) + r) * F3 / halfH - z2);
+        });
+        dist = Math.max(DIST3.min, Math.min(DIST3.max, need));
+        // 2. where that actually PUTS everything, in pixels
+        let xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity, sSum = 0;
+        for (const b of cam) {
+          const zc = b.z2 + dist;
+          if (zc < NEAR) continue;
+          const s = F3 / zc;
+          sSum += s;
+          xMin = Math.min(xMin, b.x1 * s - b.r * s); xMax = Math.max(xMax, b.x1 * s + b.r * s);
+          yMin = Math.min(yMin, b.y2 * s - b.r * s); yMax = Math.max(yMax, b.y2 * s + b.r * s);
+        }
+        if (!isFinite(xMin) || sSum === 0) return fallback;
+        const sMean = sSum / cam.length;
+        const offX = (xMin + xMax) / 2, offY = (yMin + yMax) / 2; // px from centre
+        if (Math.abs(offX) < 1.5 && Math.abs(offY) < 1.5) break;
+        // 3. slide the aim so that offset goes to zero
+        const wx = offX / sMean, wy = offY / sMean;
+        target.x += right.x * wx + down.x * wy;
+        target.y += right.y * wx + down.y * wy;
+        target.z += right.z * wx + down.z * wy;
+      }
+      return { target, dist };
+    };
+
+    // The fitted frame is also the DRIFT's home — the idle cruise has to orbit
+    // where the system actually is, not a constant from a past viewport.
+    let home = fitMap();
+    cam.x = cam.tx = home.x; cam.y = cam.ty = home.y; cam.z = cam.tz = home.z;
+    // The 3D fit reads pos3, which is declared below — it is solved when 3D is
+    // first entered (and on ⤢ / resize), never eagerly from here.
+    // Cleared the moment the operator takes the camera; a resize only re-frames
+    // a view the operator hasn't personally aimed.
+    let atHome = true;
     let driftOn = !reduced;
     // The operator's ◐ choice, which fly-in/return must RESTORE, not reset —
     // "I turned the drift off" has to survive a trip to a planet and back.
@@ -931,6 +1056,11 @@ export default function GalaxyCanvas() {
       vx.globalAlpha = 1;
     };
 
+    // Label widths, measured once each. A label is a planet's only click
+    // target, so one hanging off the canvas edge is an unreachable project —
+    // but offsetWidth every frame for 18 labels is a forced reflow, and the
+    // text never changes after creation.
+    const labelW = new Map<string, number>();
     const positionLabels = (agents: Agent[]) => {
       const assignments = useHub.getState().assignments;
       nodes.forEach((n, id) => {
@@ -946,9 +1076,15 @@ export default function GalaxyCanvas() {
         } else {
           const [sx, syRaw] = w2s(n.x, n.y, 0.88 + n.z * 0.12);
           const below = RINGED.has(id) ? sp.R * 2.15 : sp.R * 1.02;
-          el.style.left = `${Math.round(sx)}px`;
+          if (!labelW.has(id) && el.offsetWidth > 0) labelW.set(id, el.offsetWidth);
+          const half = (labelW.get(id) ?? 0) / 2;
+          el.style.left = `${Math.round(Math.max(half + 4, Math.min(W - half - 4, sx)))}px`;
           el.style.top = `${Math.round(syRaw + below * cam.z * n.z + 13)}px`;
-          el.style.opacity = `${cam.z < 0.3 ? 0 : Math.min(1, (cam.z - 0.28) * 6) * (0.55 + 0.45 * n.z)}`;
+          // Labels fade when zoomed OUT past the fitted view — but the floor
+          // has to track that view, not a constant: on a small window the fit
+          // lands under 0.3 and every name silently disappeared.
+          const floor = Math.min(0.3, home.z * 0.92);
+          el.style.opacity = `${cam.z < floor ? 0 : Math.min(1, (cam.z - floor + 0.02) * 6) * (0.55 + 0.45 * n.z)}`;
         }
         const crewNames = agents.filter((a) => assignments[a.id] === id).map((a) => a.name);
         const crewEl = el.querySelector<HTMLSpanElement>(".crew")!;
@@ -1099,8 +1235,10 @@ export default function GalaxyCanvas() {
         draw3D(agents);
       } else {
         if (driftOn && !reduced && (!hoverPause || idle)) {
-          cam.tx = HOME.x + Math.cos(t * 0.04) * 170;
-          cam.ty = HOME.y + Math.sin(t * 0.031) * 110;
+          // the cruise orbits the FITTED home, so it can't wander the system
+          // off-screen on a viewport the constant was never chosen for
+          cam.tx = home.x + Math.cos(t * 0.04) * 170 * (home.z / HOME.z);
+          cam.ty = home.y + Math.sin(t * 0.031) * 110 * (home.z / HOME.z);
         }
         // Eased, but SNAPPED once close: an asymptotic ease never lands, so
         // "the camera settled" would otherwise be false by a millistep forever
@@ -1139,6 +1277,7 @@ export default function GalaxyCanvas() {
       if ((e.target as HTMLElement).closest(".gal-lab, button")) return;
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       driftOn = false;
+      atHome = false; // the operator is aiming now; resize must not re-frame
       downAt = performance.now(); downPos = { x: e.clientX, y: e.clientY };
     };
     const onMove = (e: PointerEvent) => {
@@ -1189,6 +1328,7 @@ export default function GalaxyCanvas() {
       // The raised card freezes it too — wheel past the card must be inert.
       if (useHub.getState().mapLocked || currentRef.current) return;
       driftOn = false;
+      atHome = false;
       if (mode === "3d") cam3.tdist = Math.max(DIST3.min, Math.min(DIST3.max, cam3.tdist * (e.deltaY > 0 ? 1.12 : 0.9)));
       else cam.tz = Math.max(0.2, Math.min(3.1, cam.tz * (e.deltaY > 0 ? 0.9 : 1.11)));
     };
@@ -1207,12 +1347,19 @@ export default function GalaxyCanvas() {
     const hudZi = () => { if (mode === "3d") cam3.tdist = Math.max(420, cam3.tdist * 0.8); else cam.tz = Math.min(3.1, cam.tz * 1.25); cam.tz = cam.tz; };
     const zi = $("[data-hud=zi]"), zo = $("[data-hud=zo]"), fit = $("[data-hud=fit]"),
       drift = $("[data-hud=drift]"), m3d = $("[data-hud=m3d]");
-    zi.onclick = () => { noteInput(); if (useHub.getState().mapLocked || currentRef.current) return; if (mode === "3d") cam3.tdist = Math.max(DIST3.min, cam3.tdist * 0.8); else cam.tz = Math.min(3.1, cam.tz * 1.25); };
-    zo.onclick = () => { noteInput(); if (useHub.getState().mapLocked || currentRef.current) return; if (mode === "3d") cam3.tdist = Math.min(DIST3.max, cam3.tdist * 1.25); else cam.tz = Math.max(0.2, cam.tz * 0.8); };
+    zi.onclick = () => { noteInput(); if (useHub.getState().mapLocked || currentRef.current) return; atHome = false; if (mode === "3d") cam3.tdist = Math.max(DIST3.min, cam3.tdist * 0.8); else cam.tz = Math.min(3.1, cam.tz * 1.25); };
+    zo.onclick = () => { noteInput(); if (useHub.getState().mapLocked || currentRef.current) return; atHome = false; if (mode === "3d") cam3.tdist = Math.min(DIST3.max, cam3.tdist * 1.25); else cam.tz = Math.max(0.2, cam.tz * 0.8); };
     fit.onclick = () => {
+      noteInput();
       if (currentRef.current) return; // mid-fly, the fly owns the camera
-      if (mode === "3d") { cam3.tdist = 2600; cam3.ttarget = { x: 520, y: 0, z: 340 }; }
-      else { cam.tx = HOME.x; cam.ty = HOME.y; cam.tz = HOME.z; }
+      atHome = true;
+      if (mode === "3d") {
+        const f3 = fit3();
+        cam3.ttarget = f3.target; cam3.tdist = f3.dist;
+      } else {
+        home = fitMap();
+        cam.tx = home.x; cam.ty = home.y; cam.tz = home.z;
+      }
     };
     const setDrift = (v: boolean) => {
       driftOn = v;
@@ -1220,9 +1367,22 @@ export default function GalaxyCanvas() {
     };
     drift.onclick = () => { noteInput(); if (currentRef.current) return; driftPref = !driftPref; setDrift(driftPref); };
     setDrift(driftOn);
+    // Re-frame on resize now that the solvers exist: a window drag re-fits a
+    // view the operator hasn't aimed, and never yanks one they have.
+    onResize = () => {
+      sizeAll();
+      home = fitMap();
+      if (!atHome || currentRef.current) return;
+      cam.tx = home.x; cam.ty = home.y; cam.tz = home.z;
+      if (mode === "3d") { const f3 = fit3(); cam3.ttarget = f3.target; cam3.tdist = f3.dist; }
+    };
+
     m3d.onclick = () => {
+      noteInput();
       if (currentRef.current) return; // no mode flips under a raised card
       mode = mode === "map" ? "3d" : "map";
+      // entering 3D frames the whole system for THIS viewport
+      if (mode === "3d" && atHome) { const f3 = fit3(); cam3.ttarget = f3.target; cam3.tdist = f3.dist; }
       setDrift(driftPref && !reduced);
       m3d.style.color = mode === "3d" ? "#5eead4" : "#8ea0bd";
       m3d.textContent = mode === "3d" ? "MAP" : "3D";
@@ -1257,8 +1417,10 @@ export default function GalaxyCanvas() {
       if (arriveTimer) clearTimeout(arriveTimer);
       setFlying(null); setArrival(null);
       setDrift(driftPref && !reduced);
-      if (mode === "3d") { cam3.tdist = DIST3.home; cam3.ttarget = { ...CENTER3 }; }
-      else { cam.tx = HOME.x; cam.ty = HOME.y; cam.tz = HOME.z; }
+      atHome = true;
+      // leaving a planet lands on the FITTED wide view, not a constant
+      if (mode === "3d") { const f3 = fit3(); cam3.ttarget = f3.target; cam3.tdist = f3.dist; }
+      else { home = fitMap(); cam.tx = home.x; cam.ty = home.y; cam.tz = home.z; }
     };
 
     return () => {
