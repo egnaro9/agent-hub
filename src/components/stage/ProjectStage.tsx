@@ -610,17 +610,10 @@ export default function ProjectStage({ projectId }: { projectId: string }) {
                   </div>
                 )}
                 {wk.wkTopology && (
-                  <div className="flex flex-none items-center gap-1.5">
-                    <button
-                      aria-label="Collapse topology"
-                      onClick={() => useChrome.getState().toggle("wkTopology")}
-                      className="mono grid h-5 w-5 flex-none cursor-pointer place-items-center rounded text-[9px] text-slate-600 transition hover:bg-white/10 hover:text-slate-200"
-                    >
-                      ▾
-                    </button>
-                    <div className="min-w-0 flex-1">
-                      <TopologyBar projectId={projectId} />
-                    </div>
+                  <div className="flex-none">
+                    {/* the fold control lives INSIDE the bar, above its label —
+                        stealing row width truncated the run explanation */}
+                    <TopologyBar projectId={projectId} />
                   </div>
                 )}
                 <div className="min-h-0 flex-1">

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useHub } from "../state/hub";
 import { PRESETS, PRESET_IDS, callCount } from "../agents/topology";
+import { useChrome } from "../state/chrome";
 import { deleteShape, listShapes, toTopology, validateShape, type CustomShape } from "../agents/customShapes";
 import ShapeComposer, { PRICE_TITLE, type ComposerAgent } from "./ShapeComposer";
 
@@ -147,6 +148,16 @@ export default function TopologyBar({ projectId }: { projectId: string }) {
           wrapping into a tower — the page itself must never scroll
           horizontally. sm+ keeps today's wrap. */}
       <div className="flex items-center gap-x-3 gap-y-1.5 overflow-x-auto sm:flex-wrap sm:overflow-x-visible">
+        {/* the fold control perches in the strip's own top padding, above the
+            label — a sibling outside the bar stole width and truncated the
+            run explanation at the right edge */}
+        <button
+          aria-label="Collapse topology"
+          onClick={() => useChrome.getState().toggle("wkTopology")}
+          className="mono absolute top-0 left-2 cursor-pointer p-0.5 text-[8px] leading-none text-slate-600 transition hover:text-slate-200"
+        >
+          ▴
+        </button>
         <span className="mono flex-none text-[9.5px] tracking-[0.25em] text-slate-500 uppercase">topology</span>
         <div className="flex flex-none overflow-hidden rounded-md border border-white/10">
           {PRESET_IDS.map((id) => chip(id, LABELS[id]))}
