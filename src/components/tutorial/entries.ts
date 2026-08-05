@@ -41,7 +41,7 @@ export const SECTIONS: Section[] = [
           "The default view: every project is a planet — sized by weight, surfaced by what it is (gas bands, craters, ice, an ember world, city lights, one twin) — arranged in thematic clusters on orbital rings. Agents are moons orbiting the project their assignment names; related projects are joined by energy filaments.",
         how: "Drag to pan, scroll or pinch to zoom. Click a planet (or its label) to enter it. Bottom right: − / + / ⤢ fit, ◐ idle drift, 3D for the immersive mode, and the lock.",
         gotcha:
-          "It never unmounts — your camera survives a trip into a project. Planets ride fixed cluster rings now, so there is nothing to drag out of place; the idle camera drifts until you touch anything, and ◐ turns that back on.",
+          "It never unmounts — your camera survives a trip into a project. Planets ride fixed cluster rings now, so there is nothing to drag out of place; the idle camera drifts until you touch anything, and comes back on its own after 30 quiet seconds (◐ brings it back sooner, or turns it off for good).",
       },
       {
         title: "🔓 lock",

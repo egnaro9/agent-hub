@@ -596,6 +596,12 @@ export default function GalaxyCanvas() {
     // "I turned the drift off" has to survive a trip to a planet and back.
     let driftPref = !reduced;
     let hoverPause = false;
+    // Screensaver re-arm: any interaction kills the drift, but 30s of stillness
+    // brings it back (if ◐ is on) — and idle also overrides hoverPause, or a
+    // cursor parked over the sky would block the resume forever.
+    const IDLE_MS = 30_000;
+    let lastInput = performance.now();
+    const noteInput = () => { lastInput = performance.now(); };
     let disposed = false;
     const t0 = performance.now();
     let frame = 0, tNow = 0;
@@ -1078,19 +1084,21 @@ export default function GalaxyCanvas() {
       // choreography and never arrive — there, zoom is the only destination.
       host.dataset.zoomSettled = String(cam.z === cam.tz && (driftOn || (cam.x === cam.tx && cam.y === cam.ty)));
       host.dataset.mode = mode;
+      const idle = now - lastInput > IDLE_MS;
+      if (idle && driftPref && !reduced && !driftOn && !currentRef.current) setDrift(true);
       if (mode === "3d") {
         // Planets ORBIT in 3D — a target set once at click time is a place
         // the planet used to be. While its card is up, follow it round.
         const cur = currentRef.current;
         if (cur && nodes.has(cur)) cam3.ttarget = pos3(cur);
-        if (driftOn && !hoverPause) cam3.tyaw += 0.0007;
+        if (driftOn && (!hoverPause || idle)) cam3.tyaw += 0.0007;
         cam3.yaw += (cam3.tyaw - cam3.yaw) * 0.08;
         cam3.pitch += (cam3.tpitch - cam3.pitch) * 0.08;
         cam3.dist += (cam3.tdist - cam3.dist) * 0.07;
         (["x", "y", "z"] as const).forEach((ax) => { cam3.target[ax] += (cam3.ttarget[ax] - cam3.target[ax]) * 0.06; });
         draw3D(agents);
       } else {
-        if (driftOn && !reduced && !hoverPause) {
+        if (driftOn && !reduced && (!hoverPause || idle)) {
           cam.tx = HOME.x + Math.cos(t * 0.04) * 170;
           cam.ty = HOME.y + Math.sin(t * 0.031) * 110;
         }
@@ -1119,6 +1127,7 @@ export default function GalaxyCanvas() {
     let lastPinch = 0;
     let downAt = 0, downPos = { x: 0, y: 0 };
     const onDown = (e: PointerEvent) => {
+      noteInput();
       // While the arrival card is up (or the camera is flying to it) the sky
       // is scenery: scrim events bubble to this host, so without this guard a
       // drag or pick "past the card" still steers the camera underneath it.
@@ -1133,6 +1142,7 @@ export default function GalaxyCanvas() {
       downAt = performance.now(); downPos = { x: e.clientX, y: e.clientY };
     };
     const onMove = (e: PointerEvent) => {
+      noteInput(); // any cursor motion over the sky counts as presence
       const prev = pointers.get(e.pointerId);
       if (!prev) return;
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -1173,6 +1183,7 @@ export default function GalaxyCanvas() {
       }
     };
     const onWheel = (e: WheelEvent) => {
+      noteInput();
       e.preventDefault();
       // The lock's contract, carried over: scroll-zoom is what it freezes.
       // The raised card freezes it too — wheel past the card must be inert.
@@ -1196,8 +1207,8 @@ export default function GalaxyCanvas() {
     const hudZi = () => { if (mode === "3d") cam3.tdist = Math.max(420, cam3.tdist * 0.8); else cam.tz = Math.min(3.1, cam.tz * 1.25); cam.tz = cam.tz; };
     const zi = $("[data-hud=zi]"), zo = $("[data-hud=zo]"), fit = $("[data-hud=fit]"),
       drift = $("[data-hud=drift]"), m3d = $("[data-hud=m3d]");
-    zi.onclick = () => { if (useHub.getState().mapLocked || currentRef.current) return; if (mode === "3d") cam3.tdist = Math.max(DIST3.min, cam3.tdist * 0.8); else cam.tz = Math.min(3.1, cam.tz * 1.25); };
-    zo.onclick = () => { if (useHub.getState().mapLocked || currentRef.current) return; if (mode === "3d") cam3.tdist = Math.min(DIST3.max, cam3.tdist * 1.25); else cam.tz = Math.max(0.2, cam.tz * 0.8); };
+    zi.onclick = () => { noteInput(); if (useHub.getState().mapLocked || currentRef.current) return; if (mode === "3d") cam3.tdist = Math.max(DIST3.min, cam3.tdist * 0.8); else cam.tz = Math.min(3.1, cam.tz * 1.25); };
+    zo.onclick = () => { noteInput(); if (useHub.getState().mapLocked || currentRef.current) return; if (mode === "3d") cam3.tdist = Math.min(DIST3.max, cam3.tdist * 1.25); else cam.tz = Math.max(0.2, cam.tz * 0.8); };
     fit.onclick = () => {
       if (currentRef.current) return; // mid-fly, the fly owns the camera
       if (mode === "3d") { cam3.tdist = 2600; cam3.ttarget = { x: 520, y: 0, z: 340 }; }
@@ -1207,7 +1218,7 @@ export default function GalaxyCanvas() {
       driftOn = v;
       drift.style.color = v ? "#5eead4" : "#8ea0bd";
     };
-    drift.onclick = () => { if (currentRef.current) return; driftPref = !driftPref; setDrift(driftPref); };
+    drift.onclick = () => { noteInput(); if (currentRef.current) return; driftPref = !driftPref; setDrift(driftPref); };
     setDrift(driftOn);
     m3d.onclick = () => {
       if (currentRef.current) return; // no mode flips under a raised card
