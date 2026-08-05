@@ -157,9 +157,16 @@ type Fetched = { ok: true; body: unknown } | { ok: false; status: "failed" | "ra
  * One place that knows what a spent budget looks like, so both feeds report it
  * with the same word. Never throws: callers get a shape, always.
  */
-async function getJson(url: string): Promise<Fetched> {
+async function getJson(url: string, token?: string | null): Promise<Fetched> {
   try {
-    const res = await fetch(url, { headers: { Accept: "application/vnd.github+json" } });
+    const res = await fetch(url, {
+      headers: {
+        Accept: "application/vnd.github+json",
+        // The armed PAT, when the caller passes it: authenticated reads get
+        // their own 5000/hr budget instead of the shared unauthenticated 60.
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
     if (!res.ok) {
       // GitHub answers a spent unauthenticated budget with 403 (429 on the
       // newer path) and the remaining count pinned at 0. That is emphatically
@@ -256,6 +263,82 @@ export async function fetchOpenIssues(repo: string): Promise<RepoFeed<IssueEntry
       rows.length === 0
         ? feed<IssueEntry>("empty")
         : feed("ok", rows.slice(0, ISSUE_CAP), Math.max(0, rows.length - ISSUE_CAP));
+  }
+
+  writeCache(key, out);
+  return out;
+}
+
+// ---- REPO-OPS-1: the gate loop, closed ---------------------------------------
+// An approved commit lands on a hub/* branch, Ops announces it once, and until
+// this feed existed nothing ever reported whether that branch became a PR or
+// merged. This is VISIBILITY only — merging stays in GitHub; there is no write
+// endpoint here.
+
+export interface BranchEntry {
+  /** The branch name, e.g. "hub/critic-docs-notes-md-a1b2c3". */
+  name: string;
+  /** Tree URL — where the operator goes to open the PR. */
+  url: string;
+  /** none = branch with no PR yet; the rest mirror GitHub's own vocabulary. */
+  prState: "none" | "open" | "merged" | "closed";
+  prNumber?: number;
+  prUrl?: string;
+}
+
+/**
+ * The room's own repo only — the roadmap's written fallback, taken on purpose:
+ * a cross-repo sweep costs 2 requests × 18 repos against a 60/hr shared
+ * budget, and the gate loop is closed by answering for the room you're in.
+ * Two requests: the branch list and the PR list, joined on head ref. Pass the
+ * armed PAT for private repos and a real budget; without it the unauthenticated
+ * path keeps the same honest status vocabulary as every other feed.
+ */
+export async function fetchHubBranches(repo: string, token?: string | null): Promise<RepoFeed<BranchEntry>> {
+  const key = `hubops:${repo}`;
+  const cached = readCache<BranchEntry>(key);
+  if (cached) return cached;
+
+  const [branches, pulls] = await Promise.all([
+    getJson(`https://api.github.com/repos/${OWNER}/${repo}/branches?per_page=100`, token),
+    getJson(`https://api.github.com/repos/${OWNER}/${repo}/pulls?state=all&per_page=100`, token),
+  ]);
+
+  let out: RepoFeed<BranchEntry>;
+  if (!branches.ok || !pulls.ok) {
+    // Half an answer is no answer: branches without PR state would render
+    // every row "none", which reads as "nobody opened a PR" — a claim this
+    // function would have no evidence for.
+    out = feed<BranchEntry>(!branches.ok ? branches.status : (pulls as { status: FeedStatus }).status);
+  } else if (!Array.isArray(branches.body) || !Array.isArray(pulls.body)) {
+    out = feed<BranchEntry>("failed");
+  } else {
+    // PRs by head ref. A branch can have had several PRs (closed, then
+    // reopened as a new one) — the join prefers open > merged > closed so the
+    // row reports the state that still matters.
+    const rank = { open: 3, merged: 2, closed: 1 } as const;
+    const byRef = new Map<string, { state: "open" | "merged" | "closed"; number: number; url: string }>();
+    for (const p of pulls.body as { head?: { ref?: unknown }; state?: unknown; merged_at?: unknown; number?: unknown; html_url?: unknown }[]) {
+      if (typeof p !== "object" || p === null || typeof p.head?.ref !== "string" || typeof p.number !== "number") continue;
+      const state = p.state === "open" ? "open" : p.merged_at ? "merged" : "closed";
+      const prev = byRef.get(p.head.ref);
+      if (!prev || rank[state] > rank[prev.state]) {
+        byRef.set(p.head.ref, { state, number: p.number, url: typeof p.html_url === "string" ? p.html_url : "" });
+      }
+    }
+    const rows: BranchEntry[] = (branches.body as { name?: unknown }[])
+      .filter((b): b is { name: string } => typeof b === "object" && b !== null && typeof b.name === "string")
+      .filter((b) => b.name.startsWith("hub/"))
+      .map((b) => {
+        const pr = byRef.get(b.name);
+        return {
+          name: b.name,
+          url: `https://github.com/${OWNER}/${repo}/tree/${b.name}`,
+          prState: pr?.state ?? "none",
+          ...(pr ? { prNumber: pr.number, prUrl: pr.url } : {}),
+        };
+      });
+    out = rows.length === 0 ? feed<BranchEntry>("empty") : feed("ok", rows);
   }
 
   writeCache(key, out);

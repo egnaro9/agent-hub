@@ -67,7 +67,8 @@ export interface Message {
   action?: {
     tool: string;
     input: Record<string, unknown>;
-    status: "pending" | "approved" | "dismissed";
+    /** "ran" = a FREE tool call's trace row — informational, no buttons. */
+    status: "pending" | "approved" | "dismissed" | "ran";
     before?: string; // file contents as they exist today, for the diff card
   };
 }

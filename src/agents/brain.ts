@@ -45,6 +45,36 @@ export const getModel = (): string => {
   }
 };
 
+// ---- generation config ------------------------------------------------------
+// max_tokens was a hardcoded 1024 in two call sites — a confound the roadmap
+// names: a chain artifact that silently truncates poisons every link after it,
+// and nothing recorded that the truncation was even possible. One readable
+// source now, and the run export carries it, so every artifact names its own
+// conditions. Overridable per browser via localStorage; deliberately NO UI —
+// the study needs the PIN, not a panel.
+const GEN_KEY = "agent-hub:gen-config";
+
+export interface GenConfig {
+  maxTokens: number;
+  /** Unset = provider default. Only the Anthropic path honors a pin today. */
+  temperature?: number;
+}
+
+export const getGenConfig = (): GenConfig => {
+  const fallback: GenConfig = { maxTokens: 1024 };
+  try {
+    const raw = localStorage.getItem(GEN_KEY);
+    if (!raw) return fallback;
+    const p = JSON.parse(raw) as Partial<GenConfig>;
+    const maxTokens = typeof p.maxTokens === "number" && p.maxTokens >= 1 ? Math.floor(p.maxTokens) : 1024;
+    const temperature =
+      typeof p.temperature === "number" && p.temperature >= 0 && p.temperature <= 1 ? p.temperature : undefined;
+    return { maxTokens, ...(temperature !== undefined ? { temperature } : {}) };
+  } catch {
+    return fallback;
+  }
+};
+
 // Per-agent routing: judgment roles get the strong model, the talkative ones
 // get a cheap fast one. The operator's chosen model is the ceiling — routing
 // only ever picks something equal or cheaper, never an upgrade they didn't ask
@@ -210,6 +240,7 @@ export async function* streamReply(
       system,
       messages: turns as never,
       tools: [],
+      maxTokens: getGenConfig().maxTokens,
       onDelta: (t) => queue.push(t),
     }).finally(() => (done = true));
     while (!done || queue.length) {
@@ -222,9 +253,11 @@ export async function* streamReply(
   const apiKey = getKey();
   if (!apiKey) throw new Error("no key");
   const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
+  const cfg = getGenConfig();
   const stream = client.messages.stream({
     model: model ?? getModel(),
-    max_tokens: 1024,
+    max_tokens: cfg.maxTokens,
+    ...(cfg.temperature !== undefined ? { temperature: cfg.temperature } : {}),
     system,
     messages: turns,
   });
@@ -434,9 +467,11 @@ export async function streamAgentTurn(
   const apiKey = getKey();
   if (!apiKey) throw new Error("no key");
   const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
+  const cfg = getGenConfig();
   const stream = client.messages.stream({
     model: model ?? getModel(),
-    max_tokens: 1024,
+    max_tokens: cfg.maxTokens,
+    ...(cfg.temperature !== undefined ? { temperature: cfg.temperature } : {}),
     system,
     messages,
     tools,
@@ -464,11 +499,22 @@ export async function runToolLoop(opts: {
   /** Which agent is speaking — selects its provider/model from the roster. */
   agentId?: string;
   onDelta: (t: string) => void;
+  /**
+   * Fired once per request this loop sends to a model, BEFORE it goes out.
+   * This is the only honest place to count spend: the store's `execute` sees
+   * tool calls, and two tool calls from one turn are indistinguishable out
+   * there from one call each from two turns — which is exactly the ambiguity
+   * that forced the spend report to be a range. Counting the requests where
+   * they are issued makes the figure exact, including the request a thrown
+   * stream had already spent.
+   */
+  onModelCall?: () => void;
   execute: (name: string, input: Record<string, unknown>) => Promise<{ result: string } | { gated: true }>;
   maxTurns?: number;
 }): Promise<void> {
   let messages: Anthropic.MessageParam[] = opts.turns.map((t) => ({ role: t.role, content: t.content }));
   for (let i = 0; i < (opts.maxTurns ?? 4); i++) {
+    opts.onModelCall?.();
     // The transport is chosen per agent: an override in the roster picks the
     // provider, otherwise this is the Anthropic path it has always been. The
     // unified shapes are a structural subset of the SDK's, so the message array
@@ -487,6 +533,7 @@ export async function runToolLoop(opts: {
         system: opts.system,
         messages: messages as never,
         tools: (opts.tools ?? AGENT_TOOLS) as never,
+        maxTokens: getGenConfig().maxTokens,
         onDelta: opts.onDelta,
       });
       toolCalls = res.toolCalls as ToolCall[];

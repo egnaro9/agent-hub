@@ -43,6 +43,9 @@ export interface RecordedRequest {
   /** Anthropic MessageParam[] — user/assistant turns plus tool_result blocks. */
   messages: { role: string; content: unknown }[];
   toolNames: string[];
+  /** The generation pin the app sent — evidence for the export's config block. */
+  maxTokens: number | null;
+  temperature: number | null;
   /** Present iff the app sent an Authorization-equivalent header. */
   apiKey: string | null;
 }
@@ -234,6 +237,8 @@ export async function stubAnthropic(context: BrowserContext, script: Script): Pr
       system: String(body.system ?? ""),
       messages: (body.messages as RecordedRequest["messages"]) ?? [],
       toolNames: ((body.tools as { name: string }[]) ?? []).map((t) => t.name),
+      maxTokens: typeof body.max_tokens === "number" ? body.max_tokens : null,
+      temperature: typeof body.temperature === "number" ? body.temperature : null,
       apiKey: headers["x-api-key"] ?? null,
     });
 

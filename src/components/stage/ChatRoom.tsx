@@ -184,6 +184,25 @@ export default function ChatRoom({ projectId }: { projectId: string }) {
             );
           }
           const a = agents.find((x) => x.id === m.from)!;
+          if (m.action?.status === "ran") {
+            // A free tool call's trace — one compact line, no card, no buttons.
+            // It exists so a worker that read three files doesn't look like one
+            // that answered cold; the amber proposal card below stays reserved
+            // for calls that actually need the operator.
+            const args = Object.values(m.action.input).map(String).join(", ");
+            return (
+              <div key={m.id} data-testid="tool-trace" className="-mx-2 flex items-center gap-2.5 px-2 py-0.5">
+                <span className="grid h-5 w-5 flex-none place-items-center rounded-full text-[8px] font-bold text-white/80" style={{ background: `${a.color}55`, border: `1px solid ${a.color}88` }}>
+                  {a.glyph}
+                </span>
+                <span className="mono truncate text-[10px] text-slate-500">
+                  <span style={{ color: `${a.color}cc` }}>{a.name}</span> ran{" "}
+                  <code className="text-slate-400">{m.action.tool}({args})</code>
+                  <span className="text-slate-600"> · free tool call</span>
+                </span>
+              </div>
+            );
+          }
           if (m.action) {
             const isCommit = m.action.tool === "propose_commit";
             const inp = m.action.input as { path?: string; content?: string; message?: string; why?: string };

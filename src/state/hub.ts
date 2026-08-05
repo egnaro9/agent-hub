@@ -3,12 +3,18 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import type { Agent, Conversation, Message, MessageNode, Project, QueuedLine, StructuralEdge, Vec } from "../types";
 import { PRESETS, briefFor, callCount, plan, type Phase, type Topology, type TopologyNode } from "../agents/topology";
 import { getShape, toTopology, validateShape } from "../agents/customShapes";
+import { appendJournal } from "./journal";
+import type { RunExportV1, RunExportNode } from "./runExport";
+import { getOverride } from "../agents/roster";
+import { getGenConfig, getRouting } from "../agents/brain";
 import { AGENTS, PROJECTS, STRUCTURAL, SEED_ASSIGNMENTS } from "../data/mock";
 import { personaFor, ERRORS, buildRoundtable, nextId } from "../sim/lines";
 import {
+  fetchHubBranches,
   fetchOpenIssues,
   fetchRecentCommits,
   fetchRepoTree,
+  type BranchEntry,
   type IssueEntry,
   type RepoFeed,
   type TreeEntry,
@@ -29,40 +35,17 @@ export interface TurnBrief {
   spend?: RunSpend;
 }
 
-// BLOCKER (the quote was a fake exactness): callCount() counts NODES, but a node
-// is a runToolLoop — it goes back to the model once more for every tool result
-// it has to answer, up to the loop's own cap. So a node that reads a repo file
-// costs 2, a node whose propose_commit hits the gate costs at least 2, and a
-// shape quoted at 5 can spend 10. The plan cannot know that in advance; only the
-// run can. This is that count, kept at the call site — deriving it from the plan
-// afterwards would just repeat the original sin in a new place.
-//
-// Exact where it can be, a range where it can't. runToolLoop answers ALL of one
-// turn's tool calls in a SINGLE follow-up call, and from out here (the store
-// only sees `execute`, one call at a time) two tool calls are indistinguishable
-// from "one turn asked for two files" versus "two turns asked for one each". So
-// a node with t tool calls cost somewhere in [2, 1+t]. t of 0 or 1 — the ordinary
-// case — pins it exactly; anything more is reported as the range it truly is
-// rather than picking an end and being confidently wrong.
+// The spend used to be a RANGE, and the range was this file admitting it could
+// not see: the store only observes `execute`, where two tool calls from one
+// turn are indistinguishable from one call each from two turns. runToolLoop now
+// reports every request it issues via onModelCall, counted where the calls are
+// actually made — so the figure is exact, the [low, high] bracket is gone, and
+// so is the closing line's "may have taken it past" hedge, which could only be
+// written because nobody was counting at the socket.
 export interface RunSpend {
-  /** Fewest model calls consistent with what was observed. */
-  low: number;
-  /** Most. Equal to `low` unless some node issued 2+ tool calls. */
-  high: number;
+  /** Model calls actually issued, counted by runToolLoop as each one goes out. */
+  calls: number;
 }
-
-// runToolLoop's default turn cap (brain.ts). Mirrored rather than imported
-// because the runner deliberately does NOT pass maxTurns: tools stay available
-// inside a shape, and buying an exact quote by taking a worker's ability to read
-// the repo away is the wrong trade. A node therefore makes at most this many
-// calls, so at most this-minus-one of them are tool follow-ups.
-const MAX_TURNS_PER_NODE = 4;
-
-/** Fold one finished node turn into the run's tally. */
-const tally = (spend: RunSpend, toolCalls: number) => {
-  spend.low += 1 + (toolCalls > 0 ? 1 : 0);
-  spend.high += 1 + Math.min(toolCalls, MAX_TURNS_PER_NODE - 1);
-};
 
 /**
  * The closing line of a run: what was quoted, what was spent, and — when the
@@ -71,14 +54,10 @@ const tally = (spend: RunSpend, toolCalls: number) => {
  * bill says 10, and nothing on screen ever connects the two.
  */
 const spendLine = (quoted: number, spend: RunSpend): string => {
-  const spent = spend.low === spend.high ? `${spend.low}` : `${spend.low}–${spend.high}`;
-  const calls = `${spent} model call${spend.high === 1 ? "" : "s"}`;
+  const calls = `${spend.calls} model call${spend.calls === 1 ? "" : "s"}`;
   const head = `shape done · quoted ${quoted}+ · spent ${calls}`;
-  if (spend.low > quoted) {
-    return `${head} — ${spend.low - quoted} OVER the quote. Tools are why: a node that calls one has to answer the result in another call. That is what the "+" on the quote is for.`;
-  }
-  if (spend.high > quoted) {
-    return `${head} — tool use may have taken it past the quote of ${quoted}. A turn that asks for two files is answered in one call, so the true figure is inside that range.`;
+  if (spend.calls > quoted) {
+    return `${head} — ${spend.calls - quoted} OVER the quote. Tools are why: a node that calls one has to answer the result in another call. That is what the "+" on the quote is for.`;
   }
   return `${head} — inside the quote.`;
 };
@@ -138,6 +117,8 @@ export interface RepoWork {
   phase: "loading" | "ready" | "no-repo";
   tree: RepoFeed<TreeEntry> | null;
   issues: RepoFeed<IssueEntry> | null;
+  /** REPO-OPS-1: hub/* branches with their PR state — the gate loop's tail. */
+  branches: RepoFeed<BranchEntry> | null;
 }
 
 // Agents allowed in a project's room: every global agent + the ones scoped to it.
@@ -193,6 +174,12 @@ interface HubState {
   sendToChannel: (projectId: string, text: string) => void;
   streamAgent: (projectId: string, agentId: string, opts?: TurnBrief) => Promise<void>;
   topologyRun: TopologyRun | null;
+  /**
+   * The last completed shape run as a gradable artifact — in memory only, a
+   * run's export dies with the tab (the journal keeps the numbers; the FILE is
+   * something you download while it's warm).
+   */
+  lastRunExport: RunExportV1 | null;
   /**
    * `quoted` is the number the launcher put on the button. Optional so callers
    * that never showed a price (tests, programmatic runs) keep working; when it
@@ -344,7 +331,13 @@ export const useHub = create<HubState>()(
   toggleMapLock: () => set((s) => ({ mapLocked: !s.mapLocked })),
   // DANGER ZONE: off unless the operator armed it AND a token exists.
   commitsArmed: getGhToken() !== null,
-  setCommitsArmed: (v) => set({ commitsArmed: v }),
+  setCommitsArmed: (v) => {
+    // The arming itself is a ledger event: it is the moment the room's tool
+    // list grows a write path, and "when was the danger zone on" is exactly
+    // the question an audit asks. Only a real flip is recorded.
+    if (get().commitsArmed !== v) appendJournal({ kind: "arm", on: v });
+    set({ commitsArmed: v });
+  },
   brainConnected: getKey() !== null,
   setBrainConnected: (v) => set({ brainConnected: v }),
   focusRequest: null,
@@ -477,29 +470,32 @@ export const useHub = create<HubState>()(
     // say "the request failed" — a different sentence from "there is nothing
     // here to read", and the wrong one.
     if (!SEED_PROJECT_IDS.has(projectId)) {
-      set((s) => ({ repoWork: { ...s.repoWork, [projectId]: { phase: "no-repo", tree: null, issues: null } } }));
+      set((s) => ({ repoWork: { ...s.repoWork, [projectId]: { phase: "no-repo", tree: null, issues: null, branches: null } } }));
       return;
     }
-    set((s) => ({ repoWork: { ...s.repoWork, [projectId]: { phase: "loading", tree: null, issues: null } } }));
-    // All three at once. The commit hydration is in here — not just beside it —
+    set((s) => ({ repoWork: { ...s.repoWork, [projectId]: { phase: "loading", tree: null, issues: null, branches: null } } }));
+    // All at once. The commit hydration is in here — not just beside it —
     // because the tasks card falls back to those commits when a repo has no open
     // issues; settling `ready` before they land would flash "no commits either"
-    // at a repo with plenty. Neither repo fetcher throws: a failure arrives as a
-    // status, which is the whole reason they return a status.
+    // at a repo with plenty. None of the repo fetchers throws: a failure arrives
+    // as a status, which is the whole reason they return a status. The branch
+    // feed rides the armed PAT when one exists — private repos and a real
+    // budget — and degrades to the same unauthenticated vocabulary without it.
     try {
-      const [tree, issues] = await Promise.all([
+      const [tree, issues, branches] = await Promise.all([
         fetchRepoTree(projectId),
         fetchOpenIssues(projectId),
+        fetchHubBranches(projectId, getGhToken()),
         get().hydrateActivity(projectId),
       ]);
-      set((s) => ({ repoWork: { ...s.repoWork, [projectId]: { phase: "ready", tree, issues } } }));
+      set((s) => ({ repoWork: { ...s.repoWork, [projectId]: { phase: "ready", tree, issues, branches } } }));
     } catch {
-      // "Neither fetcher throws" is a property of today's code, not a law. If
-      // one ever does, the un-caught rejection leaves phase pinned at "loading"
+      // "No fetcher throws" is a property of today's code, not a law. If one
+      // ever does, the un-caught rejection leaves phase pinned at "loading"
       // and workAttempted already set — both cards read "reading github…"
       // forever with no way back. Settle a terminal state instead.
       const failed = { status: "failed" as const, items: [], more: 0 };
-      set((s) => ({ repoWork: { ...s.repoWork, [projectId]: { phase: "ready", tree: failed, issues: failed } } }));
+      set((s) => ({ repoWork: { ...s.repoWork, [projectId]: { phase: "ready", tree: failed, issues: failed, branches: failed } } }));
     }
   },
 
@@ -679,6 +675,7 @@ export const useHub = create<HubState>()(
   },
 
   topologyRun: null,
+  lastRunExport: null,
 
   // Run a SHAPE in this room. The engine (agents/topology.ts) says what the
   // shape is and what each node is told; this executes it against the same live
@@ -843,6 +840,14 @@ export const useHub = create<HubState>()(
       return text.length > 0 && !text.startsWith("⚠") ? line.id : null;
     };
 
+    // The run's own record, for the export: when it started, and one row per
+    // node turn in execution order with the model it was routed to and — for
+    // handoff links — which single message it was handed. Collected at the
+    // call site because that is where these facts are true; everything else in
+    // the export is read back off the transcript the operator already saw.
+    const startedAt = new Date().toISOString();
+    const nodeRecords: RunExportNode[] = [];
+
     // Marked running BEFORE queueing, so the launch button disables on the click
     // rather than whenever an in-flight roundtable happens to finish.
     set({ topologyRun: { projectId, shapeId, step: 0, steps: phases.length, label: "queued" } });
@@ -851,7 +856,7 @@ export const useHub = create<HubState>()(
     const releaseFanout = await takeTurn(`fan:${projectId}`);
     // Every node turn adds itself here as it finishes, so what the closing line
     // reports is measured, not planned.
-    const spend: RunSpend = { low: 0, high: 0 };
+    const spend: RunSpend = { calls: 0 };
     try {
       for (let i = 0; i < phases.length; i++) {
         const phase = phases[i];
@@ -859,12 +864,21 @@ export const useHub = create<HubState>()(
         // Where this phase starts writing, so a hand-off stage that does NOT
         // open the run can be handed what the step immediately before it left.
         const mark = get().channels[projectId]?.messages.length ?? 0;
-        const turn = (node: TopologyNode) =>
-          get().streamAgent(projectId, node.agentId, {
+        const turn = (node: TopologyNode, handedFrom: string | null = null) => {
+          nodeRecords.push({
+            phase: phase.kind,
+            nodeId: node.id,
+            role: node.role,
+            agentId: node.agentId,
+            model: getOverride(node.agentId)?.model ?? modelForAgent(node.agentId),
+            handedFrom,
+          });
+          return get().streamAgent(projectId, node.agentId, {
             brief: briefFor(phase.kind, node, trimmed),
             node: { topology: topology.id, phase: phase.kind, id: node.id, role: node.role },
             spend,
           });
+        };
         if (phase.kind === "handoff") {
           // THE ASSEMBLY LINE. Same nodes, same order and same price as a
           // sequence — the entire difference is which floor is under each one,
@@ -884,7 +898,7 @@ export const useHub = create<HubState>()(
           }
           for (const node of phase.nodes) {
             runFloor = { projectId, msgId: hand, exact: true };
-            await turn(node);
+            await turn(node, hand);
             // An upstream node that produced nothing must not leave the next
             // link reading whatever sits above IT — with the floor unmoved that
             // is the task, and the link would answer as a first agent, which is
@@ -900,7 +914,9 @@ export const useHub = create<HubState>()(
           if (phase.kind === "fanout") {
             // CONCURRENT — the point of the shape. Each node takes its own
             // per-agent turn ticket, so serialization per agent is untouched.
-            await Promise.all(phase.nodes.map(turn));
+            // (Explicit lambda: .map(turn) would feed the array INDEX into
+            // turn's handedFrom parameter.)
+            await Promise.all(phase.nodes.map((n) => turn(n)));
           } else if (phase.kind === "sequence") {
             for (const node of phase.nodes) await turn(node);
           } else {
@@ -931,8 +947,40 @@ export const useHub = create<HubState>()(
       // Posted in the finally, so a run that dies half-way still says what it
       // burned getting there.
       note(spendLine(price, spend));
+      // The same numbers go to the ledger, which outlives the transcript's
+      // 80-message window — quoted-vs-actual per run is the audit trail the
+      // whole spend-honesty claim rests on.
+      appendJournal({
+        kind: "run",
+        project: projectId,
+        shape: shapeId,
+        label: topology.label,
+        quoted: price,
+        spent: spend.calls,
+      });
+      // The gradable artifact: the transcript slice the operator just watched
+      // (task line through the closing spend line), the node records collected
+      // at the call sites, and the run's pinned conditions. In memory only —
+      // the export chip downloads it while it's warm.
+      const allMsgs = get().channels[projectId]?.messages ?? [];
+      const floorIdx = allMsgs.findIndex((m) => m.id === taskMsgId);
+      const cfg = getGenConfig();
+      const exportRecord: RunExportV1 = {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        project: projectId,
+        shape: { id: shapeId, label: topology.label },
+        task: trimmed,
+        config: { ...cfg, routeByRole: getRouting() },
+        quoted: price,
+        spent: spend.calls,
+        startedAt,
+        endedAt: new Date().toISOString(),
+        nodes: nodeRecords,
+        messages: allMsgs.slice(floorIdx < 0 ? 0 : floorIdx).map((m) => (m.streaming ? { ...m, streaming: false } : m)),
+      };
       runFloor = null;
-      set({ topologyRun: null });
+      set({ topologyRun: null, lastRunExport: exportRecord });
       releaseFanout();
     }
   },
@@ -951,13 +999,12 @@ export const useHub = create<HubState>()(
     const releaseTurn = await takeTurn(streamKey);
     liveStreams.add(streamKey);
     const msgId = nextId();
-    // What this ONE turn costs, counted where the calls are actually made. A node
-    // is not one model call: the loop below answers every tool result with
-    // another call, which is the whole reason a shape can overrun its quote.
-    // `reached` guards the early return above the loop — a turn that never got
-    // to the model must not bill for one.
-    let reached = false;
-    let toolCalls = 0;
+    // What this ONE turn costs — incremented by runToolLoop's onModelCall as
+    // each request goes out, so a turn that never reached the model bills zero
+    // and a turn that threw mid-stream bills for the request it had already
+    // made. A node is not one model call: the loop answers every tool result
+    // with another call, which is the whole reason a shape can overrun its quote.
+    let modelCalls = 0;
     try {
       const { projects, channels } = get();
       const project = projects.find((p) => p.id === projectId);
@@ -975,9 +1022,13 @@ export const useHub = create<HubState>()(
       // transcript, and feeding them through would send each worker a line
       // reading "[forge]: " — noise that also hints at who else is mid-answer.
       // Dropping them changes nothing on the sequential paths (a finished
-      // message is never empty-and-streaming).
+      // message is never empty-and-streaming). Empty-text ACTION stamps (gate
+      // cards, and now every free tool call's trace row) are dropped for the
+      // same reason: they are operator-facing bookkeeping, and each one would
+      // otherwise reach the model as another blank "[critic]: " line — one per
+      // tool call, now that every call leaves a row.
       const transcript = (get().channels[projectId]?.messages ?? channel.messages).filter(
-        (m) => !(m.streaming && m.text.length === 0)
+        (m) => !(m.text.length === 0 && (m.streaming || m.action))
       );
       // A phase threads context the only way it ever did — by reading the room
       // back off the transcript, which is why a later stage sees the earlier
@@ -1035,7 +1086,36 @@ export const useHub = create<HubState>()(
           };
         });
       };
-      reached = true;
+      // A free tool call leaves its own line in the room. Before this row
+      // existed, a worker that read three files looked identical to one that
+      // answered cold — the only trace was a spend figure at the very end of a
+      // run, attributable to nobody. The row is an action-stamped message like
+      // the gate cards, with status "ran": rendered compact, no buttons, and
+      // (deliberately) empty text so the hand-off selector — which requires
+      // non-empty text — can never mistake a trace for the artifact.
+      const trace = (name: string, input: Record<string, unknown>) =>
+        set((s) => {
+          const ch = s.channels[projectId];
+          if (!ch) return {};
+          return {
+            channels: {
+              ...s.channels,
+              [projectId]: {
+                ...ch,
+                messages: [
+                  ...ch.messages,
+                  {
+                    id: nextId(),
+                    from: agentId,
+                    text: "",
+                    ...(opts?.node ? { node: opts.node } : {}),
+                    action: { tool: name, input, status: "ran" as const },
+                  },
+                ],
+              },
+            },
+          };
+        });
       await runToolLoop({
         system,
         turns,
@@ -1050,13 +1130,11 @@ export const useHub = create<HubState>()(
           acc += delta;
           paint();
         },
+        onModelCall: () => {
+          modelCalls++;
+        },
         execute: async (name, input) => {
           needBreak = acc.length > 0;
-          // Counted for EVERY branch below, the gate included: a gated tool is
-          // not executed, but its refusal still goes back to the model as a
-          // tool_result, and answering that costs another call. propose_commit
-          // is the common case — it is why a "1 call" node routinely costs 2.
-          toolCalls++;
           if (GATED_TOOLS.has(name)) {
             proposed = true;
             let before: string | undefined;
@@ -1085,8 +1163,24 @@ export const useHub = create<HubState>()(
                 },
               };
             });
+            // The proposal is a ledger row from the moment it is minted, not
+            // only once resolved: a card the operator never clicks is still a
+            // thing an agent asked for, and the 80-message chat window will
+            // eventually forget it happened.
+            appendJournal({
+              kind: "gate",
+              project: projectId,
+              agent: agentId,
+              tool: name,
+              detail: String((input as { path?: string; name?: string }).path ?? (input as { name?: string }).name ?? "?"),
+              outcome: "proposed",
+            });
             return { gated: true };
           }
+          // Every non-gated call below gets its row — the unknown-tool case
+          // included, since its refusal still costs a follow-up model call and
+          // an invisible cost is the exact thing this row exists to prevent.
+          trace(name, input);
           if (name === "read_recent_commits") {
             const lines = await fetchRecentCommits(projectId);
             return { result: lines.join("\n") || "(no commits readable — repo missing or rate-limited)" };
@@ -1152,7 +1246,7 @@ export const useHub = create<HubState>()(
       // In the finally, not after the loop: a turn that threw part-way through
       // (a 401, a dropped stream) has already made the calls it made, and a run
       // that hides them under-reports the bill.
-      if (reached && opts?.spend) tally(opts.spend, toolCalls);
+      if (opts?.spend) opts.spend.calls += modelCalls;
       liveStreams.delete(streamKey);
       releaseTurn();
     }
@@ -1240,6 +1334,16 @@ export const useHub = create<HubState>()(
     const ch = get().channels[projectId];
     const msg = ch?.messages.find((m) => m.id === msgId);
     if (!ch || !msg?.action || msg.action.status !== "pending") return;
+    appendJournal({
+      kind: "gate",
+      project: projectId,
+      agent: msg.from,
+      tool: msg.action.tool,
+      detail: String(
+        (msg.action.input as { path?: string; name?: string }).path ?? (msg.action.input as { name?: string }).name ?? "?"
+      ),
+      outcome: "approved",
+    });
     let announce = "";
     if (msg.action.tool === "propose_commit") {
       const inp = msg.action.input as { path?: string; content?: string; message?: string };
@@ -1282,6 +1386,14 @@ export const useHub = create<HubState>()(
               },
             };
           });
+          appendJournal({
+            kind: "commit",
+            project: projectId,
+            agent: msg.from,
+            branch: out.branch,
+            url: out.url,
+            message: String(inp.message ?? "hub commit"),
+          });
         } catch (e) {
           set((s) => {
             const c = s.channels[projectId];
@@ -1295,6 +1407,15 @@ export const useHub = create<HubState>()(
                 },
               },
             };
+          });
+          appendJournal({
+            kind: "commit",
+            project: projectId,
+            agent: msg.from,
+            branch: "",
+            url: "",
+            message: String(inp.message ?? "hub commit"),
+            error: String(e).slice(0, 160),
           });
         }
       })();
@@ -1323,7 +1444,22 @@ export const useHub = create<HubState>()(
     });
   },
 
-  dismissAction: (projectId, msgId) =>
+  dismissAction: (projectId, msgId) => {
+    // Read first so the ledger only records a REAL dismissal — the same
+    // pending guard approveAction has, which a bare set() could not express.
+    const msg = get().channels[projectId]?.messages.find((m) => m.id === msgId);
+    if (msg?.action?.status === "pending") {
+      appendJournal({
+        kind: "gate",
+        project: projectId,
+        agent: msg.from,
+        tool: msg.action.tool,
+        detail: String(
+          (msg.action.input as { path?: string; name?: string }).path ?? (msg.action.input as { name?: string }).name ?? "?"
+        ),
+        outcome: "dismissed",
+      });
+    }
     set((s) => {
       const c = s.channels[projectId];
       if (!c) return {};
@@ -1338,7 +1474,8 @@ export const useHub = create<HubState>()(
           },
         },
       };
-    }),
+    });
+  },
 
   // Live DM: same read-only stream, scoped to the drawer conversation. If the
   // conversation changes mid-stream (closed, replaced), updates stop cleanly.

@@ -35,6 +35,7 @@ export default function TopologyBar({ projectId }: { projectId: string }) {
   const run = useHub((s) => s.topologyRun);
   const brainConnected = useHub((s) => s.brainConnected);
   const runTopology = useHub((s) => s.runTopology);
+  const lastRunExport = useHub((s) => s.lastRunExport);
   const [shapeId, setShapeId] = useState("loop");
   const [task, setTask] = useState("");
   // localStorage is read once and re-read on every save or delete, not on every
@@ -234,6 +235,18 @@ export default function TopologyBar({ projectId }: { projectId: string }) {
             <span className="text-slate-500">a shape is already running in another room</span>
           )}
         </div>
+      ) : lastRunExport?.project === projectId ? (
+        // The gradable artifact, offered while it's warm. In memory only — a
+        // reload forgets it (the journal keeps the numbers; the FILE is for
+        // grading scripts, and it downloads exactly what this room showed).
+        <button
+          data-testid="export-run"
+          onClick={() => void import("../state/runExport").then((m) => m.downloadRunExport(lastRunExport))}
+          className="mono cursor-pointer self-start text-[10px] text-cyan-300/80 transition hover:text-cyan-200"
+          title="Download the last run — transcript, node records, exact spend, pinned config — as one JSON file"
+        >
+          ⇣ export last run · {lastRunExport.shape.label} · spent {lastRunExport.spent}
+        </button>
       ) : (
         !brainConnected && (
           <div className="mono text-[10px] text-amber-300/80">

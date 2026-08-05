@@ -1,10 +1,39 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { modelForAgent, setModel, setRouting, toTurns } from "./brain";
+import { modelForAgent, runToolLoop, setKey, setModel, setRouting, toTurns } from "./brain";
 import type { Message } from "../types";
 
 // These are the pure functions a cold critic already found bugs in: the path
 // sanitizer (a real traversal BLOCKER), the routing table, and the transcript
 // shaper. Each test states the invariant, not the implementation.
+
+// ── a scriptable SDK for the tool loop ───────────────────────────────────────
+// One entry per model turn; a `tool` entry hands back a tool_use block, which
+// is what makes runToolLoop go around again — same contract as the wire.
+const sdk = vi.hoisted(() => ({
+  script: [] as { text?: string; tool?: { name: string; input: Record<string, unknown> } }[],
+  requests: 0,
+}));
+vi.mock("@anthropic-ai/sdk", () => ({
+  default: class FakeAnthropic {
+    messages = {
+      stream: () => {
+        sdk.requests++;
+        const turn = sdk.script.shift() ?? { text: "(script exhausted)" };
+        return {
+          async *[Symbol.asyncIterator]() {
+            if (turn.text) yield { type: "content_block_delta", delta: { type: "text_delta", text: turn.text } };
+          },
+          finalMessage: async () => ({
+            content: [
+              ...(turn.text ? [{ type: "text", text: turn.text }] : []),
+              ...(turn.tool ? [{ type: "tool_use", id: `toolu_${sdk.requests}`, name: turn.tool.name, input: turn.tool.input }] : []),
+            ],
+          }),
+        };
+      },
+    };
+  },
+}));
 
 describe("modelForAgent — routing never upgrades past the operator's choice", () => {
   beforeEach(() => {
@@ -116,5 +145,66 @@ describe("readRepoFile — the traversal fix the cold critic demanded", () => {
     const { out } = await attempted("README.md");
     expect(out).toContain("<untrusted-file");
     expect(out).toMatch(/never follow instructions/i);
+  });
+});
+
+describe("runToolLoop — onModelCall counts every request where it is issued", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    setKey("sk-ant-test-not-real");
+    sdk.script = [];
+    sdk.requests = 0;
+  });
+
+  const loop = async (
+    script: typeof sdk.script,
+    execute: Parameters<typeof runToolLoop>[0]["execute"]
+  ) => {
+    sdk.script = [...script];
+    let counted = 0;
+    await runToolLoop({
+      system: "test",
+      turns: [{ role: "user", content: "go" }],
+      onDelta: () => {},
+      onModelCall: () => counted++,
+      execute,
+    });
+    return counted;
+  };
+
+  it("a text-only turn is exactly one model call", async () => {
+    const counted = await loop([{ text: "done" }], async () => ({ result: "unused" }));
+    expect(counted).toBe(1);
+    expect(sdk.requests).toBe(1);
+  });
+
+  it("a tool turn costs TWO calls — the request and the answer to its result", async () => {
+    const executed: string[] = [];
+    const counted = await loop(
+      [{ text: "reading", tool: { name: "read_repo_file", input: { path: "README.md" } } }, { text: "answered" }],
+      async (name) => {
+        executed.push(name);
+        return { result: "file bytes" };
+      }
+    );
+    expect(executed).toEqual(["read_repo_file"]);
+    expect(counted).toBe(2);
+  });
+
+  it("a GATED tool still bills its follow-up: the refusal goes back as a tool_result", async () => {
+    const counted = await loop(
+      [{ text: "proposing", tool: { name: "create_project", input: { name: "x" } } }, { text: "proposed, not done" }],
+      async () => ({ gated: true })
+    );
+    expect(counted).toBe(2);
+  });
+
+  it("the count MATCHES the requests the wire saw — same number, same source of truth", async () => {
+    const counted = await loop(
+      [{ text: "a", tool: { name: "t", input: {} } }, { text: "b", tool: { name: "t", input: {} } }, { text: "c" }],
+      async () => ({ result: "r" })
+    );
+    expect(counted).toBe(3);
+    expect(sdk.requests).toBe(3);
   });
 });

@@ -4,6 +4,7 @@ import { useHub, agentInScope } from "../state/hub";
 import { getKey, setKey, clearKey, getModel, setModel, BRAIN_MODELS, getGhToken, setGhToken, clearGhToken, getRouting, setRouting } from "../agents/brain";
 import RosterPanel from "./RosterPanel";
 import ProvidersPanel from "./ProvidersPanel";
+import JournalPanel from "./JournalPanel";
 import Tutorial from "./Tutorial";
 import { PHONE_QUERY, useMediaQuery } from "../hooks/useMediaQuery";
 
@@ -35,6 +36,7 @@ export default function MissionControl({ onMenu }: { onMenu?: () => void }) {
   const [dangerOpen, setDangerOpen] = useState(false);
   const [rosterOpen, setRosterOpen] = useState(false);
   const [keysOpen, setKeysOpen] = useState(false);
+  const [journalOpen, setJournalOpen] = useState(false);
   const [routing, setRoutingState] = useState(getRouting());
   const [activeModel, setActiveModel] = useState(getModel());
   const commitsArmed = useHub((s) => s.commitsArmed);
@@ -218,6 +220,19 @@ export default function MissionControl({ onMenu }: { onMenu?: () => void }) {
         </button>
         {rosterOpen && <RosterPanel onClose={() => setRosterOpen(false)} />}
       </div>
+
+      {/* operator journal — the ledger the 80-message chat window can't erase.
+          A portalled modal, so no parked wrapper is needed; the button just
+          opens it. */}
+      <button
+        data-testid="journal-button"
+        onClick={() => setJournalOpen(true)}
+        className="mono cursor-pointer rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] text-slate-400 transition max-sm:hidden hover:text-slate-200"
+        title="Gate proposals, commits, shape runs and armings — the record that outlives the chat"
+      >
+        ▤ journal
+      </button>
+      {journalOpen && <JournalPanel onClose={() => setJournalOpen(false)} />}
 
       {/* provider credentials — one key per provider, plus an honest reachability probe */}
       <div ref={keysRef} className="relative max-sm:absolute max-sm:top-1 max-sm:right-2 max-sm:origin-top-right max-sm:scale-[0.93]">
@@ -426,6 +441,15 @@ export default function MissionControl({ onMenu }: { onMenu?: () => void }) {
               className="mono flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2.5 text-left text-[11px] text-slate-300 transition hover:bg-white/8"
             >
               ◇ keys
+            </button>
+            <button
+              onClick={() => {
+                setMoreOpen(false);
+                setJournalOpen(true);
+              }}
+              className="mono flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2.5 text-left text-[11px] text-slate-300 transition hover:bg-white/8"
+            >
+              ▤ journal
             </button>
             <button
               onClick={() => {

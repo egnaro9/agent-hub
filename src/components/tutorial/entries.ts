@@ -293,12 +293,20 @@ export const SECTIONS: Section[] = [
         needsKey: true,
       },
       {
+        title: "▤ journal — the record that outlives the chat",
+        what:
+          "An append-only ledger of everything you'd want to answer for later: each gate proposal and its outcome, each commit's branch and URL (or its refusal), each shape run's quoted-vs-actual spend, and every arming or disarming of the danger zone. Browsable from the strip, exportable as JSON.",
+        how: "`▤ journal` in the strip (or the phone ⋯ menu). `export JSON` downloads the rows; `clear` asks once, then deletes for real.",
+        gotcha:
+          "This exists because the chat FORGETS: each room persists only its last 80 messages, so an approved card eventually scrolls off its own record. The journal is stored separately from the app state and capped at 500 rows — past the cap the oldest rows age out first. It also appears in the stored-data screen, where clearing it is the same delete.",
+      },
+      {
         title: "the signals feed",
         what:
           "Opening a project fetches its three most recent real commits and hands them to the agents. This needs no key.",
         how: "Open any project and watch the room: an agent posts a `Pulled the live feed…` line, and those commits are in its system prompt from then on.",
         gotcha:
-          "Everything here is unauthenticated — 60 requests an hour for this whole browser, and blind to private repos even with a write token armed. Opening a work tab spends up to three (commits, files, issues); results are cached for the session, and when the budget runs out the cards say so instead of pretending the repo is empty. `read_recent_commits` spends from the same budget, while `read_repo_file` does use your token.",
+          "Everything here is unauthenticated — 60 requests an hour for this whole browser, and blind to private repos even with a write token armed. Opening a work tab spends up to five (commits, files, issues, and the two gate-ops reads: branches and PRs); results are cached for the session, and when the budget runs out the cards say so instead of pretending the repo is empty. `read_recent_commits` spends from the same budget, while `read_repo_file` does use your token.",
       },
     ],
   },
@@ -336,9 +344,9 @@ export const SECTIONS: Section[] = [
       {
         title: "the price, before you pay it",
         what: "An amber chip beside the launch button quotes the FLOOR of what the selected shape will spend with the room's current roster — one model call per speaking node.",
-        how: "Read the `N+ model calls` chip. It moves as you switch shapes, edit a shape, or the room's population changes. When the run finishes it reports what it actually spent.",
+        how: "Read the `N+ model calls` chip. It moves as you switch shapes, edit a shape, or the room's population changes. When the run finishes it reports the EXACT number it actually spent — counted request by request as each call goes out, never estimated afterwards.",
         gotcha:
-          "The `+` is honest, not decorative: agents keep their tools inside a shape, and a node that reads the repo takes another turn — up to four per node. So a fan-out of four quotes 5+ and can spend more; the closing line tells you which. A shape the room cannot fill reads `nothing to run` instead of a price, and the launch button stays dark.",
+          "The `+` is honest, not decorative: agents keep their tools inside a shape, and a node that reads the repo takes another turn — up to four per node. So a fan-out of four quotes 5+ and can spend more; the closing line tells you which, and every free tool call an agent makes appears as its own dim row in the transcript, so you can see WHERE the extra calls went. A shape the room cannot fill reads `nothing to run` instead of a price, and the launch button stays dark.",
         needsKey: true,
       },
       {
@@ -347,6 +355,15 @@ export const SECTIONS: Section[] = [
         how: "Watch the line. Other rooms will say a shape is already running elsewhere.",
         gotcha:
           "A shape shares the room's lock with @team, so it never interleaves with a roundtable already speaking. Fan-out phases are the only concurrent ones: they go out together and no worker sees another's answer.",
+        needsKey: true,
+      },
+      {
+        title: "⇣ export — the run as a gradable file",
+        what:
+          "After a shape finishes, a chip under the bar downloads the whole run as one JSON file: the transcript you just watched, one record per node with the model it was routed to, hand-off provenance, exact spend, and the generation config that was in force. A grading script can consume it without ever touching this app.",
+        how: "Run a shape, then click `⇣ export last run`. The schema is documented in the repo (docs/RUN_EXPORT_SCHEMA.md), with a reference grading script beside it.",
+        gotcha:
+          "In memory only — a reload forgets the artifact, so download it while it's warm (the journal keeps the run's numbers either way). The export records exactly what the room showed: nothing is scrubbed, so a transcript that held something sensitive exports it too.",
         needsKey: true,
       },
       {

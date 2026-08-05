@@ -538,9 +538,20 @@ test.describe("the price chip is a floor, not a promise", () => {
     // ── AND THE RUN CONFESSES ────────────────────────────────────────────────
     // Quoted 3, spent 4, and the line says OVER in its first clause with the
     // reason attached. An operator who reads only this line still learns the
-    // true number.
+    // true number. Since TOOL-TRACE-1 the figure is counted per-request at the
+    // socket, so it is EXACT by construction — the old "may have taken it past"
+    // range hedge no longer exists to assert on.
     await expect(page.getByText(spentOver(quoted, 4))).toBeVisible();
     await expect(page.getByText(/Tools are why: a node that calls one has to answer the result/)).toBeVisible();
+
+    // ── AND THE CALL ITSELF IS VISIBLE ───────────────────────────────────────
+    // TOOL-TRACE-1: the free read left its own row in the room, attributed to
+    // Forge, so a worker that read the repo no longer looks identical to one
+    // that answered cold. One row — Critic called nothing.
+    const traceRow = page.getByTestId("tool-trace");
+    await expect(traceRow).toHaveCount(1);
+    await expect(traceRow).toContainText("read_repo_file(README.md)");
+    await expect(traceRow).toContainText("free tool call");
 
     // The chip does NOT retro-fit itself to the bill. It is the floor of the
     // NEXT run too, and rewriting it to 4 would be a different lie.

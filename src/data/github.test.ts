@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { clearRepoCache, fetchOpenIssues, fetchRepoTree, type RepoFeed } from "./github";
+import { clearRepoCache, fetchHubBranches, fetchOpenIssues, fetchRepoTree, type RepoFeed } from "./github";
 
 // Every test here stubs fetch. ZERO real network calls are made — the whole
 // point of this layer is that its rate-limit and cache behaviour is provable
@@ -12,7 +12,9 @@ const json = (body: unknown, init: ResponseInit = {}) =>
 const rateLimited = () => new Response("{}", { status: 403, headers: { "x-ratelimit-remaining": "0" } });
 
 const stubFetch = (impl: (url: string) => Promise<Response>) => {
-  const spy = vi.fn((input: RequestInfo | URL) => impl(String(input)));
+  // The init arg is captured so a test can assert on request HEADERS (the
+  // gate-ops feed's auth path); callers that never read it are unaffected.
+  const spy = vi.fn((input: RequestInfo | URL, _init?: RequestInit) => impl(String(input)));
   vi.stubGlobal("fetch", spy);
   return spy;
 };
@@ -233,3 +235,81 @@ function memoryOnlyReset() {
   clearRepoCache();
   for (const [k, v] of saved) sessionStorage.setItem(k, String(v));
 }
+
+// ─── fetchHubBranches — the gate loop's tail ─────────────────────────────────
+
+const branch = (name: string) => ({ name });
+const pr = (ref: string, state: "open" | "closed", opts: { merged?: boolean; number?: number } = {}) => ({
+  head: { ref },
+  state,
+  merged_at: opts.merged ? new Date().toISOString() : null,
+  number: opts.number ?? 1,
+  html_url: `https://github.com/egnaro9/x/pull/${opts.number ?? 1}`,
+});
+
+const routes = (branches: unknown, pulls: unknown) =>
+  stubFetch(async (url) => (url.includes("/branches") ? json(branches) : json(pulls)));
+
+describe("fetchHubBranches — hub/* branches joined to their PR state", () => {
+  beforeEach(() => {
+    clearRepoCache();
+    sessionStorage.clear();
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("filters to hub/* and reports none/open/merged per branch", async () => {
+    routes(
+      [branch("main"), branch("hub/critic-notes-a1"), branch("hub/forge-fix-b2"), branch("hub/ops-doc-c3")],
+      [pr("hub/critic-notes-a1", "open", { number: 7 }), pr("hub/forge-fix-b2", "closed", { merged: true, number: 8 })]
+    );
+    const out = await fetchHubBranches("crashkit");
+    expect(out.status).toBe("ok");
+    expect(out.items.map((b) => `${b.name}:${b.prState}`)).toEqual([
+      "hub/critic-notes-a1:open",
+      "hub/forge-fix-b2:merged",
+      "hub/ops-doc-c3:none",
+    ]);
+    expect(out.items[0].prNumber).toBe(7);
+    expect(out.items.every((b) => !b.name.startsWith("main"))).toBe(true);
+  });
+
+  it("prefers the PR state that still matters when one branch had several: open > merged > closed", async () => {
+    routes(
+      [branch("hub/twice")],
+      [pr("hub/twice", "closed", { number: 1 }), pr("hub/twice", "open", { number: 2 })]
+    );
+    const out = await fetchHubBranches("crashkit");
+    expect(out.items[0].prState).toBe("open");
+    expect(out.items[0].prNumber).toBe(2);
+  });
+
+  it("HALF an answer is NO answer: branches ok + pulls failed must not render every row 'no PR'", async () => {
+    stubFetch(async (url) =>
+      url.includes("/branches") ? json([branch("hub/real")]) : new Response("{}", { status: 500 })
+    );
+    const out = await fetchHubBranches("crashkit");
+    expect(out.status).toBe("failed");
+    expect(out.items).toEqual([]);
+  });
+
+  it("a spent budget reads rate-limited, same vocabulary as every other feed", async () => {
+    stubFetch(async () => rateLimited());
+    expect((await fetchHubBranches("crashkit")).status).toBe("rate-limited");
+  });
+
+  it("no hub/* branches is EMPTY — a fact, not a failure", async () => {
+    routes([branch("main"), branch("develop")], []);
+    expect((await fetchHubBranches("crashkit")).status).toBe("empty");
+  });
+
+  it("sends the armed PAT when given one, and no auth header otherwise", async () => {
+    const spy = routes([branch("hub/x")], []);
+    await fetchHubBranches("crashkit", "github_pat_test");
+    clearRepoCache();
+    sessionStorage.clear();
+    await fetchHubBranches("crashkit");
+    const headers = spy.mock.calls.map((c) => (c[1] as RequestInit | undefined)?.headers as Record<string, string>);
+    expect(headers.slice(0, 2).every((h) => h.Authorization === "Bearer github_pat_test")).toBe(true);
+    expect(headers.slice(2).every((h) => h.Authorization === undefined)).toBe(true);
+  });
+});

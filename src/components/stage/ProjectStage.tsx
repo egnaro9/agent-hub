@@ -261,6 +261,68 @@ function TasksCard({ work, commits }: { work: RepoWork | undefined; commits: str
   );
 }
 
+// REPO-OPS-1 — the gate loop's tail. An approved commit lands on a hub/*
+// branch, Ops announces it once, and nothing ever said whether it became a PR
+// or merged. This card answers that, for the room's own repo, visibility only.
+// It renders NOTHING when the repo has no hub/* branches (most repos, most of
+// the time — a permanent "no gate branches" card would be dead weight in a
+// 240px column), and it stays quiet on fetch failures too unless commits are
+// armed: the operator who armed the write path is the one who needs to know
+// the loop can't currently report.
+const PR_CHIP: Record<string, string> = {
+  open: "text-cyan-200 border-cyan-300/40 bg-cyan-400/10",
+  merged: "text-teal-200 border-teal-300/40 bg-teal-400/10",
+  closed: "text-slate-400 border-white/15 bg-white/5",
+  none: "text-amber-200 border-amber-300/40 bg-amber-400/10",
+};
+
+function GateOpsCard({ work }: { work: RepoWork | undefined }) {
+  const commitsArmed = useHub((s) => s.commitsArmed);
+  const branches = work?.branches;
+  if (!branches || branches.status === "empty") return null;
+  if (branches.status !== "ok") {
+    if (!commitsArmed) return null;
+    return (
+      <WorkCard>
+        <CardHead label="gate ops" source={branches.status === "rate-limited" ? "rate limit" : "unavailable"} tone="warn" />
+        <Because
+          text={
+            branches.status === "rate-limited"
+              ? OUT_OF_BUDGET
+              : "GitHub didn't answer the branch read, so whether an approved commit became a PR is currently unknowable from here."
+          }
+        />
+      </WorkCard>
+    );
+  }
+  return (
+    <WorkCard>
+      <CardHead label="gate ops" source="hub/* branches · github" tone="live" />
+      <ul className="mt-2.5 space-y-2" data-testid="gate-ops-list">
+        {branches.items.map((b) => (
+          <li key={b.name} className="flex items-center gap-2 text-[11px] leading-snug">
+            <span className={`mono flex-none rounded border px-1.5 py-px text-[8.5px] tracking-wider uppercase ${PR_CHIP[b.prState]}`}>
+              {b.prState === "none" ? "no PR" : b.prState}
+            </span>
+            <a
+              href={b.prUrl || b.url}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="mono min-w-0 flex-1 truncate text-[10.5px] text-slate-300 underline decoration-white/20 hover:decoration-cyan-200"
+              title={b.prNumber ? `PR #${b.prNumber}` : "branch — open the PR in GitHub"}
+            >
+              {b.name.replace(/^hub\//, "")}
+            </a>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2.5 text-[10px] leading-relaxed text-slate-600">
+        Visibility only — merging stays in GitHub.
+      </p>
+    </WorkCard>
+  );
+}
+
 // Every world composes at ONE canonical width and is scaled to fit whatever
 // space it gets. That is the design decision, not a fallback: the dense,
 // bunched composition you get in a half-width window is the intended look, so
@@ -472,6 +534,7 @@ export default function ProjectStage({ projectId }: { projectId: string }) {
           <div className="flex max-h-[240px] min-h-0 w-full flex-none flex-col gap-3 sm:max-h-[180px] sm:flex-row sm:gap-4 lg:max-h-none lg:w-[300px] lg:flex-col">
             <TasksCard work={repoWork} commits={project.liveActivity} />
             <FilesCard work={repoWork} hue={project.hue} />
+            <GateOpsCard work={repoWork} />
           </div>
           {/* work mode gets the shape launcher over the room it runs in — the
               transcript and the composer below it are where the run lands. */}

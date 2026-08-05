@@ -140,6 +140,22 @@ const CATALOG: Slot[] = [
     note: "Not a secret slot, but not secret-free either: it holds whatever you and the models typed into the rooms.",
   },
   {
+    key: "agent-hub:journal",
+    name: "Operator journal",
+    holds: "the append-only ledger: gate proposals and outcomes, commit branches and URLs, shape runs with quoted-vs-actual spend, danger-zone armings. Capped at 500 rows.",
+    sensitivity: "none",
+    group: "state",
+    describe: (raw) => {
+      try {
+        const rows: unknown = JSON.parse(raw);
+        return Array.isArray(rows) ? `${rows.length} row${rows.length === 1 ? "" : "s"}` : "unreadable";
+      } catch {
+        return "unreadable";
+      }
+    },
+    note: "Deliberately outside the app-state blob, so the chat's 80-message cap can never erase an approval's record. ▤ journal in the strip browses and exports it; clearing it here or there is the same delete.",
+  },
+  {
     key: "agent-hub:starred",
     name: "Pinned projects",
     holds: "which projects you starred in the sidebar.",
@@ -170,6 +186,15 @@ const CATALOG: Slot[] = [
     sensitivity: "none",
     group: "settings",
     describe: (raw) => (raw === "off" ? "off" : "on"),
+  },
+  {
+    key: "agent-hub:gen-config",
+    name: "Generation config pin",
+    holds: "a max_tokens (and optionally temperature) override for every live model call — the run export records whichever values were in force.",
+    sensitivity: "none",
+    group: "settings",
+    describe: literal,
+    note: "No UI writes this — it is set from the console or a script when a study needs pinned conditions. Absent means the defaults (max_tokens 1024, provider-default temperature).",
   },
   {
     key: "agent-hub:custom-shapes",
