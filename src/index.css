@@ -118,3 +118,11 @@ body {
 }
 .gal-lab:hover .tag { opacity: 1; }
 .gal-lab:hover .n { color: #f2f6ff; }
+
+@keyframes gal-arrive {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-testid="arrival-card"] { animation: none !important; }
+}

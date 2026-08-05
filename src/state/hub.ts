@@ -155,6 +155,14 @@ interface HubState {
   brainConnected: boolean; // a BYOK Anthropic key is present in this browser
   setBrainConnected: (v: boolean) => void;
   focusRequest: { pos: Vec; seq: number } | null;
+  /**
+   * The sidebar's way of pointing at a planet while the galaxy is up: the
+   * canvas answers by flying in and raising (or toggling, or swapping) the
+   * arrival card. seq forces a reaction even when the same id is asked twice
+   * — that second ask IS the toggle-off gesture.
+   */
+  planetRequest: { id: string; seq: number } | null;
+  requestPlanet: (id: string) => void;
   createProject: (name: string) => string;
   hydrateActivity: (projectId: string) => Promise<void>;
   /** The WORK panel's tree + issues, per project. Never persisted — a session's cache is enough. */
@@ -376,6 +384,8 @@ export const useHub = create<HubState>()(
   brainConnected: getKey() !== null,
   setBrainConnected: (v) => set({ brainConnected: v }),
   focusRequest: null,
+  planetRequest: null,
+  requestPlanet: (id) => set({ planetRequest: { id, seq: Math.random() } }),
 
   // Agents can act on the hub: a chat command mints a real project node.
   createProject: (name) => {

@@ -53,11 +53,12 @@ export const SECTIONS: Section[] = [
       },
       {
         title: "entering and leaving a project",
-        what: "A project card opens that project's stage. The breadcrumb walks back.",
+        what:
+          "Clicking a planet flies the camera in and raises an ARRIVAL CARD — name, crew, latest activity — with `← galaxy`, `Overview` and `Work` on it. A sidebar row does the same from anywhere on the map; clicking the same row again (or the dimmed sky, or Escape) lowers the card. Clicking a different planet or row while a card is up swaps it.",
         how:
-          "Click a planet, or Tab to its label and press Enter or Space. To leave: press Escape, or click `constellation` at the top left.",
+          "Click a planet or its label (Tab + Enter works too), then pick `Overview` or `Work`. To leave a project: press Escape, or click `constellation` at the top left.",
         gotcha:
-          "Escape pressed inside a text field blurs the field instead of navigating, so leaving from the room composer takes two presses.",
+          "Escape pressed inside a text field blurs the field instead of navigating, so leaving from the room composer takes two presses. Turning the ◐ drift off is remembered — a trip into a project and back won't restart it.",
       },
       {
         title: "overview / work",

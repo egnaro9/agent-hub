@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useHub } from "../state/hub";
 import { STRUCTURAL } from "../data/mock";
 import type { Agent, Project } from "../types";
@@ -450,6 +450,24 @@ export default function GalaxyCanvas() {
   const hostRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const labelsRef = useRef<HTMLDivElement>(null);
+  // The fly-in arrival card. `flying` dims/blurs the sky the moment a planet
+  // is clicked; `arrival` lands the card once the camera is most of the way
+  // there. State lives OUT here (the frame loop is inside an effect keyed by
+  // project count — a re-render must not re-bake the sky), and the effect
+  // exposes its camera through refs so the card can hand it back.
+  const [flying, setFlying] = useState<string | null>(null);
+  const [arrival, setArrival] = useState<string | null>(null);
+  const flyRef = useRef<(id: string) => void>(() => {});
+  const returnRef = useRef<() => void>(() => {});
+  // One gesture, three meanings: a fresh id flies there (swapping any card
+  // already up), the SAME id again lowers the card back into the galaxy.
+  const currentRef = useRef<string | null>(null);
+  currentRef.current = arrival ?? flying;
+  const toggleRef = useRef<(id: string) => void>(() => {});
+  toggleRef.current = (id: string) => {
+    if (currentRef.current === id) returnRef.current();
+    else flyRef.current(id);
+  };
 
   // The store is read imperatively inside the frame loop (a canvas repaints
   // itself; React re-renders would only thrash), but label CREATION follows
@@ -523,6 +541,9 @@ export default function GalaxyCanvas() {
     const F3 = 980, NEAR = 80;
     let mode: "map" | "3d" = "map";
     let driftOn = !reduced;
+    // The operator's ◐ choice, which fly-in/return must RESTORE, not reset —
+    // "I turned the drift off" has to survive a trip to a planet and back.
+    let driftPref = !reduced;
     let hoverPause = false;
     let disposed = false;
     const t0 = performance.now();
@@ -566,14 +587,14 @@ export default function GalaxyCanvas() {
       d.addEventListener("keydown", (ev) => {
         if (ev.key === "Enter" || ev.key === " ") {
           ev.preventDefault();
-          useHub.getState().openStage(p.id);
+          toggleRef.current(p.id);
         }
       });
       d.innerHTML =
         `<div class="n">${p.name}</div><div class="rule"></div>` +
         `<div class="m">${n.cluster.name}${links ? ` · ${links} link${links > 1 ? "s" : ""}` : ""}<span class="crew"></span></div>` +
         `<div class="tag">${p.tagline}</div>`;
-      d.addEventListener("click", () => useHub.getState().openStage(p.id));
+      d.addEventListener("click", () => toggleRef.current(p.id));
       labelHost.appendChild(d);
       labelEls.set(p.id, d);
     });
@@ -989,6 +1010,8 @@ export default function GalaxyCanvas() {
     };
     let raf = requestAnimationFrame(loop);
 
+    // HUD drift wiring is declared below; setDrift is hoisted here so the
+    // fly/return closures above it in source order can call it safely.
     // ── input ──
     const pointers = new Map<number, { x: number; y: number }>();
     let lastPinch = 0;
@@ -1040,7 +1063,7 @@ export default function GalaxyCanvas() {
           const d = Math.hypot(e.clientX - pr.x, e.clientY - pr.y);
           if (d < sprites.get(id)!.R * pr.s * 2.1 + 16 && (!best || d < best.d)) best = { id, d };
         });
-        if (best) useHub.getState().openStage((best as { id: string }).id);
+        if (best) toggleRef.current((best as { id: string }).id);
       }
     };
     const onWheel = (e: WheelEvent) => {
@@ -1072,11 +1095,15 @@ export default function GalaxyCanvas() {
       if (mode === "3d") { cam3.tdist = 2600; cam3.ttarget = { x: 520, y: 0, z: 340 }; }
       else { cam.tx = HOME.x; cam.ty = HOME.y; cam.tz = HOME.z; }
     };
-    drift.onclick = () => { driftOn = !driftOn; drift.style.color = driftOn ? "#5eead4" : "#8ea0bd"; };
-    drift.style.color = driftOn ? "#5eead4" : "#8ea0bd";
+    const setDrift = (v: boolean) => {
+      driftOn = v;
+      drift.style.color = v ? "#5eead4" : "#8ea0bd";
+    };
+    drift.onclick = () => { driftPref = !driftPref; setDrift(driftPref); };
+    setDrift(driftOn);
     m3d.onclick = () => {
       mode = mode === "map" ? "3d" : "map";
-      driftOn = !reduced;
+      setDrift(driftPref && !reduced);
       m3d.style.color = mode === "3d" ? "#5eead4" : "#8ea0bd";
       m3d.textContent = mode === "3d" ? "MAP" : "3D";
       labelHost.querySelectorAll<HTMLElement>(".gal-lab .m,.gal-lab .rule").forEach((el2) => {
@@ -1085,8 +1112,34 @@ export default function GalaxyCanvas() {
     };
     void hudZi;
 
+    let arriveTimer: ReturnType<typeof setTimeout> | null = null;
+    flyRef.current = (id: string) => {
+      const n = nodes.get(id);
+      if (!n) return;
+      setArrival(null); // swapping: the old card leaves before the new lands
+      driftOn = false;
+      if (mode === "3d") {
+        const pp = pos3(id);
+        cam3.ttarget = { ...pp };
+        cam3.tdist = 470;
+      } else {
+        cam.tx = n.x; cam.ty = n.y; cam.tz = 2.2;
+      }
+      setFlying(id);
+      if (arriveTimer) clearTimeout(arriveTimer);
+      arriveTimer = setTimeout(() => setArrival(id), reduced ? 0 : 560);
+    };
+    returnRef.current = () => {
+      if (arriveTimer) clearTimeout(arriveTimer);
+      setFlying(null); setArrival(null);
+      setDrift(driftPref && !reduced);
+      if (mode === "3d") { cam3.tdist = 2600; cam3.ttarget = { x: 520, y: 0, z: 340 }; }
+      else { cam.tx = HOME.x; cam.ty = HOME.y; cam.tz = HOME.z; }
+    };
+
     return () => {
       disposed = true;
+      if (arriveTimer) clearTimeout(arriveTimer);
       cancelAnimationFrame(raf);
       ro.disconnect();
       host.removeEventListener("pointerenter", onEnter);
@@ -1103,11 +1156,110 @@ export default function GalaxyCanvas() {
 
   const mapLocked = useHub((s) => s.mapLocked);
   const toggleMapLock = useHub((s) => s.toggleMapLock);
+  // Selectors return STABLE references only — a fresh .filter() array per
+  // getSnapshot is the documented infinite-loop trap this repo already ate
+  // once. Derivations happen after the hook, on referentially-stable slices.
+  const arrivalProject = useHub((s) => (arrival ? s.projects.find((p) => p.id === arrival) : undefined));
+  const allAgents = useHub((s) => s.agents);
+  const assignmentsMap = useHub((s) => s.assignments);
+  const crew = arrival
+    ? allAgents.filter((a) => assignmentsMap[a.id] === arrival).map((a) => a.name)
+    : [];
+  const enter = (mode: "overview" | "work") => {
+    if (!arrival) return;
+    const hub = useHub.getState();
+    hub.openStage(arrival);
+    if (mode === "work") hub.setProjectMode("work");
+    // The card clears and the camera eases home behind the stage, so leaving
+    // the project lands back on the wide galaxy, not zoomed into one planet.
+    returnRef.current();
+  };
+  const planetRequest = useHub((s) => s.planetRequest);
+  useEffect(() => {
+    if (planetRequest) toggleRef.current(planetRequest.id);
+  }, [planetRequest]);
+
+  // Escape backs out of the card the way it backs out of everything else.
+  useEffect(() => {
+    if (!arrival && !flying) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") returnRef.current();
+    };
+    addEventListener("keydown", onKey);
+    return () => removeEventListener("keydown", onKey);
+  }, [arrival, flying]);
 
   return (
     <div ref={hostRef} data-testid="galaxy" className="relative h-full w-full overflow-hidden select-none">
-      <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
-      <div ref={labelsRef} className="pointer-events-none absolute inset-0 overflow-hidden" />
+      <div className={`absolute inset-0 transition-[filter] duration-700 ${flying ? "blur-[9px] brightness-[.42] saturate-[1.2]" : ""}`}>
+        <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
+        <div ref={labelsRef} className="pointer-events-none absolute inset-0 overflow-hidden" />
+      </div>
+      {/* vignette that deepens during the fly */}
+      <div
+        className={`pointer-events-none absolute inset-0 transition-opacity duration-700 ${flying ? "opacity-100" : "opacity-0"}`}
+        style={{ background: "radial-gradient(ellipse at 50% 44%, transparent 28%, rgba(2,4,10,.55) 66%, rgba(2,4,10,.95) 100%)" }}
+      />
+      {/* arrival card — the mock flow Erik asked back: planet → card → mode */}
+      {arrival && arrivalProject && (
+        <div
+          data-testid="arrival-scrim"
+          className="absolute inset-0 z-30 grid place-items-center"
+          onClick={() => returnRef.current()}
+        >
+          <div
+            data-testid="arrival-card"
+            role="dialog"
+            aria-label={`${arrivalProject.name} — choose a mode`}
+            onClick={(e) => e.stopPropagation()}
+            className="glass w-[min(640px,86vw)] overflow-hidden rounded-2xl"
+            style={{ animation: "gal-arrive .45s cubic-bezier(.2,.8,.2,1)" }}
+          >
+            <div className="h-[3px]" style={{ background: `linear-gradient(90deg, transparent, ${arrivalProject.hue}, transparent)` }} />
+            <div className="p-7">
+              <div className="mono text-[8.5px] tracking-[0.34em] text-slate-500 uppercase">
+                project world · {CLUSTER_DEF.find((c) => c.id === (CLUSTER_OF[arrival] ?? "founded"))?.name}
+              </div>
+              <div className="mt-3 flex items-baseline gap-3.5">
+                <div className="text-[26px] font-semibold tracking-tight text-slate-100">{arrivalProject.name}</div>
+                <div className="mono text-[9px] tracking-[0.14em] text-slate-500 uppercase">
+                  {crew.length ? crew.join(" · ") : "no crew"}
+                </div>
+              </div>
+              <p className="mt-2 text-[13px] leading-relaxed text-slate-400">{arrivalProject.tagline}</p>
+              <div className="mt-5 flex gap-2.5">
+                <button
+                  onClick={() => returnRef.current()}
+                  className="mono cursor-pointer rounded-lg border border-white/12 bg-white/5 px-3.5 py-1.5 text-[10.5px] tracking-[0.08em] text-slate-400 uppercase transition hover:text-slate-200"
+                >
+                  ← galaxy
+                </button>
+                <button
+                  autoFocus
+                  onClick={() => enter("overview")}
+                  className="mono cursor-pointer rounded-lg border px-3.5 py-1.5 text-[10.5px] tracking-[0.08em] uppercase transition hover:brightness-125"
+                  style={{ borderColor: `${arrivalProject.hue}80`, background: `${arrivalProject.hue}17`, color: arrivalProject.hue }}
+                >
+                  Overview
+                </button>
+                <button
+                  onClick={() => enter("work")}
+                  className="mono cursor-pointer rounded-lg border border-white/12 bg-white/5 px-3.5 py-1.5 text-[10.5px] tracking-[0.08em] text-slate-300 uppercase transition hover:bg-white/10"
+                >
+                  Work
+                </button>
+              </div>
+              <div className="mt-5 border-t border-white/8 pt-4">
+                {(arrivalProject.liveActivity ?? arrivalProject.activity).slice(0, 2).map((line) => (
+                  <div key={line} className="mono py-0.5 text-[10px] tracking-[0.03em] text-slate-500">
+                    <span style={{ color: `${arrivalProject.hue}cc` }}>▹</span>  {line}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="glass absolute right-4 bottom-4 z-20 flex gap-2 rounded-xl px-2.5 py-2">
         <button data-hud="zo" aria-label="Zoom out" className="gal-hbtn">−</button>
         <button data-hud="zi" aria-label="Zoom in" className="gal-hbtn">+</button>

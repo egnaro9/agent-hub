@@ -174,3 +174,16 @@ CAST-EMBED-1 slotting into whatever part-time stretch they fit.
 - **Cross-vendor comparison in the flagship.** One model, one vendor, temperature
   pinned. Cross-vendor is a separate question — and the only study-shaped reason to run
   DESKTOP-SPIKE-1 early.
+
+## The spatial redesign (operator-directed, 2026-08-05)
+
+Three phases Erik specced directly; they run OUTSIDE the track tables above.
+
+1. **GALAXY-1** SHIPPED (d0f418f) — the Galaxy Map replaces the React Flow
+   constellation as the default view: archetyped planets, agent moons on live
+   assignments, filaments, bloom, optional immersive 3D mode. Mock-first
+   (two rejected rounds: "looks cheap", "eyeballs"), then ported with tests.
+2. **WORLDS-2** pending Erik's go — deepen the 18 project Overview worlds
+   (layered 2.5D, stronger sense of place; keep their variety).
+3. **WORK-3** pending — Work mode: chat becomes the primary surface.
+

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { composer, gotoHub, isolate, say, settleFlow, sidebarProject } from "./helpers";
+import { composer, gotoHub, isolate, say, settleFlow, sidebarProject, stillGalaxy } from "./helpers";
 
 test.describe("deep links and mode switching", () => {
   test.beforeEach(async ({ context }) => {
@@ -45,6 +45,8 @@ test.describe("deep links and mode switching", () => {
     await expect(page).not.toHaveURL(/#\/p\//);
 
     await sidebarProject(page, "gradecore").click();
+    // On the galaxy a sidebar row raises the arrival card; Overview enters.
+    await page.getByTestId("arrival-card").getByRole("button", { name: "Overview" }).click();
     await expect(page).toHaveURL(/#\/p\/gradecore$/);
     await expect(page.locator("header, div").filter({ hasText: "gradecore" }).first()).toBeVisible();
 
@@ -121,6 +123,7 @@ test.describe("the text-size control", () => {
   test("galaxy clicks and wheel-zoom still land where you aim them at 110%", async ({ page }) => {
     await gotoHub(page);
     await settleFlow(page);
+    await stillGalaxy(page);
     await page.getByTestId("ui-scale").click();
     await expect(page.getByTestId("ui-scale")).toHaveText(/text 110%/);
 
@@ -132,8 +135,11 @@ test.describe("the text-size control", () => {
     await page.waitForTimeout(500);
     expect(await page.getByTestId("galaxy").getAttribute("data-zoom")).not.toBe(before);
 
-    // …and a planet click still opens exactly what was under the cursor.
+    // …and a planet click still opens exactly what was under the cursor:
+    // the arrival card for THAT planet, whose Overview enters it.
     await page.locator('[data-planet="crashkit"]').click();
+    await expect(page.getByTestId("arrival-card")).toContainText("crashkit");
+    await page.getByRole("button", { name: "Overview" }).click();
     await expect(page).toHaveURL(/#\/p\/crashkit/);
   });
 });

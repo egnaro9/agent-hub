@@ -35,6 +35,8 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const setSearch = useHub((s) => s.setSearch);
   const toggleStar = useHub((s) => s.toggleStar);
   const openStage = useHub((s) => s.openStage);
+  const requestPlanet = useHub((s) => s.requestPlanet);
+  const stageKind = useHub((s) => s.stage.kind);
   const backToGraph = useHub((s) => s.backToGraph);
   const openChat = useHub((s) => s.openChat);
 
@@ -62,7 +64,11 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       >
         <button
           onClick={() => {
-            openStage(p.id);
+            // On the galaxy the row raises the planet's arrival card (and a
+            // second click on the same row lowers it); inside a project it
+            // stays a direct stage switch.
+            if (stageKind === "graph") requestPlanet(p.id);
+            else openStage(p.id);
             onNavigate?.();
           }}
           className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 text-left"

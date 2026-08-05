@@ -96,8 +96,11 @@ test.describe("phone (390x844)", () => {
     // exact: role-name matching is substring, and the tutorial button's
     // accessible name ("How this hub works") also contains "work".
     await sidebarProject(page, "pi-gates").click();
-    await expect(page.getByRole("button", { name: "work", exact: true })).toBeVisible(); // mode tabs = project stage is up
+    // On the galaxy the tap raises the arrival card AND dismisses the drawer
+    // — the card is the destination now; Overview completes the trip.
     await expect(drawerAside(page)).toHaveCount(0);
+    await page.getByTestId("arrival-card").getByRole("button", { name: "Overview" }).click();
+    await expect(page.getByRole("button", { name: "work", exact: true })).toBeVisible(); // mode tabs = project stage is up
   });
 
   test("tapping the scrim closes the drawer", async ({ page, context }) => {
