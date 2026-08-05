@@ -176,9 +176,13 @@ interface Sprite { c: HTMLCanvasElement; e: HTMLCanvasElement; S: number; R: num
 function bakePlanet(id: string, hue: string, kind: Kind, radius: number): Sprite {
   seed = idSeed(id);
   const R = radius * 2.2, PAD = Math.ceil(R * 0.55), S = Math.ceil((R + PAD) * 2);
-  const c = document.createElement("canvas"); c.width = c.height = S;
-  const e = document.createElement("canvas"); e.width = e.height = S;
+  // Sprites bake at 2× and draw downscaled: the arrival zoom (2.2) otherwise
+  // upscales the bake and softens exactly the detail the painters put in.
+  const SS = 2;
+  const c = document.createElement("canvas"); c.width = c.height = S * SS;
+  const e = document.createElement("canvas"); e.width = e.height = S * SS;
   const g = c.getContext("2d")!, ge = e.getContext("2d")!;
+  g.scale(SS, SS); ge.scale(SS, SS);
   const cx0 = S / 2, cy0 = S / 2;
   const tilt = (rnd() - 0.5) * 0.8;
   const body = desat(hue, 0.3);
@@ -391,6 +395,26 @@ function bakePlanet(id: string, hue: string, kind: Kind, radius: number): Sprite
     }
   }
   ge.restore();
+  g.restore();
+
+  // RELIGHT — re-impose the crescent AFTER the painter. Surface programs
+  // legitimately cover the base gradient; without this pass the lit side
+  // decays into one greasy off-center highlight while the paint sits flat.
+  const rl = g.createRadialGradient(
+    cx0 + LIGHT.x * R * 0.85, cy0 + LIGHT.y * R * 0.85, R * 0.05,
+    cx0 + LIGHT.x * R * 0.15, cy0 + LIGHT.y * R * 0.15, R * 1.9
+  );
+  rl.addColorStop(0, "rgba(255,251,240,.5)");
+  rl.addColorStop(0.4, "rgba(255,250,240,.16)");
+  rl.addColorStop(0.75, "rgba(255,255,255,0)");
+  g.save(); g.beginPath(); g.arc(cx0, cy0, R, 0, TAU); g.clip();
+  g.globalCompositeOperation = "soft-light";
+  g.fillStyle = rl; g.fillRect(0, 0, S, S);
+  g.globalCompositeOperation = "screen";
+  g.globalAlpha = 0.45;
+  g.fillRect(0, 0, S, S);
+  g.globalAlpha = 1;
+  g.globalCompositeOperation = "source-over";
   g.restore();
 
   // terminator
@@ -1049,8 +1073,9 @@ export default function GalaxyCanvas() {
       // "settled" from two equal rounded reads can be lied to by a value still
       // crossing a rounding boundary. The WHOLE camera, not just zoom: x/y
       // ease slower than z, and "settled" with the pan still creeping misled
-      // a position assertion by 3px.
-      host.dataset.zoomSettled = String(cam.z === cam.tz && cam.x === cam.tx && cam.y === cam.ty);
+      // a position assertion by 3px. Under idle drift x/y chase a moving
+      // choreography and never arrive — there, zoom is the only destination.
+      host.dataset.zoomSettled = String(cam.z === cam.tz && (driftOn || (cam.x === cam.tx && cam.y === cam.ty)));
       host.dataset.mode = mode;
       if (mode === "3d") {
         // Planets ORBIT in 3D — a target set once at click time is a place
