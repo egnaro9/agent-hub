@@ -152,7 +152,9 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </div>
       </div>
 
-      {/* search */}
+      {/* search — filters the two lists below; with both folded it has
+          nothing to filter, so it folds with them */}
+      {(sbProjects || sbAgents) && (
       <div className="border-b border-white/8 p-3">
         <input
           id="hub-search"
@@ -163,9 +165,12 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           className="mono w-full rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] text-slate-200 placeholder-slate-600 outline-none transition focus:border-cyan-300/50"
         />
       </div>
+      )}
 
-      {/* projects */}
-      <div className="min-h-0 flex-1 overflow-y-auto py-3">
+      {/* projects — claims the flex space only while OPEN; a folded section
+          that still stretches leaves a large empty box with agents pinned to
+          the bottom, which reads as "didn't close" */}
+      <div className={sbProjects ? "min-h-0 flex-1 overflow-y-auto py-3" : "shrink-0 py-1.5"}>
         {sbProjects && pinned.length > 0 && (
           <>
             <div className="mono px-4 pb-1 text-[9.5px] tracking-[0.25em] text-amber-300/70 uppercase">pinned</div>
@@ -186,7 +191,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       {/* agents */}
-      <div className="border-t border-white/8 py-3">
+      <div className={`border-t border-white/8 ${sbAgents ? "py-3" : "py-1.5"}`}>
         <button
           aria-expanded={sbAgents}
           onClick={() => toggleChrome("sbAgents")}

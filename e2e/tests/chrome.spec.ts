@@ -30,6 +30,16 @@ test.describe("collapsible chrome", () => {
     await expect(page.getByRole("button", { name: /^model-drift/ })).toBeVisible();
     await page.getByRole("button", { name: /agents · \d+/ }).click();
     await expect(page.getByRole("button", { name: /^Critic/ })).toHaveCount(0);
+
+    // with BOTH lists folded the sections give their space back: search folds
+    // too and the agents header sits as a thin row near the top, not pinned
+    // to the bottom of an empty box
+    await page.getByRole("button", { name: /projects · \d+/ }).click(); // fold projects again
+    await expect(page.locator("#hub-search")).toHaveCount(0);
+    const agentsRow = await page.getByRole("button", { name: /agents · \d+/ }).boundingBox();
+    expect(agentsRow!.y).toBeLessThan(160);
+    await page.getByRole("button", { name: /projects · \d+/ }).click();
+    await expect(page.locator("#hub-search")).toBeVisible();
     await page.getByRole("button", { name: /agents · \d+/ }).click();
 
     // the brand header folds to a slim strip
