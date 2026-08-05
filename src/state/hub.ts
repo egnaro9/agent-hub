@@ -472,18 +472,23 @@ export const useHub = create<HubState>()(
         set((s) => {
           const ch = s.channels[projectId];
           const speaker = ch?.participants[0];
+          const text = `Pulled the live feed — latest commit here is "${lines[0]}". Working from that, not from memory.`;
+          // The channel PERSISTS but this once-per-session guard doesn't:
+          // every reload re-announced the same pull into the saved transcript
+          // (Erik's screenshots: five identical greetings). Dedup on the exact
+          // text — a NEW latest commit changes the text and announces again.
+          const alreadySaid = !!ch &&
+            (ch.messages.some((m) => m.from === speaker && m.text === text) ||
+              ch.queue.some((q) => q.from === speaker && q.text === text));
           return {
             projects: s.projects.map((p) => (p.id === projectId ? { ...p, liveActivity: lines } : p)),
             // the room reacts to real context: first agent present reports the pull
-            channels: speaker
+            channels: speaker && !alreadySaid
               ? {
                   ...s.channels,
                   [projectId]: {
                     ...ch,
-                    queue: [
-                      ...ch.queue,
-                      { from: speaker, text: `Pulled the live feed — latest commit here is "${lines[0]}". Working from that, not from memory.` },
-                    ],
+                    queue: [...ch.queue, { from: speaker, text }],
                   },
                 }
               : s.channels,

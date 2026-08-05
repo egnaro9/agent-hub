@@ -92,22 +92,25 @@ const WorkCard = ({ children }: { children: React.ReactNode }) => (
   <div className="glass min-h-0 flex-1 overflow-y-auto rounded-xl p-4">{children}</div>
 );
 
-/** A collapsible slot in the work column: open = the card with a corner
-    chevron; folded = a thin labeled row. The preference is global chrome,
-    not per-project — an operator who folds tasks folds them everywhere. */
-function Slot({ label, k, open, children }: { label: string; k: ChromeKey; open: boolean; children: React.ReactNode }) {
-  if (!open)
-    return (
-      <button
-        aria-label={`Expand ${label}`}
-        onClick={() => useChrome.getState().toggle(k)}
-        className="glass mono flex w-full flex-none cursor-pointer items-center gap-1.5 rounded-xl px-4 py-2 text-left text-[9.5px] tracking-[0.25em] whitespace-nowrap text-slate-500 uppercase transition hover:text-slate-200"
-      >
-        <span className="text-slate-600">▸</span> {label}
-      </button>
-    );
+/** A folded work-mode part: a small labeled pill, all pills on one row.
+    The preference is global chrome, not per-project — an operator who folds
+    tasks folds them everywhere. */
+function Pill({ label, k }: { label: string; k: ChromeKey }) {
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col">
+    <button
+      aria-label={`Expand ${label}`}
+      onClick={() => useChrome.getState().toggle(k)}
+      className="glass mono flex w-fit flex-none cursor-pointer items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-left text-[9.5px] tracking-[0.25em] whitespace-nowrap text-slate-500 uppercase transition hover:text-slate-200"
+    >
+      <span className="text-slate-600">▸</span> {label}
+    </button>
+  );
+}
+
+/** An open work-mode card in the horizontal band: corner chevron folds it. */
+function Open({ label, k, children }: { label: string; k: ChromeKey; children: React.ReactNode }) {
+  return (
+    <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
       {children}
       <button
         aria-label={`Collapse ${label}`}
@@ -568,50 +571,64 @@ export default function ProjectStage({ projectId }: { projectId: string }) {
            vertically too: two cards sharing 390px meant ~170px each and
            mid-word truncation in the headers, so each card gets the full
            width and the pair splits the same height budget. */
-        <div className="flex h-full min-h-0 flex-col gap-3 p-3 sm:gap-4 sm:p-4 lg:flex-row">
-          {/* fully folded, the side column also yields its width to the room */}
-          <div className={`flex max-h-[240px] min-h-0 w-full flex-none flex-col gap-3 sm:max-h-[180px] sm:flex-row sm:gap-4 lg:max-h-none lg:flex-col ${wk.wkTasks || wk.wkFiles || wk.wkGate ? "lg:w-[300px]" : "lg:w-[150px]"}`}>
-            <Slot label="tasks" k="wkTasks" open={wk.wkTasks}>
-              <TasksCard work={repoWork} commits={project.liveActivity} />
-            </Slot>
-            <Slot label="files" k="wkFiles" open={wk.wkFiles}>
-              <FilesCard work={repoWork} hue={project.hue} />
-            </Slot>
-            {gateOpsVisible(repoWork, commitsArmed) && (
-              <Slot label="gate ops" k="wkGate" open={wk.wkGate}>
-                <GateOpsCard work={repoWork} />
-              </Slot>
-            )}
-          </div>
-          {/* work mode gets the shape launcher over the room it runs in — the
-              transcript and the composer below it are where the run lands. */}
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
-            {wk.wkTopology ? (
-              <div className="flex items-start gap-2">
-                <div className="min-w-0 flex-1">
-                  <TopologyBar projectId={projectId} />
+        /* work mode — every part folds to a PILL on one shared row; open
+           cards sit SIDE BY SIDE in a band above the room, never in a side
+           column (Erik's call: breakdowns next to each other, so the
+           transcript keeps its full height whenever parts are folded). */
+        <div className="flex h-full min-h-0 flex-col gap-3 p-3 sm:gap-4 sm:p-4">
+          {(() => {
+            const gateVis = gateOpsVisible(repoWork, commitsArmed);
+            const anyFolded = !wk.wkTasks || !wk.wkFiles || (gateVis && !wk.wkGate) || !wk.wkTopology;
+            const anyOpen = wk.wkTasks || wk.wkFiles || (gateVis && wk.wkGate);
+            return (
+              <>
+                {anyFolded && (
+                  <div className="flex flex-none flex-wrap items-center gap-2">
+                    {!wk.wkTasks && <Pill label="tasks" k="wkTasks" />}
+                    {!wk.wkFiles && <Pill label="files" k="wkFiles" />}
+                    {gateVis && !wk.wkGate && <Pill label="gate ops" k="wkGate" />}
+                    {!wk.wkTopology && <Pill label="topology" k="wkTopology" />}
+                  </div>
+                )}
+                {anyOpen && (
+                  <div className="flex max-h-[300px] min-h-0 flex-none flex-col gap-3 sm:max-h-[230px] sm:flex-row sm:gap-4">
+                    {wk.wkTasks && (
+                      <Open label="tasks" k="wkTasks">
+                        <TasksCard work={repoWork} commits={project.liveActivity} />
+                      </Open>
+                    )}
+                    {wk.wkFiles && (
+                      <Open label="files" k="wkFiles">
+                        <FilesCard work={repoWork} hue={project.hue} />
+                      </Open>
+                    )}
+                    {gateVis && wk.wkGate && (
+                      <Open label="gate ops" k="wkGate">
+                        <GateOpsCard work={repoWork} />
+                      </Open>
+                    )}
+                  </div>
+                )}
+                {wk.wkTopology && (
+                  <div className="flex flex-none items-center gap-1.5">
+                    <button
+                      aria-label="Collapse topology"
+                      onClick={() => useChrome.getState().toggle("wkTopology")}
+                      className="mono grid h-5 w-5 flex-none cursor-pointer place-items-center rounded text-[9px] text-slate-600 transition hover:bg-white/10 hover:text-slate-200"
+                    >
+                      ▾
+                    </button>
+                    <div className="min-w-0 flex-1">
+                      <TopologyBar projectId={projectId} />
+                    </div>
+                  </div>
+                )}
+                <div className="min-h-0 flex-1">
+                  <ChatRoom projectId={projectId} />
                 </div>
-                <button
-                  aria-label="Collapse topology"
-                  onClick={() => useChrome.getState().toggle("wkTopology")}
-                  className="mono mt-1 grid h-6 w-6 flex-none cursor-pointer place-items-center rounded text-[10px] text-slate-600 transition hover:bg-white/10 hover:text-slate-200"
-                >
-                  ▴
-                </button>
-              </div>
-            ) : (
-              <button
-                aria-label="Expand topology"
-                onClick={() => useChrome.getState().toggle("wkTopology")}
-                className="glass mono flex w-fit cursor-pointer items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-left text-[9.5px] tracking-[0.25em] text-slate-500 uppercase transition hover:text-slate-200"
-              >
-                <span className="text-slate-600">▸</span> topology
-              </button>
-            )}
-            <div className="min-h-0 flex-1">
-              <ChatRoom projectId={projectId} />
-            </div>
-          </div>
+              </>
+            );
+          })()}
         </div>
       )}
 
