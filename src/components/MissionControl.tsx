@@ -7,6 +7,7 @@ import ProvidersPanel from "./ProvidersPanel";
 import JournalPanel from "./JournalPanel";
 import Tutorial from "./Tutorial";
 import { PHONE_QUERY, useMediaQuery } from "../hooks/useMediaQuery";
+import { SCALES, useUiScale } from "../hooks/useUiScale";
 
 // "claude-haiku-4-5" → "haiku-4-5"; anything long gets clipped so the bar never blows out.
 const shortModel = (id: string) => {
@@ -37,6 +38,7 @@ export default function MissionControl({ onMenu }: { onMenu?: () => void }) {
   const [rosterOpen, setRosterOpen] = useState(false);
   const [keysOpen, setKeysOpen] = useState(false);
   const [journalOpen, setJournalOpen] = useState(false);
+  const [uiScale, setScale] = useUiScale();
   const [routing, setRoutingState] = useState(getRouting());
   const [activeModel, setActiveModel] = useState(getModel());
   const commitsArmed = useHub((s) => s.commitsArmed);
@@ -221,6 +223,23 @@ export default function MissionControl({ onMenu }: { onMenu?: () => void }) {
         {rosterOpen && <RosterPanel onClose={() => setRosterOpen(false)} />}
       </div>
 
+      {/* text size — the app's OWN magnification. Cycles 100 → 110 → 120 →
+          130 → 100. Browser page-zoom would do this too, except it shrinks the
+          CSS viewport and drops a desktop operator into the phone layout;
+          zooming #root leaves every media query reading the real window. */}
+      <button
+        data-testid="ui-scale"
+        onClick={() => setScale(SCALES[(SCALES.indexOf(uiScale) + 1) % SCALES.length])}
+        className={`mono cursor-pointer rounded-md border px-2.5 py-1 text-[10px] whitespace-nowrap transition max-sm:hidden ${
+          uiScale > 1
+            ? "border-cyan-300/40 bg-cyan-400/10 text-cyan-200 hover:bg-cyan-400/25"
+            : "border-white/10 bg-white/5 text-slate-400 hover:text-slate-200"
+        }`}
+        title="Text size — scales the console without changing the layout the way browser zoom does"
+      >
+        ⌗ text {Math.round(uiScale * 100)}%
+      </button>
+
       {/* operator journal — the ledger the 80-message chat window can't erase.
           A portalled modal, so no parked wrapper is needed; the button just
           opens it. */}
@@ -259,7 +278,13 @@ export default function MissionControl({ onMenu }: { onMenu?: () => void }) {
           title={`Connect a live model to Critic — bring your own Anthropic key (model: ${activeModel})`}
         >
           ◈ brain: {brainConnected ? "live" : "mock"}
-          <span className={brainConnected ? "text-teal-300/60" : "text-slate-600"}> · {shortModel(activeModel)}</span>
+          {/* The model is only a fact while something is calling one. In mock
+              the chip used to read "mock · opus-4-8", which names a model no
+              request is going to — the same confusion the panel header had,
+              one level down. Mock says what mock is instead. */}
+          <span className={brainConnected ? "text-teal-300/60" : "text-slate-600"}>
+            {" "}· {brainConnected ? shortModel(activeModel) : "no model"}
+          </span>
         </button>
         <AnimatePresence>
           {brainOpen && (
@@ -311,12 +336,21 @@ export default function MissionControl({ onMenu }: { onMenu?: () => void }) {
               <select
                 value={modelDraft}
                 onChange={(e) => setModelDraft(e.target.value)}
+                aria-label="Model"
                 className="mono mt-2 w-full cursor-pointer rounded-lg border border-white/10 bg-[#0b1120] px-2 py-1.5 text-[11px] text-slate-300 outline-none"
               >
                 {BRAIN_MODELS.map((m) => (
                   <option key={m} value={m}>{m}</option>
                 ))}
               </select>
+              {/* Without a key this select is a preference, not a fact — it
+                  says which model WOULD be called. Saying so beats letting the
+                  panel imply a model is in play. */}
+              {!brainConnected && (
+                <p className="mono mt-1 text-[9.5px] text-slate-500">
+                  the model a key would be spent on — nothing calls it yet
+                </p>
+              )}
               <label className="mono mt-2 flex cursor-pointer items-start gap-2 text-[10px] leading-relaxed text-slate-400">
                 <input
                   type="checkbox"
@@ -473,6 +507,12 @@ export default function MissionControl({ onMenu }: { onMenu?: () => void }) {
               className="mono flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2.5 text-left text-[11px] text-slate-300 transition hover:bg-white/8"
             >
               ▤ journal
+            </button>
+            <button
+              onClick={() => setScale(SCALES[(SCALES.indexOf(uiScale) + 1) % SCALES.length])}
+              className="mono flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2.5 text-left text-[11px] text-slate-300 transition hover:bg-white/8"
+            >
+              ⌗ text {Math.round(uiScale * 100)}%
             </button>
             <button
               onClick={() => {

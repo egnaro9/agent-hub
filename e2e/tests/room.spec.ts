@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { composer, gotoHub, isolate } from "./helpers";
+import { composer, gotoHub, isolate, persistedState, say } from "./helpers";
 
 // crashkit seeds with exactly one resident (Critic, via SEED_ASSIGNMENTS).
 const roomCount = (page: import("@playwright/test").Page) => page.getByText(/\d+ in the room/);
@@ -46,5 +46,47 @@ test.describe("room membership", () => {
 
     await expect(page.getByText("no one here yet — summon an agent")).toBeVisible();
     await expect(roomCount(page)).toHaveCount(0);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BEING IN A ROOM IS BEING ON THE PROJECT.
+//
+// Reported from live use: Strat was talking in #crashkit while the constellation
+// drew it idle and unattached, and the project card listed no crew. Two truths
+// had drifted — `channel.participants` (who is in the room) and `assignments`
+// (what the map and sidebar draw). Only `summon` wrote both; an @mention, the
+// default responders and a topology node wrote only the first.
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe("room membership and the map agree", () => {
+  test("an @mention puts the agent on the project card and the sidebar crew, not just in the room", async ({
+    context,
+    page,
+  }) => {
+    // A room with nobody in it, so the only way Strat gets there is the mention.
+    await isolate(
+      context,
+      persistedState({ channels: { crashkit: { participants: [], queue: [], messages: [] } } })
+    );
+    await gotoHub(page, "/#/p/crashkit/work");
+
+    await say(page, "crashkit", "@Strat what should this arc's exit criterion be?");
+    // In the room…
+    await expect(page.getByText(/\[?strat\]?/i).first()).toBeVisible({ timeout: 10_000 });
+
+    // …and therefore ON the project, everywhere the app draws that fact.
+    await expect
+      .poll(async () =>
+        page.evaluate(() => {
+          const raw = localStorage.getItem("agent-hub:state");
+          return raw ? (JSON.parse(raw).state?.assignments?.strat ?? null) : null;
+        })
+      )
+      .toBe("crashkit");
+
+    // The constellation's own rendering, not just the store: the project card
+    // carries a crew avatar titled for the agent working there.
+    await page.getByRole("button", { name: "constellation" }).click();
+    await expect(page.locator('[title="Strat is working here"]').first()).toBeVisible();
   });
 });

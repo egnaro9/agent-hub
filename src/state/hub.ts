@@ -207,6 +207,41 @@ interface HubState {
 const restingStatus = (agentId: string, assignments: Record<string, string>) =>
   assignments[agentId] ? ({ kind: "working", projectId: assignments[agentId] } as const) : ({ kind: "idle" } as const);
 
+/**
+ * BEING IN A ROOM IS BEING ON THE PROJECT.
+ *
+ * The hub kept two truths about that and let them drift: `channel.participants`
+ * (who is in the room) and `assignments` (who the constellation and the sidebar
+ * draw a work edge for). `summon` wrote both; every OTHER way into a room — an
+ * @mention, the default responders, an agent pulled in by a topology node —
+ * wrote only the first. The result an operator sees is an agent talking in
+ * #crashkit while the map shows it idle and unattached, which reads as a broken
+ * map rather than as two lists disagreeing.
+ *
+ * This is the one place that adds someone to a room, so the two cannot part
+ * again. Returns the patch, not the state: callers are already inside a `set`
+ * and own the rest of their update.
+ */
+const joinRoom = (
+  s: { assignments: Record<string, string>; agents: Agent[] },
+  projectId: string,
+  agentIds: string[]
+): { assignments: Record<string, string>; agents: Agent[] } => {
+  // Only agents whose assignment actually changes — an agent already working
+  // here keeps its status object, so a `talking` agent is not reset to
+  // `working` mid-stream by its own arrival.
+  const joining = agentIds.filter((id) => s.assignments[id] !== projectId);
+  if (joining.length === 0) return { assignments: s.assignments, agents: s.agents };
+  const assignments = { ...s.assignments };
+  for (const id of joining) assignments[id] = projectId;
+  return {
+    assignments,
+    agents: s.agents.map((a) =>
+      joining.includes(a.id) ? { ...a, status: { kind: "working" as const, projectId } } : a
+    ),
+  };
+};
+
 // One hydration attempt per project per session — success or failure, we don't
 // hammer an unauthenticated API that rate-limits at 60/hr.
 //
@@ -574,6 +609,7 @@ export const useHub = create<HubState>()(
             queue: [...sweep, ...channel.queue],
           },
         },
+        ...joinRoom(s, projectId, ["oracle", "critic"]),
       }));
       return;
     }
@@ -638,6 +674,10 @@ export const useHub = create<HubState>()(
             messages: [...channel.messages, { id: nextId(), from: "user", text }],
           },
         },
+        // An @mention pulls an agent into the room; being in the room is being
+        // on the project. streamAgent would join them anyway, but not until it
+        // actually starts streaming — the map should not lag the transcript.
+        ...joinRoom(s, projectId, participants),
       }));
       // FAILURE MODE (replies attached to the wrong question): a second @team
       // message used to start its own fan-out immediately — the busy agent was
@@ -671,6 +711,10 @@ export const useHub = create<HubState>()(
           queue: [...replies, ...channel.queue],
         },
       },
+      // The mock path never reaches streamAgent — its replies are drained from
+      // the queue — so without this an agent could answer in a room all session
+      // and never appear on the map.
+      ...joinRoom(s, projectId, participants),
     }));
   },
 
@@ -1058,6 +1102,11 @@ export const useHub = create<HubState>()(
       set((s) => {
         const ch = s.channels[projectId];
         if (!ch) return {};
+        // Speaking in a room joins it — assignment and all, so the map shows
+        // this agent working here instead of idle-and-unattached while it
+        // talks. joinRoom runs FIRST; the talking status is layered on top of
+        // whatever it produced.
+        const joined = joinRoom(s, projectId, [agentId]);
         return {
           channels: {
             ...s.channels,
@@ -1067,7 +1116,8 @@ export const useHub = create<HubState>()(
               messages: [...ch.messages, { id: msgId, from: agentId, text: "", streaming: true, ...(opts?.node ? { node: opts.node } : {}) }],
             },
           },
-          agents: s.agents.map((a) => (a.id === agentId ? { ...a, status: { kind: "talking" as const } } : a)),
+          assignments: joined.assignments,
+          agents: joined.agents.map((a) => (a.id === agentId ? { ...a, status: { kind: "talking" as const } } : a)),
         };
       });
       let acc = "";

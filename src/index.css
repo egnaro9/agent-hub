@@ -12,6 +12,14 @@
 }
 
 html, body, #root { height: 100%; }
+
+/* READABILITY-1: the app's own magnification. `zoom` scales everything inside
+   #root while leaving the VIEWPORT — and therefore every media query — alone,
+   which is exactly what browser page-zoom cannot do: page-zoom shrinks the CSS
+   viewport, so reading the 10px labels used to flip the desktop layout into the
+   phone one. Set from the ⌗ text control in the strip. */
+:root { --ui-scale: 1; }
+#root { zoom: var(--ui-scale); }
 body {
   margin: 0;
   background: var(--bg);
