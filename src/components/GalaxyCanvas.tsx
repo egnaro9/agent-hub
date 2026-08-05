@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useHub } from "../state/hub";
 import { STRUCTURAL } from "../data/mock";
+import { PAINTERS } from "./planets";
 import type { Agent, Project } from "../types";
 
 /* ════════════════════════════════════════════════════════════════════════════
@@ -88,12 +89,14 @@ const KIND_OF: Record<string, Kind> = {
   "match3-engine": "rock", "tapdodge-engine": "gas", "evals-differential-oracle": "twin",
   "cast-pipeline": "ocean",
 };
-const RADIUS_OF: Record<string, number> = {
-  gradecore: 46, crashkit: 30, "model-drift": 29, "rag-eval-lab": 24, "eval-history": 21,
-  "eval-dashboard": 17, "prompt-regress": 19, "pi-eval": 18, "agentic-dev-harness": 33,
-  "pi-gates": 21, "harness-builder": 27, "agent-graph": 20, "mcp-tools": 21, "llm-gateway": 20,
-  "match3-engine": 22, "tapdodge-engine": 26, "evals-differential-oracle": 22, "cast-pipeline": 20,
-};
+// Planet size is RATIONAL, not curated: mass = how much of the system runs
+// through this world. Each structural link adds heft, resident crew adds a
+// little more — so the most-connected project in a cluster is also its
+// visual anchor, and the sizes stay true as the portfolio grows.
+const degreeOf = (id: string) =>
+  STRUCTURAL.filter((e) => e.source === id || e.target === id).length;
+const radiusOf = (id: string, crewCount: number) =>
+  Math.min(42, 16 + degreeOf(id) * 5 + crewCount * 3);
 const RINGED = new Set(["harness-builder", "tapdodge-engine"]);
 const STORMY = new Set(["harness-builder"]);
 const FALLBACK_KINDS: Kind[] = ["rock", "ice", "gas", "ocean", "city"];
@@ -196,8 +199,18 @@ function bakePlanet(id: string, hue: string, kind: Kind, radius: number): Sprite
 
   g.save(); g.beginPath(); g.arc(cx0, cy0, R, 0, TAU); g.clip();
   g.translate(cx0, cy0); g.rotate(tilt); g.translate(-cx0, -cy0);
+  // The emissive map tilts WITH the surface, so a painter's glowing feature
+  // lands exactly where its diffuse twin does.
+  ge.save(); ge.beginPath(); ge.arc(cx0, cy0, R, 0, TAU); ge.clip();
+  ge.translate(cx0, cy0); ge.rotate(tilt); ge.translate(-cx0, -cy0);
 
-  if (kind === "gas") {
+  const bespoke = PAINTERS[id];
+  if (bespoke) {
+    // Eighteen individual worlds — each surface derived from what the project
+    // IS (see planets.ts). The archetype switch below only serves projects
+    // minted at runtime, which have no story yet.
+    bespoke({ g, ge, cx: cx0, cy: cy0, R, hue, rnd, fbm, rgba, mix, LIGHT, TAU });
+  } else if (kind === "gas") {
     const bands = 6 + Math.floor(rnd() * 7), warm = rnd() < 0.4;
     for (let y = -R; y < R; y += 1.3) {
       const lat = y / R, sq = Math.sqrt(Math.max(0, 1 - lat * lat));
@@ -377,6 +390,7 @@ function bakePlanet(id: string, hue: string, kind: Kind, radius: number): Sprite
       ctx2.stroke();
     }
   }
+  ge.restore();
   g.restore();
 
   // terminator
@@ -420,7 +434,10 @@ function layout(projects: Project[]) {
   CLUSTER_DEF.forEach((cl) => {
     const members = byCluster.get(cl.id) ?? [];
     if (members.length === 0) return;
-    const sorted = [...members].sort((a, b) => (RADIUS_OF[b.id] ?? 18) - (RADIUS_OF[a.id] ?? 18));
+    // Most-connected member anchors the cluster; ring position follows
+    // connectedness too, so the orbit structure reads as the dependency
+    // structure — inner ring = closest to the heart of the cluster.
+    const sorted = [...members].sort((a, b) => degreeOf(b.id) - degreeOf(a.id));
     const zs = [1.06, 1, 0.92, 1.02, 0.88, 0.82, 0.9, 0.78, 0.86];
     sorted.forEach((p, i) => {
       seed = idSeed(p.id) + 7;
@@ -483,9 +500,11 @@ export default function GalaxyCanvas() {
     const { projects } = useHub.getState();
     const nodes = layout(projects);
     const sprites = new Map<string, Sprite>();
-    projects.forEach((p, i) => {
+    const assignmentsNow = useHub.getState().assignments;
+    projects.forEach((p) => {
       const kind = KIND_OF[p.id] ?? FALLBACK_KINDS[idSeed(p.id) % FALLBACK_KINDS.length];
-      sprites.set(p.id, bakePlanet(p.id, p.hue, kind, RADIUS_OF[p.id] ?? 18 + (i % 4)));
+      const crewCount = Object.values(assignmentsNow).filter((pid) => pid === p.id).length;
+      sprites.set(p.id, bakePlanet(p.id, p.hue, kind, radiusOf(p.id, crewCount)));
     });
     seed = 1379;
     const NEB = [
@@ -536,8 +555,15 @@ export default function GalaxyCanvas() {
     ro.observe(host);
 
     const cam = { x: HOME.x, y: HOME.y, z: HOME.z, tx: HOME.x, ty: HOME.y, tz: HOME.z };
-    const cam3 = { yaw: 0.6, pitch: 0.42, dist: 2600, tyaw: 0.6, tpitch: 0.42, tdist: 2600,
-      target: { x: 520, y: 0, z: 340 }, ttarget: { x: 520, y: 0, z: 340 } };
+    // 3D scale: the 2.5D layout is composed for a flat viewport; in
+    // perspective the same coordinates bunch. SPREAD3 pushes clusters and
+    // rings apart, and the dolly range opens far enough to take in the whole
+    // system from outside.
+    const SPREAD3 = 2.1;
+    const CENTER3 = { x: 520 * SPREAD3, y: 0, z: 340 * SPREAD3 };
+    const DIST3 = { home: 5200, min: 420, max: 16000 };
+    const cam3 = { yaw: 0.6, pitch: 0.42, dist: DIST3.home, tyaw: 0.6, tpitch: 0.42, tdist: DIST3.home,
+      target: { ...CENTER3 }, ttarget: { ...CENTER3 } };
     const F3 = 980, NEAR = 80;
     let mode: "map" | "3d" = "map";
     let driftOn = !reduced;
@@ -554,9 +580,13 @@ export default function GalaxyCanvas() {
 
     const pos3 = (id: string) => {
       const n = nodes.get(id)!;
-      if (!n.ringRad) return { x: n.cluster.cx, y: n.y3, z: n.cluster.cy };
+      if (!n.ringRad) return { x: n.cluster.cx * SPREAD3, y: n.y3, z: n.cluster.cy * SPREAD3 };
       const a = n.ang + (reduced ? 0 : tNow * n.orbSpeed);
-      return { x: n.cluster.cx + Math.cos(a) * n.ringRad * 1.42, y: n.y3, z: n.cluster.cy + Math.sin(a) * n.ringRad * 1.05 };
+      return {
+        x: (n.cluster.cx + Math.cos(a) * n.ringRad * 1.42) * SPREAD3,
+        y: n.y3,
+        z: (n.cluster.cy + Math.sin(a) * n.ringRad * 1.05) * SPREAD3,
+      };
     };
     const project3 = (p: { x: number; y: number; z: number }) => {
       const c = cam3, dx = p.x - c.target.x, dy = p.y - c.target.y, dz = p.z - c.target.z;
@@ -710,7 +740,11 @@ export default function GalaxyCanvas() {
         const [ax, ay] = w2s(A.x, A.y), [bx, by] = w2s(B.x, B.y);
         const mx = (ax + bx) / 2, my = (ay + by) / 2, dx = bx - ax, dy = by - ay;
         const len = Math.hypot(dx, dy) || 1;
-        const sway = reduced ? 0 : Math.sin(t * 0.22 + len * 0.02) * len * 0.02;
+        // Sway phase from WORLD length — screen length breathes with the zoom
+        // ease, and a phase built from it made every filament vibrate while
+        // zooming. Amplitude still scales with the screen so it stays subtle.
+        const wlen = Math.hypot(B.x - A.x, B.y - A.y) || 1;
+        const sway = reduced ? 0 : Math.sin(t * 0.22 + wlen * 0.008) * len * 0.02;
         const cxp = mx - (dy / len) * (len * 0.13 + sway), cyp = my + (dx / len) * (len * 0.13 + sway);
         const hueA = useHub.getState().projects.find((p) => p.id === edge.source)?.hue ?? "#60a5fa";
         const hueB = useHub.getState().projects.find((p) => p.id === edge.target)?.hue ?? "#60a5fa";
@@ -892,7 +926,7 @@ export default function GalaxyCanvas() {
           let started = false;
           for (let k = 0; k <= 72; k++) {
             const a = (k / 72) * TAU;
-            const pr = project3({ x: cl.cx + Math.cos(a) * rad * 1.42, y: 0, z: cl.cy + Math.sin(a) * rad * 1.05 });
+            const pr = project3({ x: (cl.cx + Math.cos(a) * rad * 1.42) * SPREAD3, y: 0, z: (cl.cy + Math.sin(a) * rad * 1.05) * SPREAD3 });
             if (!pr) { started = false; continue; }
             if (!started) { vx.moveTo(pr.x, pr.y); started = true; } else vx.lineTo(pr.x, pr.y);
           }
@@ -1035,7 +1069,7 @@ export default function GalaxyCanvas() {
         const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
         if (lastPinch && !useHub.getState().mapLocked) {
           const k = dist / lastPinch;
-          if (mode === "3d") cam3.tdist = Math.max(420, Math.min(5200, cam3.tdist / k));
+          if (mode === "3d") cam3.tdist = Math.max(DIST3.min, Math.min(DIST3.max, cam3.tdist / k));
           else cam.tz = Math.max(0.2, Math.min(3.1, cam.tz * k));
         }
         lastPinch = dist;
@@ -1071,7 +1105,7 @@ export default function GalaxyCanvas() {
       // The lock's contract, carried over: scroll-zoom is what it freezes.
       if (useHub.getState().mapLocked) return;
       driftOn = false;
-      if (mode === "3d") cam3.tdist = Math.max(420, Math.min(5200, cam3.tdist * (e.deltaY > 0 ? 1.09 : 0.92)));
+      if (mode === "3d") cam3.tdist = Math.max(DIST3.min, Math.min(DIST3.max, cam3.tdist * (e.deltaY > 0 ? 1.12 : 0.9)));
       else cam.tz = Math.max(0.2, Math.min(3.1, cam.tz * (e.deltaY > 0 ? 0.9 : 1.11)));
     };
     const onEnter = () => { hoverPause = true; };
@@ -1089,8 +1123,8 @@ export default function GalaxyCanvas() {
     const hudZi = () => { if (mode === "3d") cam3.tdist = Math.max(420, cam3.tdist * 0.8); else cam.tz = Math.min(3.1, cam.tz * 1.25); cam.tz = cam.tz; };
     const zi = $("[data-hud=zi]"), zo = $("[data-hud=zo]"), fit = $("[data-hud=fit]"),
       drift = $("[data-hud=drift]"), m3d = $("[data-hud=m3d]");
-    zi.onclick = () => { if (useHub.getState().mapLocked) return; if (mode === "3d") cam3.tdist = Math.max(420, cam3.tdist * 0.8); else cam.tz = Math.min(3.1, cam.tz * 1.25); };
-    zo.onclick = () => { if (useHub.getState().mapLocked) return; if (mode === "3d") cam3.tdist = Math.min(5200, cam3.tdist * 1.25); else cam.tz = Math.max(0.2, cam.tz * 0.8); };
+    zi.onclick = () => { if (useHub.getState().mapLocked) return; if (mode === "3d") cam3.tdist = Math.max(DIST3.min, cam3.tdist * 0.8); else cam.tz = Math.min(3.1, cam.tz * 1.25); };
+    zo.onclick = () => { if (useHub.getState().mapLocked) return; if (mode === "3d") cam3.tdist = Math.min(DIST3.max, cam3.tdist * 1.25); else cam.tz = Math.max(0.2, cam.tz * 0.8); };
     fit.onclick = () => {
       if (mode === "3d") { cam3.tdist = 2600; cam3.ttarget = { x: 520, y: 0, z: 340 }; }
       else { cam.tx = HOME.x; cam.ty = HOME.y; cam.tz = HOME.z; }
@@ -1133,7 +1167,7 @@ export default function GalaxyCanvas() {
       if (arriveTimer) clearTimeout(arriveTimer);
       setFlying(null); setArrival(null);
       setDrift(driftPref && !reduced);
-      if (mode === "3d") { cam3.tdist = 2600; cam3.ttarget = { x: 520, y: 0, z: 340 }; }
+      if (mode === "3d") { cam3.tdist = DIST3.home; cam3.ttarget = { ...CENTER3 }; }
       else { cam.tx = HOME.x; cam.ty = HOME.y; cam.tz = HOME.z; }
     };
 
@@ -1191,7 +1225,7 @@ export default function GalaxyCanvas() {
 
   return (
     <div ref={hostRef} data-testid="galaxy" className="relative h-full w-full overflow-hidden select-none">
-      <div className={`absolute inset-0 transition-[filter] duration-700 ${flying ? "blur-[9px] brightness-[.42] saturate-[1.2]" : ""}`}>
+      <div className={`absolute inset-0 transition-[filter] duration-700 ${flying ? "blur-[4px] brightness-[.58] saturate-[1.15]" : ""}`}>
         <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
         <div ref={labelsRef} className="pointer-events-none absolute inset-0 overflow-hidden" />
       </div>

@@ -40,7 +40,7 @@ test.describe("deep links and mode switching", () => {
     await expect(page.getByText("hold this thought")).toBeVisible();
   });
 
-  test("sidebar navigation writes the hash, and the breadcrumb walks back to the constellation", async ({ page }) => {
+  test("sidebar navigation writes the hash, and the breadcrumb walks back to the galaxy", async ({ page }) => {
     await gotoHub(page);
     await expect(page).not.toHaveURL(/#\/p\//);
 
@@ -50,12 +50,12 @@ test.describe("deep links and mode switching", () => {
     await expect(page).toHaveURL(/#\/p\/gradecore$/);
     await expect(page.locator("header, div").filter({ hasText: "gradecore" }).first()).toBeVisible();
 
-    await page.getByRole("button", { name: "constellation" }).click();
+    await page.getByRole("button", { name: "galaxy" }).click();
     await expect(page).not.toHaveURL(/#\/p\//);
     await expect(page.getByTestId("galaxy")).toBeVisible();
   });
 
-  test("an unknown project id in the hash leaves you on the constellation", async ({ page }) => {
+  test("an unknown project id in the hash leaves you on the galaxy", async ({ page }) => {
     await gotoHub(page, "/#/p/no-such-project");
 
     await expect(page.getByTestId("galaxy")).toBeVisible();

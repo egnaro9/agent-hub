@@ -96,7 +96,7 @@ export default function App() {
       <div className="flex h-full min-w-0 flex-1 flex-col">
       <MissionControl onMenu={isPhone ? () => setNavOpen(true) : undefined} />
       <main className="relative min-h-0 min-w-0 flex-1">
-          {/* The constellation stays mounted so positions & camera survive stage
+          {/* The galaxy stays mounted so positions & camera survive stage
               trips. opacity-0, not invisible: React Flow sets inline
               visibility:visible on measured nodes, which pierces `invisible`.
               `inert` (set via ref — React 18's types lack the attribute) drops
@@ -112,7 +112,7 @@ export default function App() {
           </div>
           {/* No AnimatePresence here: a descendant's infinite float kept the
               exit from ever completing, leaving an invisible click-eating
-              overlay on the constellation (critic-adjacent find). Unmount is
+              overlay on the galaxy (critic-adjacent find). Unmount is
               instant; the stage still animates IN via its own motion.div. */}
           {stage.kind === "project" && (
               <div className="absolute inset-0">

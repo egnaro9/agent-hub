@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { galaxyZoom, gotoHub, isolate, settleFlow, wheelOverPane } from "./helpers";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// THE LOCK, on the Galaxy Map. Its contract survives the constellation it was
+// THE LOCK, on the Galaxy Map. Its contract survives the galaxy it was
 // born on: trackpad scroll must not resize the view unbidden while locked, and
 // unlocking restores the wheel. The only honest test is the one that actually
 // scrolls. The galaxy publishes its camera zoom to data-zoom each frame,

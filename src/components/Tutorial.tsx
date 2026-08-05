@@ -93,7 +93,7 @@ export default function Tutorial() {
     document.addEventListener("keydown", onKeyDown, true);
     // Capture, not bubble: d3-drag (under React Flow) calls
     // stopImmediatePropagation on the pane's mousedown, so a bubble-phase
-    // listener on document never hears a click on the constellation — which is
+    // listener on document never hears a click on the galaxy — which is
     // the one backdrop this panel most often floats over.
     document.addEventListener("mousedown", onPointerDown, true);
     return () => {
@@ -133,7 +133,7 @@ export default function Tutorial() {
           role="dialog"
           aria-label="How this hub works"
           data-testid="tutorial-panel"
-          // panel-solid, not glass alone: this floats over the constellation,
+          // panel-solid, not glass alone: this floats over the galaxy,
           // and backdrop-filter does not sample across React Flow's transformed
           // stacking contexts — the graph shows through, unblurred, behind text.
           //

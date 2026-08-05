@@ -36,11 +36,11 @@ const moreMenu = (page: Page) => page.locator("div.panel-solid.w-60");
 /**
  * gotoHub() asserts the <aside> rail is visible — on phone the rail is a
  * closed drawer, so that helper would hang. The phone equivalent waits on the
- * one piece of chrome every viewport shares: the constellation breadcrumb.
+ * one piece of chrome every viewport shares: the galaxy breadcrumb.
  */
 async function gotoPhone(page: Page, hash = "/") {
   await page.goto(hash);
-  await expect(page.getByRole("button", { name: "constellation" })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("button", { name: "galaxy" })).toBeVisible({ timeout: 20_000 });
 }
 
 /**
@@ -58,7 +58,7 @@ function pageOverflowX(page: Page) {
 
 /** The three screens the collaborator will actually see, overflow-checked at one width. */
 async function assertNoOverflowLadder(page: Page) {
-  // constellation
+  // galaxy
   await gotoPhone(page);
   expect(await pageOverflowX(page)).toEqual({ doc: 0, body: 0 });
 
@@ -130,7 +130,7 @@ test.describe("phone (390x844)", () => {
     await expect(moreButton(page)).toHaveAttribute("aria-expanded", "true");
 
     // Every collapsed chip must resurface as a row. Summon renders disabled
-    // on the constellation (no project selected) — present is the contract.
+    // on the galaxy (no project selected) — present is the contract.
     const menu = moreMenu(page);
     await expect(menu).toBeVisible();
     await expect(menu.getByRole("button", { name: "+ summon agent" })).toBeVisible();
@@ -144,7 +144,7 @@ test.describe("phone (390x844)", () => {
     await expect(moreButton(page)).toHaveAttribute("aria-expanded", "false");
   });
 
-  test("no horizontal page overflow on constellation / world / work", async ({ page, context }) => {
+  test("no horizontal page overflow on galaxy / world / work", async ({ page, context }) => {
     await isolate(context);
     await assertNoOverflowLadder(page);
   });
@@ -186,7 +186,7 @@ test.describe("phone (390x844)", () => {
 test.describe("narrow phone (360x800)", () => {
   test.use({ viewport: NARROW });
 
-  test("no horizontal page overflow on constellation / world / work", async ({ page, context }) => {
+  test("no horizontal page overflow on galaxy / world / work", async ({ page, context }) => {
     await isolate(context);
     await assertNoOverflowLadder(page);
   });

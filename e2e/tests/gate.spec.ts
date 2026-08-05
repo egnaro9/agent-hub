@@ -87,9 +87,9 @@ test.describe("the approval gate", () => {
     await expect(page.getByText(`✓ operator approved — ${PROPOSED_ID} is on the board.`)).toBeVisible();
     await expect(sidebarProject(page, PROPOSED_ID)).toBeVisible();
 
-    // …and on the constellation, which is a separate code path (React Flow's
+    // …and on the galaxy, which is a separate code path (React Flow's
     // node list is seeded once and only appended to).
-    await page.getByRole("button", { name: "constellation" }).click();
+    await page.getByRole("button", { name: "galaxy" }).click();
     await expect(page.locator(`[data-planet="${PROPOSED_ID}"]`)).toHaveCount(1);
   });
 

@@ -52,7 +52,7 @@ test.describe("room membership", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // BEING IN A ROOM IS BEING ON THE PROJECT.
 //
-// Reported from live use: Strat was talking in #crashkit while the constellation
+// Reported from live use: Strat was talking in #crashkit while the galaxy
 // drew it idle and unattached, and the project card listed no crew. Two truths
 // had drifted — `channel.participants` (who is in the room) and `assignments`
 // (what the map and sidebar draw). Only `summon` wrote both; an @mention, the
@@ -84,9 +84,9 @@ test.describe("room membership and the map agree", () => {
       )
       .toBe("crashkit");
 
-    // The constellation's own rendering, not just the store: the project card
+    // The galaxy's own rendering, not just the store: the project card
     // carries a crew avatar titled for the agent working there.
-    await page.getByRole("button", { name: "constellation" }).click();
+    await page.getByRole("button", { name: "galaxy" }).click();
     await expect(page.locator('[title*="Strat is working here"]').first()).toBeVisible();
   });
 });

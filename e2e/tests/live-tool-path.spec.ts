@@ -118,7 +118,7 @@ test.describe("the live tool path", () => {
     // …and proposing did not do it. Nowhere, on any surface.
     await expect(sidebarProject(page, PROPOSED_ID)).toHaveCount(0);
     await expect(page.getByText(OPS_LINE)).toHaveCount(0);
-    await page.getByRole("button", { name: "constellation" }).click();
+    await page.getByRole("button", { name: "galaxy" }).click();
     await expect(page.locator(`[data-planet="${PROPOSED_ID}"]`)).toHaveCount(0);
 
     // The gate is also enforced back at the protocol boundary: the model was
@@ -146,7 +146,7 @@ test.describe("the live tool path", () => {
     await expect(sidebarProject(page, PROPOSED_ID)).toBeVisible();
     await expect(page.getByRole("button", { name: /^Approve create_project/ })).toHaveCount(0);
 
-    await page.getByRole("button", { name: "constellation" }).click();
+    await page.getByRole("button", { name: "galaxy" }).click();
     await expect(page.locator(`[data-planet="${PROPOSED_ID}"]`)).toHaveCount(1);
   });
 

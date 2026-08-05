@@ -154,7 +154,7 @@ export default function MissionControl({ onMenu }: { onMenu?: () => void }) {
       )}
       {/* location */}
       <button onClick={backToGraph} className={`mono cursor-pointer text-[11px] transition ${project ? "text-slate-500 hover:text-slate-300" : "text-slate-200"}`}>
-        constellation
+        galaxy
       </button>
       {project && (
         <>

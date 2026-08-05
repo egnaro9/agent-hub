@@ -219,7 +219,7 @@ const restingStatus = (agentId: string, assignments: Record<string, string>) =>
  * BEING IN A ROOM IS BEING ON THE PROJECT.
  *
  * The hub kept two truths about that and let them drift: `channel.participants`
- * (who is in the room) and `assignments` (who the constellation and the sidebar
+ * (who is in the room) and `assignments` (who the galaxy and the sidebar
  * draw a work edge for). `summon` wrote both; every OTHER way into a room — an
  * @mention, the default responders, an agent pulled in by a topology node —
  * wrote only the first. The result an operator sees is an agent talking in
@@ -624,7 +624,7 @@ export const useHub = create<HubState>()(
       return;
     }
 
-    // "new project: <name>" mints a node in the constellation, live.
+    // "new project: <name>" mints a node in the galaxy, live.
     const create = text.match(/^\/?new project:?\s+(.{2,40})$/i);
     if (create) {
       const slug = create[1].toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "untitled";

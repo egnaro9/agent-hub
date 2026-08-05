@@ -31,7 +31,7 @@ test.describe("the galaxy map", () => {
     await expect(page).toHaveURL(/#\/p\/crashkit$/);
 
     // the breadcrumb walks back to the galaxy
-    await page.getByRole("button", { name: "constellation" }).click();
+    await page.getByRole("button", { name: "galaxy" }).click();
     await expect(page.locator('[data-planet="crashkit"]')).toBeVisible();
 
     // WORK on the card lands straight in the workroom
@@ -40,7 +40,7 @@ test.describe("the galaxy map", () => {
     await expect(page).toHaveURL(/#\/p\/gradecore\/work$/);
 
     // ← galaxy lowers the card without entering anything
-    await page.getByRole("button", { name: "constellation" }).click();
+    await page.getByRole("button", { name: "galaxy" }).click();
     await page.locator('[data-planet="pi-eval"]').click();
     await expect(page.getByTestId("arrival-card")).toBeVisible();
     await page.getByTestId("arrival-card").getByRole("button", { name: "← galaxy" }).click();
