@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import "@xyflow/react/dist/style.css";
 
 :root {
   --bg: #05070f;
@@ -73,32 +72,49 @@ body {
 .typing-dot:nth-child(3) { animation-delay: 0.4s; }
 
 /* React Flow chrome, retuned dark */
-.react-flow__attribution { display: none; }
-.react-flow__controls {
-  background: rgba(11, 16, 30, 0.8) !important;
-  border: 1px solid rgba(148, 183, 255, 0.14);
-  border-radius: 10px;
-  overflow: hidden;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
-}
-.react-flow__controls-button {
-  background: transparent !important;
-  border-bottom: 1px solid rgba(148, 183, 255, 0.1) !important;
-  fill: #9fb6d4 !important;
-}
-.react-flow__controls-button:hover { background: rgba(96, 165, 250, 0.12) !important; }
-.react-flow__minimap {
-  border-radius: 12px;
-  overflow: hidden;
-  border: 1px solid rgba(148, 183, 255, 0.14);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
-}
-.react-flow__node { cursor: grab; }
-.react-flow__node.dragging { cursor: grabbing; }
 
 @media (prefers-reduced-motion: reduce) {
   .ping-ring, .breathe, .typing-dot { animation: none; }
   /* pulse edges set their animation inline — !important is the only override */
-  .react-flow__edge path { animation: none !important; }
   * { scroll-behavior: auto; }
 }
+
+/* ── Galaxy Map ─────────────────────────────────────────────────────────── */
+.gal-hbtn {
+  width: 29px; height: 29px; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.09);
+  background: rgba(255,255,255,.03);
+  color: #8ea0bd; cursor: pointer; font-size: 13px;
+  transition: color .15s, border-color .15s;
+}
+.gal-hbtn:hover { color: #e2e8f0; border-color: rgba(255,255,255,.22); }
+.gal-lab {
+  position: absolute; transform: translate(-50%, 0);
+  text-align: center; pointer-events: auto; cursor: pointer;
+  transition: opacity .45s; user-select: none; -webkit-user-select: none;
+}
+.gal-lab .n {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10.5px; font-weight: 500; letter-spacing: .22em;
+  text-transform: uppercase; color: #c6d4ea;
+  text-shadow: 0 1px 8px rgba(2,4,10,.95); white-space: nowrap;
+}
+.gal-lab .rule {
+  width: 26px; height: 1px; margin: 5px auto 4px;
+  background: linear-gradient(90deg, transparent, rgba(190,210,240,.45), transparent);
+}
+.gal-lab .m {
+  font-family: ui-monospace, Menlo, monospace; font-size: 7.5px;
+  letter-spacing: .18em; text-transform: uppercase; color: #5b6b87;
+  white-space: nowrap; text-shadow: 0 1px 6px rgba(2,4,10,.9);
+  opacity: 0; transition: opacity .3s;
+}
+.gal-lab:hover .m { opacity: 1; }
+.gal-lab .tag {
+  font-size: 9px; color: #7e8fab; max-width: 170px; margin: 5px auto 0;
+  line-height: 1.45; opacity: 0; transition: opacity .3s;
+  text-shadow: 0 1px 6px rgba(2,4,10,.9); font-family: Inter, sans-serif;
+  letter-spacing: .01em; text-transform: none;
+}
+.gal-lab:hover .tag { opacity: 1; }
+.gal-lab:hover .n { color: #f2f6ff; }

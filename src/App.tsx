@@ -1,11 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { ReactFlowProvider } from "@xyflow/react";
 import { AnimatePresence, MotionConfig, motion } from "framer-motion";
-import Particles from "./components/Particles";
 import Sidebar from "./components/Sidebar";
 import MissionControl from "./components/MissionControl";
-import HubCanvas from "./components/HubCanvas";
-import HUD from "./components/HUD";
+import GalaxyCanvas from "./components/GalaxyCanvas";
 import ProjectStage from "./components/stage/ProjectStage";
 import ChatPanel from "./components/panels/ChatPanel";
 import { useHub } from "./state/hub";
@@ -92,7 +89,6 @@ export default function App() {
   return (
     <MotionConfig reducedMotion="user">
     <div className="vignette relative flex h-screen w-screen overflow-hidden">
-      <Particles />
       {/* Phone swaps the static rail for a drawer. This is a JS swap, not a
           CSS hide: two mounted Sidebars would mean two #hub-search ids and
           the second silently unreachable by getElementById. */}
@@ -100,7 +96,6 @@ export default function App() {
       <div className="flex h-full min-w-0 flex-1 flex-col">
       <MissionControl onMenu={isPhone ? () => setNavOpen(true) : undefined} />
       <main className="relative min-h-0 min-w-0 flex-1">
-        <ReactFlowProvider>
           {/* The constellation stays mounted so positions & camera survive stage
               trips. opacity-0, not invisible: React Flow sets inline
               visibility:visible on measured nodes, which pierces `invisible`.
@@ -113,8 +108,7 @@ export default function App() {
             }}
             className={stage.kind === "graph" ? "h-full w-full" : "pointer-events-none h-full w-full opacity-0"}
           >
-            <HubCanvas />
-            <HUD />
+            <GalaxyCanvas />
           </div>
           {/* No AnimatePresence here: a descendant's infinite float kept the
               exit from ever completing, leaving an invisible click-eating
@@ -126,7 +120,6 @@ export default function App() {
               </div>
             )}
           <AnimatePresence>{hasDm && <ChatPanel key="dm" />}</AnimatePresence>
-        </ReactFlowProvider>
       </main>
       </div>
 

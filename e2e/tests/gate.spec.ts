@@ -61,7 +61,7 @@ test.describe("the approval gate", () => {
 
     // The invariant: proposing is not doing. Nothing exists yet, anywhere.
     await expect(sidebarProject(page, PROPOSED_ID)).toHaveCount(0);
-    await expect(page.locator(`.react-flow__node[data-id="${PROPOSED_ID}"]`)).toHaveCount(0);
+    await expect(page.locator(`[data-planet="${PROPOSED_ID}"]`)).toHaveCount(0);
     await expect(page.getByText(/operator approved/)).toHaveCount(0);
   });
 
@@ -73,7 +73,7 @@ test.describe("the approval gate", () => {
     await expect(page.getByText("dismissed by operator")).toBeVisible();
     await expect(page.getByRole("button", { name: /^Approve create_project/ })).toHaveCount(0);
     await expect(sidebarProject(page, PROPOSED_ID)).toHaveCount(0);
-    await expect(page.locator(`.react-flow__node[data-id="${PROPOSED_ID}"]`)).toHaveCount(0);
+    await expect(page.locator(`[data-planet="${PROPOSED_ID}"]`)).toHaveCount(0);
     await expect(page.getByText(/operator approved/)).toHaveCount(0);
   });
 
@@ -90,7 +90,7 @@ test.describe("the approval gate", () => {
     // …and on the constellation, which is a separate code path (React Flow's
     // node list is seeded once and only appended to).
     await page.getByRole("button", { name: "constellation" }).click();
-    await expect(page.locator(`.react-flow__node[data-id="${PROPOSED_ID}"]`)).toHaveCount(1);
+    await expect(page.locator(`[data-planet="${PROPOSED_ID}"]`)).toHaveCount(1);
   });
 
   test("an approved card stays approved across a reload", async ({ page }) => {

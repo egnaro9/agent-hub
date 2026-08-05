@@ -119,7 +119,7 @@ test.describe("the live tool path", () => {
     await expect(sidebarProject(page, PROPOSED_ID)).toHaveCount(0);
     await expect(page.getByText(OPS_LINE)).toHaveCount(0);
     await page.getByRole("button", { name: "constellation" }).click();
-    await expect(page.locator(`.react-flow__node[data-id="${PROPOSED_ID}"]`)).toHaveCount(0);
+    await expect(page.locator(`[data-planet="${PROPOSED_ID}"]`)).toHaveCount(0);
 
     // The gate is also enforced back at the protocol boundary: the model was
     // told the call was gated and NOT executed, so it cannot claim otherwise.
@@ -147,7 +147,7 @@ test.describe("the live tool path", () => {
     await expect(page.getByRole("button", { name: /^Approve create_project/ })).toHaveCount(0);
 
     await page.getByRole("button", { name: "constellation" }).click();
-    await expect(page.locator(`.react-flow__node[data-id="${PROPOSED_ID}"]`)).toHaveCount(1);
+    await expect(page.locator(`[data-planet="${PROPOSED_ID}"]`)).toHaveCount(1);
   });
 
   test("a resolved card cannot be approved twice", async ({ context, page }) => {

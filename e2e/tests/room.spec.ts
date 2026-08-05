@@ -87,6 +87,6 @@ test.describe("room membership and the map agree", () => {
     // The constellation's own rendering, not just the store: the project card
     // carries a crew avatar titled for the agent working there.
     await page.getByRole("button", { name: "constellation" }).click();
-    await expect(page.locator('[title="Strat is working here"]').first()).toBeVisible();
+    await expect(page.locator('[title*="Strat is working here"]').first()).toBeVisible();
   });
 });

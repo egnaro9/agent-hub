@@ -50,13 +50,13 @@ test.describe("deep links and mode switching", () => {
 
     await page.getByRole("button", { name: "constellation" }).click();
     await expect(page).not.toHaveURL(/#\/p\//);
-    await expect(page.locator(".react-flow__pane")).toBeVisible();
+    await expect(page.getByTestId("galaxy")).toBeVisible();
   });
 
   test("an unknown project id in the hash leaves you on the constellation", async ({ page }) => {
     await gotoHub(page, "/#/p/no-such-project");
 
-    await expect(page.locator(".react-flow__pane")).toBeVisible();
+    await expect(page.getByTestId("galaxy")).toBeVisible();
     await expect(page.getByRole("button", { name: "+ summon agent" })).toBeDisabled();
     await expect(page.getByText(/^tasks ·/)).toHaveCount(0);
   });
@@ -114,33 +114,26 @@ test.describe("the text-size control", () => {
   });
 
   // THE RISK the scale actually carries. `zoom` rescales the coordinate space
-  // inside #root, so anything doing its own pointer math — the constellation
-  // is a full canvas of it — can land a click or a drag somewhere the operator
-  // did not aim. A scale that makes the console legible and the map unusable
-  // is not a fix. Proven at 110%, where every other spec runs at 100%.
-  test("clicks and drags still land where you aim them at 110%", async ({ page }) => {
+  // inside #root, so anything doing its own pointer math — the galaxy is a
+  // full canvas of it — can land a click somewhere the operator did not aim.
+  // A scale that makes the console legible and the map unusable is not a fix.
+  // Proven at 110%, where every other spec runs at 100%.
+  test("galaxy clicks and wheel-zoom still land where you aim them at 110%", async ({ page }) => {
     await gotoHub(page);
     await settleFlow(page);
     await page.getByTestId("ui-scale").click();
     await expect(page.getByTestId("ui-scale")).toHaveText(/text 110%/);
 
-    // A drag: the node must follow the hand, not a scaled fraction of it.
-    const node = page.locator('.react-flow__node[data-id="crashkit"]');
-    const before = await node.boundingBox();
-    if (!before) throw new Error("no crashkit node");
-    await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2);
-    await page.mouse.down();
-    await page.mouse.move(before.x + before.width / 2 + 120, before.y + before.height / 2 + 60, { steps: 12 });
-    await page.mouse.up();
-    await page.waitForTimeout(300);
-    const after = await node.boundingBox();
-    if (!after) throw new Error("node vanished mid-drag");
-    // Screen-space delta must match the hand's, within a few px of settling.
-    expect(Math.abs(after.x - before.x - 120)).toBeLessThan(12);
-    expect(Math.abs(after.y - before.y - 60)).toBeLessThan(12);
+    // Wheel over the canvas reaches the camera (coordinate space intact)…
+    const before = await page.getByTestId("galaxy").getAttribute("data-zoom");
+    const box = (await page.getByTestId("galaxy").boundingBox())!;
+    await page.mouse.move(box.x + box.width * 0.75, box.y + box.height * 0.8);
+    await page.mouse.wheel(0, -400);
+    await page.waitForTimeout(500);
+    expect(await page.getByTestId("galaxy").getAttribute("data-zoom")).not.toBe(before);
 
-    // And a click still opens what is under the cursor.
-    await node.click();
+    // …and a planet click still opens exactly what was under the cursor.
+    await page.locator('[data-planet="crashkit"]').click();
     await expect(page).toHaveURL(/#\/p\/crashkit/);
   });
 });

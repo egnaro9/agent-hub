@@ -33,28 +33,29 @@ export const SECTIONS: Section[] = [
   {
     id: "around",
     label: "getting around",
-    blurb: "The constellation, the lock, the two project modes, and the URL.",
+    blurb: "The galaxy, the lock, the two project modes, and the URL.",
     entries: [
       {
-        title: "the constellation",
-        what: "One canvas holding every project card and every agent card. It is the default view.",
-        how: "Drag empty space to pan. Trackpad scroll or pinch to zoom. Double-click zooms in. Drag a card to move it. The cluster at bottom right is − / + / ⤢ fit-all.",
+        title: "the galaxy",
+        what:
+          "The default view: every project is a planet — sized by weight, surfaced by what it is (gas bands, craters, ice, an ember world, city lights, one twin) — arranged in thematic clusters on orbital rings. Agents are moons orbiting the project their assignment names; related projects are joined by energy filaments.",
+        how: "Drag to pan, scroll or pinch to zoom. Click a planet (or its label) to enter it. Bottom right: − / + / ⤢ fit, ◐ idle drift, 3D for the immersive mode, and the lock.",
         gotcha:
-          "It never unmounts. Entering a project hides it, so your camera and any card you moved are exactly where you left them when you come back — and card positions survive a reload.",
+          "It never unmounts — your camera survives a trip into a project. Planets ride fixed cluster rings now, so there is nothing to drag out of place; the idle camera drifts until you touch anything, and ◐ turns that back on.",
       },
       {
         title: "🔓 lock",
         what:
-          "Turns off scroll-zoom, pinch-zoom, double-click-zoom and card dragging on the main pane. The chip turns amber and reads 🔒 locked.",
-        how: "Click it in the bottom-right cluster. Click again to unlock.",
+          "Freezes the zoom: wheel, pinch, and the − / + buttons all stop moving the camera. The HUD button turns amber and reads 🔒.",
+        how: "Click 🔓 in the bottom-right cluster. Click again to unlock.",
         gotcha:
-          "It does not freeze the map. Drag-to-pan stays live, the − / + / ⤢ buttons keep working, and the minimap is still pan-and-zoom — the lock covers the main pane only.",
+          "It does not freeze the map. Drag-to-pan and the idle drift stay live — the lock covers zoom only: wheel, pinch, and the − / + buttons all go quiet until you unlock.",
       },
       {
         title: "entering and leaving a project",
         what: "A project card opens that project's stage. The breadcrumb walks back.",
         how:
-          "Click a card, or Tab to it and press Enter or Space. To leave: press Escape, or click `constellation` at the top left.",
+          "Click a planet, or Tab to its label and press Enter or Space. To leave: press Escape, or click `constellation` at the top left.",
         gotcha:
           "Escape pressed inside a text field blurs the field instead of navigating, so leaving from the room composer takes two presses.",
       },
@@ -118,11 +119,11 @@ export const SECTIONS: Section[] = [
       },
       {
         title: "summoning",
-        what: "Brings an agent into the room and assigns them to the project, which draws a work edge on the constellation.",
+        what: "Brings an agent into the room and assigns them to the project — its moon starts orbiting that planet on the galaxy.",
         how:
           "Three ways: `+ summon agent` in the top bar, a dashed-outline avatar in the room header, or an @mention.",
         gotcha:
-          "`+ summon agent` is disabled while you are on the constellation, and also once every in-scope agent is already on the project.",
+          "`+ summon agent` is disabled while you are on the galaxy, and also once every in-scope agent is already on the project.",
       },
       {
         title: "releasing",
@@ -137,14 +138,14 @@ export const SECTIONS: Section[] = [
         what: "Five agents are global. Probe lives in model-drift and Porter lives in tapdodge-engine.",
         how: "Nothing to set — scope is fixed in the seed data. Scoped agents carry a `scoped` chip in the sidebar.",
         gotcha:
-          "The sidebar only lists an agent whose scope matches where you are, so Probe and Porter are invisible in the sidebar (and unfindable by search) while you are on the constellation, even though their cards are right there on the canvas. A scoped agent is already in their home room the first time you open it.",
+          "The sidebar only lists an agent whose scope matches where you are, so Probe and Porter are invisible in the sidebar (and unfindable by search) while you are on the galaxy, even though their moons are right there in orbit. A scoped agent is already in their home room the first time you open it.",
       },
       {
         title: "DMs",
         what: "A one-on-one drawer with a single agent, scoped to that agent's assigned project if they have one.",
         how: "Click an agent row in the sidebar, or `chat` on an agent card. Escape closes it.",
         gotcha:
-          "Agents have no tools in a DM — the tool loop only runs on the room path. Opening a DM from the constellation also flies the camera to that agent.",
+          "Agents have no tools in a DM — the tool loop only runs on the room path.",
       },
       {
         title: "the roundtable tray",
@@ -155,7 +156,7 @@ export const SECTIONS: Section[] = [
       },
       {
         title: "two commands that need no key",
-        what: "`new project: <name>` mints a real node in the constellation immediately. In #harness-builder, `run the sweep` replays a recorded sweep, refusal and all.",
+        what: "`new project: <name>` mints a real planet in the galaxy immediately — it lands in the `founded` cluster. In #harness-builder, `run the sweep` replays a recorded sweep, refusal and all.",
         how: "Type either into any room composer.",
         gotcha:
           "Both run before the live-brain path, so `run the sweep` never reaches a model even with a key connected. Names are slugified, and a collision with an existing project or agent id is refused. Note the asymmetry with the gate: you typing `new project:` creates it outright, while an agent asking for the same thing only gets a proposal card.",
