@@ -163,6 +163,8 @@ interface HubState {
    */
   planetRequest: { id: string; seq: number } | null;
   requestPlanet: (id: string) => void;
+  /** Put a repo file's contents into a room, for the operator AND the agents. */
+  readFileIntoRoom: (projectId: string, path: string) => Promise<void>;
   createProject: (name: string) => string;
   hydrateActivity: (projectId: string) => Promise<void>;
   /** The WORK panel's tree + issues, per project. Never persisted — a session's cache is enough. */
@@ -402,6 +404,33 @@ export const useHub = create<HubState>()(
   focusRequest: null,
   planetRequest: null,
   requestPlanet: (id) => set({ planetRequest: { id, seq: Math.random() } }),
+
+  // The files card was a listing you could not act on. Reading one INTO the
+  // room costs no model call — it is a fetch and a message — and because the
+  // transcript IS the agents' context, afterwards everyone is reading the same
+  // bytes. Capped, and it says so when it truncates: a silently clipped file
+  // would have agents reasoning about an ending that is not there.
+  readFileIntoRoom: async (projectId, path) => {
+    const push = (text: string) =>
+      set((s) => {
+        const ch = s.channels[projectId];
+        if (!ch) return {};
+        return { channels: { ...s.channels, [projectId]: { ...ch, messages: [...ch.messages, { id: nextId(), from: "ops", text }] } } };
+      });
+    push(`Reading ${path} from the repo…`);
+    try {
+      const body = await readRepoFile(projectId, path);
+      const CAP = 4000;
+      const clipped = body.length > CAP;
+      push(
+        `${path} — ${body.length} characters${clipped ? `, showing the first ${CAP}` : ""}\n\n` +
+          "```\n" + body.slice(0, CAP) + "\n```" +
+          (clipped ? `\n\n(truncated — the rest is on GitHub)` : "")
+      );
+    } catch (e) {
+      push(`⚠ could not read ${path}: ${String(e).slice(0, 160)}`);
+    }
+  },
 
   // Agents can act on the hub: a chat command mints a real project node.
   createProject: (name) => {

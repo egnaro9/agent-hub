@@ -133,7 +133,17 @@ const fmtSize = (bytes: number | null): string => {
   return `${(bytes / 1_048_576).toFixed(1)} MB`;
 };
 
-function FilesCard({ work, hue }: { work: RepoWork | undefined; hue: string }) {
+function FilesCard({
+  work,
+  hue,
+  repo,
+  onRead,
+}: {
+  work: RepoWork | undefined;
+  hue: string;
+  repo: string;
+  onRead: (path: string) => void;
+}) {
   // `undefined` is "the fetch hasn't reported yet", same as "loading" — the
   // effect below fires it, and until it answers this card claims nothing.
   if (!work || work.phase === "loading")
@@ -156,7 +166,7 @@ function FilesCard({ work, hue }: { work: RepoWork | undefined; hue: string }) {
         <CardHead label="files" source="repo root · github" tone="live" />
         <ul className="mt-2.5 space-y-2">
           {tree.items.map((e) => (
-            <li key={e.name} className="flex items-center gap-2.5 text-[11.5px] text-slate-300">
+            <li key={e.name} className="group flex items-center gap-2.5 text-[11.5px] text-slate-300">
               {/* A directory reads differently from a file three ways over — the
                   badge is the project's hue rather than grey, the name carries a
                   trailing slash, and the size column is blank because GitHub
@@ -171,10 +181,34 @@ function FilesCard({ work, hue }: { work: RepoWork | undefined; hue: string }) {
               >
                 {e.kind}
               </span>
-              <span className={`mono min-w-0 flex-1 truncate ${e.kind === "dir" ? "text-slate-200" : ""}`}>
+              {/* The listing was inert: nothing here linked anywhere, so it
+                  told you a repo has a docs/ folder and stopped. A row is now
+                  the thing it names — GitHub's own view of it. */}
+              <a
+                href={`https://github.com/egnaro9/${repo}/${e.kind === "dir" ? "tree" : "blob"}/main/${encodeURI(e.name)}`}
+                target="_blank"
+                rel="noreferrer noopener"
+                title={`Open ${e.name} on GitHub`}
+                aria-label={`Open ${e.name} on GitHub`}
+                className={`mono min-w-0 flex-1 truncate hover:underline ${e.kind === "dir" ? "text-slate-200" : ""}`}
+              >
                 {e.name}
                 {e.kind === "dir" ? "/" : ""}
-              </span>
+              </a>
+              {/* Reading a file INTO the room puts it in front of you and the
+                  agents at once — the transcript is their context, so after
+                  this they are reading the same bytes you are, without anyone
+                  spending a model call to fetch it. */}
+              {e.kind === "file" && (
+                <button
+                  onClick={() => onRead(e.name)}
+                  title={`Read ${e.name} into the room`}
+                  aria-label={`Read ${e.name} into the room`}
+                  className="mono flex-none cursor-pointer rounded border border-white/10 px-1.5 py-px text-[8px] tracking-wider text-slate-500 uppercase opacity-0 transition group-hover:opacity-100 hover:border-teal-300/40 hover:text-teal-200 focus-visible:opacity-100"
+                >
+                  ▸ room
+                </button>
+              )}
               <span className="mono flex-none text-[9px] text-slate-600">{fmtSize(e.size)}</span>
             </li>
           ))}
@@ -205,7 +239,7 @@ function FilesCard({ work, hue }: { work: RepoWork | undefined; hue: string }) {
   );
 }
 
-function TasksCard({ work, commits }: { work: RepoWork | undefined; commits: string[] | undefined }) {
+function TasksCard({ work, commits, repo }: { work: RepoWork | undefined; commits: string[] | undefined; repo: string }) {
   if (!work || work.phase === "loading")
     return (
       <WorkCard>
@@ -234,7 +268,16 @@ function TasksCard({ work, commits }: { work: RepoWork | undefined; commits: str
           {issues.items.map((i) => (
             <li key={i.number} className="flex items-start gap-2.5 text-[12px] leading-snug text-slate-300">
               <span className="mono mt-px flex-none text-[10.5px] text-slate-600">#{i.number}</span>
-              <span className="min-w-0 flex-1">{i.title}</span>
+              <a
+                href={`https://github.com/egnaro9/${repo}/issues/${i.number}`}
+                target="_blank"
+                rel="noreferrer noopener"
+                title={`Open issue #${i.number} on GitHub`}
+                aria-label={`Open issue #${i.number} on GitHub`}
+                className="min-w-0 flex-1 hover:underline"
+              >
+                {i.title}
+              </a>
               {/* age is "" when GitHub gave no created_at — no bare separator */}
               {i.age && <span className="mono mt-px flex-none text-[9px] text-slate-600">{i.age}</span>}
             </li>
@@ -263,7 +306,18 @@ function TasksCard({ work, commits }: { work: RepoWork | undefined; commits: str
           {commits.map((c, i) => (
             <li key={i} className="mono flex gap-2.5 text-[11.5px] leading-relaxed text-slate-300">
               <span className="mt-1.5 h-1.5 w-1.5 flex-none rounded-full bg-slate-500" />
-              <span className="min-w-0 flex-1">{c}</span>
+              {/* The feed carries messages, not SHAs, so this links to the
+                  commit LIST rather than pretending to address one commit. */}
+              <a
+                href={`https://github.com/egnaro9/${repo}/commits/main`}
+                target="_blank"
+                rel="noreferrer noopener"
+                title="Open this repo's commits on GitHub"
+                aria-label="Open this repo's commits on GitHub"
+                className="min-w-0 flex-1 hover:underline"
+              >
+                {c}
+              </a>
             </li>
           ))}
         </ul>
@@ -416,6 +470,7 @@ export default function ProjectStage({ projectId }: { projectId: string }) {
   const unassign = useHub((s) => s.unassign);
   const repoWork = useHub((s) => s.repoWork[projectId]);
   const commitsArmed = useHub((s) => s.commitsArmed);
+  const readFileIntoRoom = useHub((s) => s.readFileIntoRoom);
   const wk = useChrome();
   const hydrateWork = useHub((s) => s.hydrateWork);
 
@@ -594,12 +649,12 @@ export default function ProjectStage({ projectId }: { projectId: string }) {
                   <div className="flex max-h-[300px] min-h-0 flex-none flex-col gap-3 sm:max-h-[230px] sm:flex-row sm:gap-4">
                     {wk.wkTasks && (
                       <Open label="tasks" k="wkTasks">
-                        <TasksCard work={repoWork} commits={project.liveActivity} />
+                        <TasksCard work={repoWork} commits={project.liveActivity} repo={projectId} />
                       </Open>
                     )}
                     {wk.wkFiles && (
                       <Open label="files" k="wkFiles">
-                        <FilesCard work={repoWork} hue={project.hue} />
+                        <FilesCard work={repoWork} hue={project.hue} repo={projectId} onRead={(path) => void readFileIntoRoom(projectId, path)} />
                       </Open>
                     )}
                     {gateVis && wk.wkGate && (
