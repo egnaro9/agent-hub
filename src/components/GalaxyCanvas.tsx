@@ -30,6 +30,9 @@ import type { Agent, Project } from "../types";
    ═══════════════════════════════════════════════════════════════════════════ */
 
 const TAU = Math.PI * 2;
+// Below this canvas width there is no room to stage a planet beside its card,
+// so the arrival stays centred and the card floats over the world.
+const SIDE_MIN_W = 700;
 const LIGHT = { x: -0.62, y: -0.72 };
 const HOME = { x: 360, y: 190, z: 0.4 };
 
@@ -174,7 +177,7 @@ function bakeStars(count: number, rMax: number, alpha: number) {
 
 interface Sprite { c: HTMLCanvasElement; e: HTMLCanvasElement; S: number; R: number }
 
-function bakePlanet(id: string, hue: string, kind: Kind, radius: number): Sprite {
+function bakePlanet(id: string, hue: string, kind: Kind, radius: number, phase = 0): Sprite {
   seed = idSeed(id);
   const R = radius * 2.2, PAD = Math.ceil(R * 0.55), S = Math.ceil((R + PAD) * 2);
   // Sprites bake at 2× and draw downscaled: the arrival zoom (2.2) otherwise
@@ -214,7 +217,7 @@ function bakePlanet(id: string, hue: string, kind: Kind, radius: number): Sprite
     // Eighteen individual worlds — each surface derived from what the project
     // IS (see planets.ts). The archetype switch below only serves projects
     // minted at runtime, which have no story yet.
-    bespoke({ g, ge, cx: cx0, cy: cy0, R, hue, rnd, fbm, rgba, mix, LIGHT, TAU });
+    bespoke({ g, ge, cx: cx0, cy: cy0, R, hue, rnd, fbm, rgba, mix, LIGHT, TAU, phase });
   } else if (kind === "gas") {
     const bands = 6 + Math.floor(rnd() * 7), warm = rnd() < 0.4;
     for (let y = -R; y < R; y += 1.3) {
@@ -560,6 +563,23 @@ export default function GalaxyCanvas() {
       g.putImageData(img, 0, 0);
       return c;
     })();
+    // Tinted glow sprites for the per-world vital signs, baked on first use.
+    const glowCache = new Map<string, HTMLCanvasElement>();
+    const glowFor = (col: string) => {
+      let c = glowCache.get(col);
+      if (c) return c;
+      c = document.createElement("canvas");
+      c.width = c.height = 96;
+      const g2 = c.getContext("2d")!;
+      const grad = g2.createRadialGradient(48, 48, 0, 48, 48, 48);
+      grad.addColorStop(0, rgba(mix(col, "#ffffff", 0.55), 1));
+      grad.addColorStop(0.45, rgba(col, 0.35));
+      grad.addColorStop(1, rgba(col, 0));
+      g2.fillStyle = grad;
+      g2.beginPath(); g2.arc(48, 48, 48, 0, TAU); g2.fill();
+      glowCache.set(col, c);
+      return c;
+    };
     const em = document.createElement("canvas"), ex = em.getContext("2d")!;
     const bl1 = document.createElement("canvas"), b1 = bl1.getContext("2d")!;
     const bl2 = document.createElement("canvas"), b2 = bl2.getContext("2d")!;
@@ -574,6 +594,7 @@ export default function GalaxyCanvas() {
       em.width = W; em.height = H;
       bl1.width = W >> 1 || 1; bl1.height = H >> 1 || 1;
       bl2.width = W >> 2 || 1; bl2.height = H >> 2 || 1;
+      host.dataset.arrive = W >= SIDE_MIN_W ? "side" : "center";
     };
     sizeAll();
     // Re-framing on resize is declared after the fit solvers exist; this
@@ -706,6 +727,33 @@ export default function GalaxyCanvas() {
       }
       return { target, dist };
     };
+
+    // THE HERO SPIN. A world only turns while it is the one on stage: at map
+    // size a rotating surface is invisible (planets run 20-40px), and re-baking
+    // eighteen sprites a frame would be absurd for detail nobody can resolve.
+    // One planet, re-baked on a fixed cadence with an advancing longitude, is
+    // affordable — and at arrival size it is the whole point of the trip.
+    let heroId: string | null = null;
+    let heroSprite: Sprite | null = null;
+    let heroPhase = 0;
+    let heroTick = 0;
+    const HERO_EVERY = 3;      // frames between re-bakes — 20 steps/sec, and
+                               // slow rotation reads smooth well below 60
+    const HERO_SPEED = 0.0018; // radians per frame: one full turn in ~58s
+    const spinHero = (id: string | null) => {
+      if (!id) { heroId = null; heroSprite = null; return; }
+      if (id !== heroId) { heroId = id; heroPhase = 0; heroSprite = null; }
+      if (heroTick++ % HERO_EVERY) return;
+      heroPhase += HERO_SPEED * HERO_EVERY;
+      const p2 = useHub.getState().projects.find((pp) => pp.id === id);
+      const n = nodes.get(id);
+      if (!p2 || !n) return;
+      const kind = KIND_OF[id] ?? FALLBACK_KINDS[idSeed(id) % FALLBACK_KINDS.length];
+      const crew = Object.values(useHub.getState().assignments).filter((pid) => pid === id).length;
+      heroSprite = bakePlanet(id, p2.hue, kind, radiusOf(id, crew), heroPhase);
+    };
+    /** The sprite to draw for a planet: the spinning one if it is on stage. */
+    const spriteFor = (id: string) => (id === heroId && heroSprite ? heroSprite : sprites.get(id)!);
 
     // The fitted frame is also the DRIFT's home — the idle cruise has to orbit
     // where the system actually is, not a constant from a past viewport.
@@ -925,7 +973,7 @@ export default function GalaxyCanvas() {
       drawMoons(agents, "back");
       const order = [...nodes.entries()].sort((a, b) => a[1].z - b[1].z);
       order.forEach(([id, n]) => {
-        const sp = sprites.get(id)!;
+        const sp = spriteFor(id);
         const p = useHub.getState().projects.find((pp) => pp.id === id)!;
         const [sx, syRaw] = w2s(n.x, n.y, 0.88 + n.z * 0.12);
         const bob = reduced ? 0 : Math.sin(t * 0.12 + n.x * 0.01) * 2.2 * n.z;
@@ -971,7 +1019,7 @@ export default function GalaxyCanvas() {
       });
       ex.globalCompositeOperation = "source-over";
       nodes.forEach((n, id) => {
-        const sp = sprites.get(id)!;
+        const sp = spriteFor(id);
         const p = useHub.getState().projects.find((pp) => pp.id === id)!;
         const [sx, syRaw] = w2s(n.x, n.y, 0.88 + n.z * 0.12);
         const bob = reduced ? 0 : Math.sin(t * 0.12 + n.x * 0.01) * 2.2 * n.z;
@@ -1014,6 +1062,148 @@ export default function GalaxyCanvas() {
         g.addColorStop(1, rgba(ag.color, 0));
         ex.fillStyle = g; ex.beginPath(); ex.arc(m.x, m.y, 11 * cam.z + 5, 0, TAU); ex.fill();
       });
+      // ── VITAL SIGNS ────────────────────────────────────────────────────
+      // What a 30px disc can express is BRIGHTNESS, not texture — so each
+      // world's motion at map distance is a light event, and the event is
+      // what the project does. The harness runs its loop, gradecore cuts its
+      // record, crashkit fractures, the gateway meters traffic. These draw on
+      // the emissive layer at screen scale, so they cost a few paths each and
+      // no re-bake at all.
+      nodes.forEach((n, id) => {
+        const sp = spriteFor(id);
+        const [sx, syRaw] = w2s(n.x, n.y, 0.88 + n.z * 0.12);
+        const sy = syRaw + (reduced ? 0 : Math.sin(t * 0.12 + n.x * 0.01) * 2.2 * n.z);
+        const R = sp.R * cam.z * n.z;
+        if (R < 3 || sx < -R * 3 || sx > W + R * 3 || sy < -R * 3 || sy > H + R * 3) return;
+        const hue = useHub.getState().projects.find((pp) => pp.id === id)?.hue ?? "#60a5fa";
+        const beat = reduced ? 0.5 : undefined;
+        // One cached glow per colour, drawn as an image. Building a radial
+        // gradient per dot per frame cost 28fps across eighteen worlds — the
+        // gradient is the expensive part, and it never changes.
+        const dot = (dx: number, dy: number, r: number, a: number, col = hue) => {
+          if (a <= 0.01 || r <= 0) return;
+          ex.globalAlpha = Math.min(1, a);
+          ex.drawImage(glowFor(col), sx + dx - r, sy + dy - r, r * 2, r * 2);
+          ex.globalAlpha = 1;
+        };
+        // a slow, per-world breath under everything — nothing sits perfectly still
+        const idle = beat ?? 0.5 + 0.5 * Math.sin(t * 0.7 + idSeed(id) % 100);
+        switch (id) {
+          case "agentic-dev-harness": {
+            // the five-stage loop, running: each ring lights in turn
+            const stage = beat !== undefined ? 0 : (t * 0.9) % 5;
+            for (let k = 0; k < 5; k++) {
+              const near = 1 - Math.min(1, Math.abs(((stage - k + 5.5) % 5) - 0.5) * 1.6);
+              dot(0, 0, R * (0.45 + k * 0.16), 0.06 + near * 0.3, "#ffca7a");
+            }
+            break;
+          }
+          case "gradecore": {
+            // the scribe head travelling the record ring, cutting
+            const a = (t * 0.55) % TAU;
+            dot(Math.cos(a) * R * 0.92, Math.sin(a) * R * 0.2, R * 0.5, 0.5, "#ffe1a0");
+            break;
+          }
+          case "crashkit": {
+            // fracture events: irregular flares, not a metronome
+            const f = Math.max(0, Math.sin(t * 1.6) * Math.sin(t * 0.43 + 1.1));
+            dot(0, 0, R * 1.5, 0.1 + f * 0.55, "#ff9a5a");
+            break;
+          }
+          case "model-drift": {
+            // the probe pacing its survey line
+            const u = (t * 0.22) % 1;
+            dot((u - 0.5) * R * 1.7, -R * 0.62, R * 0.42, 0.55, "#cfe4ff");
+            break;
+          }
+          case "eval-dashboard": {
+            // the live tile, reporting
+            dot(R * 0.1, R * 0.05, R * 0.6, 0.2 + 0.45 * Math.max(0, Math.sin(t * 2.1)), "#8dfff0");
+            break;
+          }
+          case "evals-differential-oracle": {
+            // two verdicts disagreeing, alternately
+            const odd = Math.sin(t * 1.5) > 0;
+            dot(odd ? -R * 0.45 : R * 0.45, -R * 0.2, R * 0.5, 0.5, "#ffc478");
+            break;
+          }
+          case "llm-gateway": {
+            // caravans metering through the toll arch
+            for (let k = 0; k < 3; k++) {
+              const u = ((t * 0.3 + k / 3) % 1);
+              dot((u - 0.5) * R * 1.8, R * 0.05, R * 0.3, (1 - Math.abs(u - 0.5) * 2) * 0.5, "#c9ffe4");
+            }
+            break;
+          }
+          case "cast-pipeline": {
+            // the projector advancing a frame, with the flicker of a lamp
+            const fl = 0.35 + 0.5 * Math.abs(Math.sin(t * 3.1));
+            dot(0, -R * 0.15, R * 0.55, fl * 0.55, "#fff3cf");
+            break;
+          }
+          case "match3-engine": {
+            // a match landing, then the board settling
+            const c = (t * 0.5) % 1;
+            dot(0, 0, R * (0.5 + c * 1.1), Math.max(0, 0.6 - c * 0.6), "#ffd76a");
+            break;
+          }
+          case "pi-gates": {
+            // watch-fires along the curtain wall
+            for (let k = 0; k < 3; k++)
+              dot((k - 1) * R * 0.55, R * 0.15, R * 0.32, 0.25 + 0.3 * Math.max(0, Math.sin(t * 2.3 + k * 2.1)), "#ffc482");
+            break;
+          }
+          case "agent-graph": {
+            // packets crossing the web
+            for (let k = 0; k < 2; k++) {
+              const u = (t * 0.4 + k * 0.5) % 1;
+              dot((u - 0.5) * R * 1.5, (0.5 - u) * R * 0.9, R * 0.3, 0.45, "#dcecff");
+            }
+            break;
+          }
+          case "tapdodge-engine": {
+            // a run, start to finish, over and over
+            const u = (t * 0.35) % 1;
+            dot(R * 0.25, (u - 0.5) * R * 1.6, R * 0.34, 0.5, "#eaf6ff");
+            break;
+          }
+          case "rag-eval-lab": {
+            // the lighthouse sweeping
+            const a = (t * 0.5) % TAU;
+            dot(Math.cos(a) * R * 0.5, Math.sin(a) * R * 0.5, R * 0.55, 0.18 + 0.35 * Math.max(0, Math.cos(a)), "#fff5cc");
+            break;
+          }
+          case "prompt-regress": {
+            // the breach, still warm; gates holding steady
+            dot(R * 0.15, -R * 0.3, R * 0.5, 0.2 + 0.4 * (0.5 + 0.5 * Math.sin(t * 1.2)), "#ffb078");
+            break;
+          }
+          case "harness-builder": {
+            // the storm turning under its survey
+            const a = (t * 0.35) % TAU;
+            dot(Math.cos(a) * R * 0.3, Math.sin(a) * R * 0.18, R * 0.5, 0.35, "#fff0cd");
+            break;
+          }
+          case "eval-history": {
+            // the amber seam, breathing slowly — the run that still matters
+            dot(0, R * 0.1, R * 0.7, 0.12 + 0.28 * idle, "#ffc46b");
+            break;
+          }
+          case "pi-eval": {
+            // the observatory's open dome, tracking
+            dot(R * 0.3, -R * 0.1, R * 0.36, 0.2 + 0.4 * idle, "#dfeaff");
+            break;
+          }
+          case "mcp-tools": {
+            // the open bay's beacon
+            dot(-R * 0.1, R * 0.05, R * 0.42, 0.18 + 0.4 * Math.max(0, Math.sin(t * 1.7)), "#b8f0ff");
+            break;
+          }
+          default:
+            dot(0, 0, R * 0.9, 0.08 + 0.16 * idle);
+        }
+      });
+
       HEROES.forEach((hs) => {
         const [sx, sy] = w2s(hs.x, hs.y, hs.p);
         if (sx < -60 || sx > W + 60 || sy < -60 || sy > H + 60) return;
@@ -1169,7 +1359,7 @@ export default function GalaxyCanvas() {
       items.sort((p, q) => q.pr.depth - p.pr.depth);
       items.forEach((it) => {
         if (it.kind === "planet") {
-          const sp = sprites.get(it.id)!;
+          const sp = spriteFor(it.id);
           const p = useHub.getState().projects.find((pp) => pp.id === it.id)!;
           const d = sp.S * it.pr.s * 2.1;
           const R = sp.R * it.pr.s * 2.1;
@@ -1232,6 +1422,7 @@ export default function GalaxyCanvas() {
         cam3.pitch += (cam3.tpitch - cam3.pitch) * 0.08;
         cam3.dist += (cam3.tdist - cam3.dist) * 0.07;
         (["x", "y", "z"] as const).forEach((ax) => { cam3.target[ax] += (cam3.ttarget[ax] - cam3.target[ax]) * 0.06; });
+        spinHero(currentRef.current);
         draw3D(agents);
       } else {
         if (driftOn && !reduced && (!hoverPause || idle)) {
@@ -1249,6 +1440,7 @@ export default function GalaxyCanvas() {
         if (Math.abs(cam.tx - cam.x) < 0.5) cam.x = cam.tx;
         if (Math.abs(cam.ty - cam.y) < 0.5) cam.y = cam.ty;
         if (Math.abs(cam.tz - cam.z) < 0.0005) cam.z = cam.tz;
+        spinHero(currentRef.current);
         drawScene(t, agents);
         drawEmissive(t, agents);
         bloom(); post();
@@ -1393,21 +1585,45 @@ export default function GalaxyCanvas() {
     void hudZi;
 
     let arriveTimer: ReturnType<typeof setTimeout> | null = null;
+    // THE ARRIVAL IS COMPOSED, not centred. With the card centred it covered
+    // the very planet the trip was for. On a wide canvas the world takes the
+    // left third at a consistent hero size and the card takes the right; on a
+    // narrow one there is no room to stage that, so it stays centred and the
+    // card floats over it as before.
+    const arriveSide = () => W >= SIDE_MIN_W;
+    const heroFrame = (id: string) => {
+      const sp = sprites.get(id)!, n = nodes.get(id)!;
+      // every world arrives the same visual size — a small planet is not a
+      // lesser event than a big one, it just has less mass in the system
+      const heroR = Math.min(W, H) * (arriveSide() ? 0.175 : 0.16);
+      const z = Math.max(0.9, Math.min(3.1, heroR / Math.max(1, sp.R * n.z)));
+      const tx = arriveSide() ? W * 0.25 : W * 0.5;
+      const ty = arriveSide() ? H * 0.5 : H * 0.42;
+      return { z, tx, ty };
+    };
+
     flyRef.current = (id: string) => {
       const n = nodes.get(id);
       if (!n) return;
       setArrival(null); // swapping: the old card leaves before the new lands
       driftOn = false;
+      const { z, tx, ty } = heroFrame(id);
       if (mode === "3d") {
         const pp = pos3(id);
-        cam3.ttarget = { ...pp };
-        cam3.tdist = 470;
+        const dist = 470;
+        // slide the aim along the camera's own right axis so the body lands in
+        // the left third — the same composition the flat map gets
+        const off = (W / 2 - tx) * dist / F3;
+        cam3.ttarget = { x: pp.x + Math.cos(cam3.tyaw) * off, y: pp.y, z: pp.z - Math.sin(cam3.tyaw) * off };
+        cam3.tdist = dist;
       } else {
         // Planets render through a parallax factor; aim the camera at the
-        // point that puts THIS planet at screen center, not at the raw world
-        // coordinate — the difference is (1-p)·x, dozens of px out at the rim.
+        // point that puts THIS planet where the composition wants it, not at
+        // the raw world coordinate — the difference is (1-p)·x, dozens of px.
         const par = 0.88 + n.z * 0.12;
-        cam.tx = n.x / par; cam.ty = n.y / par; cam.tz = 2.2;
+        cam.tz = z;
+        cam.tx = (n.x - (tx - W / 2) / z) / par;
+        cam.ty = (n.y - (ty - H / 2) / z) / par;
       }
       setFlying(id);
       if (arriveTimer) clearTimeout(arriveTimer);
@@ -1478,20 +1694,24 @@ export default function GalaxyCanvas() {
 
   return (
     <div ref={hostRef} data-testid="galaxy" className="relative h-full w-full overflow-hidden select-none">
-      <div className={`absolute inset-0 transition-[filter] duration-700 ${flying ? "blur-[4px] brightness-[.58] saturate-[1.15]" : ""}`}>
+      {/* Arrival: the sky stays legible on purpose. The planet you flew to is
+          the whole reason for the trip, and the card is translucent — heavy
+          blur was hiding the one moment a world renders large. A light dim is
+          all the separation the card needs. */}
+      <div className={`absolute inset-0 transition-[filter] duration-700 ${flying ? "blur-[0.5px] brightness-[.82] saturate-[1.1]" : ""}`}>
         <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
         <div ref={labelsRef} className="pointer-events-none absolute inset-0 overflow-hidden" />
       </div>
       {/* vignette that deepens during the fly */}
       <div
         className={`pointer-events-none absolute inset-0 transition-opacity duration-700 ${flying ? "opacity-100" : "opacity-0"}`}
-        style={{ background: "radial-gradient(ellipse at 50% 44%, transparent 28%, rgba(2,4,10,.55) 66%, rgba(2,4,10,.95) 100%)" }}
+        style={{ background: "radial-gradient(ellipse at 50% 44%, transparent 40%, rgba(2,4,10,.34) 72%, rgba(2,4,10,.82) 100%)" }}
       />
       {/* arrival card — the mock flow Erik asked back: planet → card → mode */}
       {arrival && arrivalProject && (
         <div
           data-testid="arrival-scrim"
-          className="absolute inset-0 z-30 grid place-items-center"
+          className="gal-scrim absolute inset-0 z-30 flex items-center"
           onClick={() => returnRef.current()}
         >
           <div
@@ -1499,7 +1719,7 @@ export default function GalaxyCanvas() {
             role="dialog"
             aria-label={`${arrivalProject.name} — choose a mode`}
             onClick={(e) => e.stopPropagation()}
-            className="glass w-[min(640px,86vw)] overflow-hidden rounded-2xl"
+            className="gal-card glass w-[min(640px,86vw)] overflow-hidden rounded-2xl"
             style={{ animation: "gal-arrive .45s cubic-bezier(.2,.8,.2,1)" }}
           >
             <div className="h-[3px]" style={{ background: `linear-gradient(90deg, transparent, ${arrivalProject.hue}, transparent)` }} />

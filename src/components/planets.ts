@@ -29,6 +29,10 @@ export interface PaintCtx {
   mix: (h1: string, h2: string, k: number) => string;
   LIGHT: { x: number; y: number };
   TAU: number;
+  /** Rotation about the world's own axis, in radians. Every painter works in
+      latitude/longitude through the sphere kit, so a turning world is this
+      one number — not a second art pass. */
+  phase: number;
 }
 
 type Painter = (p: PaintCtx) => void;
@@ -41,6 +45,11 @@ type Ctx = CanvasRenderingContext2D;
 interface Sphere {
   pt: (lon: number, lat: number) => { x: number; y: number; z: number };
   limbLon: (lat: number) => number;
+  /** SURFACE longitude at the left limb for this latitude. A loop that sweeps
+      the visible span must start here, not at -limbLon: pt() adds the rotation
+      phase, so a fixed start would swing the drawn arc across the disc like a
+      wiper instead of turning the world under it. */
+  lon0: (lat: number) => number;
   latLine: (g: Ctx, lat: number, drift?: (lon: number) => number) => void;
   meridian: (g: Ctx, lon: number, lat0?: number, lat1?: number) => void;
   band: (g: Ctx, lat1: number, lat2: number, drift?: (lon: number) => number) => void;
@@ -52,17 +61,23 @@ interface Sphere {
 const sphere = (p: PaintCtx, beta = 0.42): Sphere => {
   const { cx, cy, R, TAU } = p;
   const sb = Math.sin(beta), cb = Math.cos(beta);
-  const pt = (lon: number, lat: number) => {
+  // Rotation lives HERE: pt is the one door every helper (latLine, meridian,
+  // band, cell, spot) goes through, so offsetting longitude once turns the
+  // whole surface — bands, grids, cities, seams and all.
+  const ph = p.phase;
+  const pt = (lonRaw: number, lat: number) => {
+    const lon = lonRaw + ph;
     const X = Math.cos(lat) * Math.sin(lon), Y = Math.sin(lat), Z = Math.cos(lat) * Math.cos(lon);
     return { x: cx + R * X, y: cy - R * (Y * cb - Z * sb), z: Y * sb + Z * cb };
   };
   const limbLon = (lat: number) =>
     Math.acos(Math.max(-1, Math.min(1, -Math.tan(lat) * Math.tan(beta))));
+  const lon0 = (lat: number) => -limbLon(lat) - ph;
   const latLine = (g: Ctx, lat: number, drift?: (lon: number) => number) => {
     const le = limbLon(lat);
     if (le < 0.05) return;
     for (let i = 0; i <= 48; i++) {
-      const lon = -le + (i / 48) * 2 * le;
+      const lon = lon0(lat) + (i / 48) * 2 * le;
       const q = pt(lon, lat + (drift ? drift(lon) : 0));
       if (i === 0) g.moveTo(q.x, q.y); else g.lineTo(q.x, q.y);
     }
@@ -80,12 +95,12 @@ const sphere = (p: PaintCtx, beta = 0.42): Sphere => {
     g.beginPath();
     const le1 = limbLon(lat1), le2 = limbLon(lat2);
     for (let i = 0; i <= 40; i++) {
-      const lon = -le1 + (i / 40) * 2 * le1;
+      const lon = lon0(lat1) + (i / 40) * 2 * le1;
       const q = pt(lon, lat1 + (drift ? drift(lon) : 0));
       if (i === 0) g.moveTo(q.x, q.y); else g.lineTo(q.x, q.y);
     }
     for (let i = 40; i >= 0; i--) {
-      const lon = -le2 + (i / 40) * 2 * le2;
+      const lon = lon0(lat2) + (i / 40) * 2 * le2;
       const q = pt(lon, lat2 + (drift ? drift(lon + 9.3) : 0));
       g.lineTo(q.x, q.y);
     }
@@ -120,7 +135,7 @@ const sphere = (p: PaintCtx, beta = 0.42): Sphere => {
     g.beginPath();
     g.ellipse(cx, cy - R * s * cb, R * c2, Math.max(0.6, R * c2 * sb), 0, 0, TAU);
   };
-  return { pt, limbLon, latLine, meridian, band, cell, spot, cap };
+  return { pt, limbLon, lon0, latLine, meridian, band, cell, spot, cap };
 };
 
 /** Micro-speckle finisher — grain concentrated mid-disc. */
@@ -180,7 +195,7 @@ export const PAINTERS: Record<string, Painter> = {
       g.beginPath();
       let started = false;
       for (let k = 0; k <= 60; k++) {
-        const lon = -le + (k / 60) * 2 * le;
+        const lon = s.lon0(lat) + (k / 60) * 2 * le;
         if (Math.abs(lon - gapC) < gapW) { started = false; continue; }
         const q = s.pt(lon, lat);
         if (!started) { g.moveTo(q.x, q.y); started = true; } else g.lineTo(q.x, q.y);
@@ -358,7 +373,7 @@ export const PAINTERS: Record<string, Painter> = {
     g.beginPath(); s.latLine(g, 0.94); g.stroke();
     for (let i = 0; i < 9; i++) {
       const le = s.limbLon(0.94);
-      const lon = -le * 0.92 + (i / 8) * 2 * le * 0.92;
+      const lon = s.lon0(0.94) + le * 0.08 + (i / 8) * 2 * le * 0.92;
       s.spot(g, lon, 0.94, (gg) => {
         gg.fillStyle = "rgba(255,255,255,.9)";
         gg.beginPath(); gg.arc(0, 0, 1.2, 0, p.TAU); gg.fill();
@@ -902,7 +917,7 @@ export const PAINTERS: Record<string, Painter> = {
       const lat = (rnd() - 0.5) * 2;
       g.strokeStyle = `rgba(255,235,200,${0.16 + rnd() * 0.12})`; g.lineWidth = 0.7;
       g.beginPath();
-      const le = s.limbLon(lat), l0 = -le + rnd() * le;
+      const le = s.limbLon(lat), l0 = s.lon0(lat) + rnd() * le;
       for (let k = 0; k <= 12; k++) {
         const lon = l0 + (k / 12) * 0.8;
         const q = s.pt(lon, lat + (fbm(lon * 3, lat * 8) - 0.5) * 0.04);
@@ -1303,7 +1318,7 @@ export const PAINTERS: Record<string, Painter> = {
       const le = s.limbLon(lat);
       let started = false;
       for (let k = 0; k <= 30; k++) {
-        const lon = -le + (k / 30) * (Math.min(SPLIT, le) + le);
+        const lon = s.lon0(lat) + (k / 30) * (Math.min(SPLIT, le) + le);
         const q = s.pt(lon, lat + (fbm(lon * 2 + i, lat * 4) - 0.5) * 0.02);
         if (q.z <= 0.03) { started = false; continue; }
         if (!started) { g.moveTo(q.x, q.y); started = true; } else g.lineTo(q.x, q.y);
@@ -1370,7 +1385,7 @@ export const PAINTERS: Record<string, Painter> = {
     const seam = (lat: number) => 0.06 + (fbm(3.1, lat * 2.6) - 0.5) * 0.34;
     for (let i = 0; i < 240; i++) {
       const lat = (rnd() - 0.5) * 2.6, le = s.limbLon(lat);
-      const lon = -le + rnd() * (Math.min(seam(lat), le) + le);
+      const lon = s.lon0(lat) + rnd() * (Math.min(seam(lat), le) + le);
       if (lon > seam(lat)) continue;
       const q = s.pt(lon, lat);
       if (q.z <= 0.04) continue;
@@ -1379,7 +1394,7 @@ export const PAINTERS: Record<string, Painter> = {
     }
     for (let i = 0; i < 80; i++) {
       const lat = (rnd() - 0.5) * 2.4, le = s.limbLon(lat);
-      const l0 = seam(lat) + rnd() * Math.max(0.05, le - seam(lat));
+      const l0 = seam(lat) + rnd() * Math.max(0.05, le - seam(lat));  // seam-relative: already surface space
       const q1 = s.pt(l0, lat), q2 = s.pt(l0 + 0.14 + rnd() * 0.1, lat + (rnd() - 0.5) * 0.05);
       if (q1.z <= 0.04 || q2.z <= 0.04 || l0 < seam(lat)) continue;
       g.strokeStyle = rgba(mix(hue, "#dcc2ff", 0.55), 0.36 + rnd() * 0.2); g.lineWidth = 0.8;

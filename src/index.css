@@ -88,11 +88,29 @@ body {
   transition: color .15s, border-color .15s;
 }
 .gal-hbtn:hover { color: #e2e8f0; border-color: rgba(255,255,255,.22); }
+/* A label is a planet's click target, but its BOX is much bigger than its
+   name — the meta line and the tagline extend well past the planet, and a
+   neighbour's invisible tagline was swallowing clicks meant for the planet
+   underneath it. Only the name takes pointer events — the click bubbles to
+   the box's handler, and :hover still reaches the box (so the meta and
+   tagline reveal), while the empty box no longer covers its neighbours. */
 .gal-lab {
   position: absolute; transform: translate(-50%, 0);
   text-align: center; pointer-events: auto; cursor: pointer;
   transition: opacity .45s; user-select: none; -webkit-user-select: none;
 }
+/* The detail lines hang OUT OF FLOW beneath the name. In flow they made the
+   label's box several times taller than the name, and that invisible box —
+   a neighbour's, usually — swallowed clicks meant for the planet under it.
+   Out of flow the box is the name, which is exactly the click target it
+   should be; the lines still reveal on hover, they just can't intercept. */
+.gal-lab .rule, .gal-lab .m, .gal-lab .tag {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  pointer-events: none;
+}
+.gal-lab .rule { top: 17px; }
+.gal-lab .m { top: 23px; }
+.gal-lab .tag { top: 34px; width: 170px; }
 .gal-lab .n {
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 10.5px; font-weight: 500; letter-spacing: .22em;
@@ -100,7 +118,7 @@ body {
   text-shadow: 0 1px 8px rgba(2,4,10,.95); white-space: nowrap;
 }
 .gal-lab .rule {
-  width: 26px; height: 1px; margin: 5px auto 4px;
+  width: 26px; height: 1px;
   background: linear-gradient(90deg, transparent, rgba(190,210,240,.45), transparent);
 }
 .gal-lab .m {
@@ -111,7 +129,7 @@ body {
 }
 .gal-lab:hover .m { opacity: 1; }
 .gal-lab .tag {
-  font-size: 9px; color: #7e8fab; max-width: 170px; margin: 5px auto 0;
+  font-size: 9px; color: #7e8fab;
   line-height: 1.45; opacity: 0; transition: opacity .3s;
   text-shadow: 0 1px 6px rgba(2,4,10,.9); font-family: Inter, sans-serif;
   letter-spacing: .01em; text-transform: none;
@@ -126,3 +144,13 @@ body {
 @media (prefers-reduced-motion: reduce) {
   [data-testid="arrival-card"] { animation: none !important; }
 }
+
+/* The arrival card's place in the composition. Centred by default; on a wide
+   canvas it takes the right side so the planet can own the left third. The
+   galaxy host publishes which one applies (it knows the CANVAS width, which
+   the sidebar's own collapse changes independently of the viewport). */
+.gal-scrim { justify-content: center; }
+[data-arrive="side"] .gal-scrim { justify-content: flex-end; padding-right: 4.5%; }
+/* Beside a planet the card gives up width — the world is the other half of
+   the composition, not a backdrop for it. */
+[data-arrive="side"] .gal-card { width: min(400px, 54%); }
