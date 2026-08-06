@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import ShapePad from "./ShapePad";
 import {
   MAX_AGENTS_PER_STAGE,
   MAX_STAGES,
@@ -106,6 +107,12 @@ export default function ShapeComposer({
   onSaved: (id: string) => void;
 }) {
   const [name, setName] = useState(initial?.label ?? "");
+  const [view, setView] = useState<"pad" | "form" | "json">("pad");
+  const [padSel, setPadSel] = useState<import("./ShapePad").PadSelection | null>(null);
+  // Held only while the field is focused, so a half-typed brace does not fight
+  // the parsed value the pad is already showing.
+  const [jsonDraft, setJsonDraft] = useState<string | null>(null);
+  const [jsonErr, setJsonErr] = useState<string | null>(null);
   const [stages, setStages] = useState<Stage[]>(
     () => initial?.stages.map((s) => ({ ...s, agentIds: [...s.agentIds] })) ?? [firstStage(roster)]
   );
@@ -246,7 +253,91 @@ export default function ShapeComposer({
         />
       </div>
 
-      <div className="mt-2 space-y-1.5">
+      {/* THE PAD — the same stages as a graph. It is not a second source of
+          truth: both surfaces edit `stages`, so whatever the picture shows is
+          what the runner will execute. The form stays because the graph is bad
+          at some things (renaming an agent in a long list), and the graph is
+          here because the form is bad at the thing that matters — showing WHO
+          READS WHOSE ANSWER. */}
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        {(["pad", "form", "json"] as const).map((v) => (
+          <button
+            key={v}
+            onClick={() => setView(v)}
+            aria-pressed={view === v}
+            className={`mono cursor-pointer rounded border px-2 py-0.5 text-[9.5px] tracking-wider uppercase transition ${
+              view === v
+                ? "border-teal-300/50 bg-teal-400/15 text-teal-200"
+                : "border-white/10 bg-white/5 text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            {v === "pad" ? "graph" : v}
+          </button>
+        ))}
+        <span className="mono text-[9px] text-slate-500">
+          {view === "pad"
+            ? "click a node to inspect its step"
+            : view === "json"
+              ? "the shape as data — the same object the runner reads"
+              : "every field, including the ones the graph hides"}
+        </span>
+      </div>
+
+      {view === "pad" && (
+        <div className="mt-2">
+          <ShapePad
+            stages={stages}
+            roster={roster}
+            onChange={setStages}
+            selection={padSel}
+            onSelect={setPadSel}
+          />
+        </div>
+      )}
+
+      {view === "json" && (
+        <div className="mt-2">
+          <textarea
+            aria-label="Shape JSON"
+            data-testid="shape-json"
+            value={jsonDraft ?? JSON.stringify(stages, null, 2)}
+            onChange={(e) => {
+              setJsonDraft(e.target.value);
+              try {
+                const parsed = JSON.parse(e.target.value);
+                // Shape-checked before it is accepted: the pad and the runner
+                // both read this, so malformed data must not reach either.
+                if (
+                  Array.isArray(parsed) &&
+                  parsed.every(
+                    (st) =>
+                      st &&
+                      typeof st.kind === "string" &&
+                      typeof st.role === "string" &&
+                      Array.isArray(st.agentIds)
+                  )
+                ) {
+                  setStages(parsed as Stage[]);
+                  setJsonErr(null);
+                } else {
+                  setJsonErr("Each step needs a kind, a role and an agentIds array.");
+                }
+              } catch {
+                setJsonErr("Not valid JSON yet.");
+              }
+            }}
+            onBlur={() => setJsonDraft(null)}
+            spellCheck={false}
+            rows={10}
+            className="mono w-full rounded-lg border border-white/10 bg-[#0b1120] p-2 text-[10.5px] leading-relaxed text-slate-200 outline-none focus:border-teal-300/50"
+          />
+          <div className={`mono mt-1 text-[9px] ${jsonErr ? "text-amber-300" : "text-slate-500"}`}>
+            {jsonErr ?? "edits apply live — switch to the graph to see them"}
+          </div>
+        </div>
+      )}
+
+      <div className={`mt-2 space-y-1.5 ${view === "form" ? "" : "hidden"}`}>
         {stages.map((stage, i) => {
           const meta = perStage.get(i);
           const agentIds = stage.agentIds;

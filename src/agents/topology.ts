@@ -39,6 +39,17 @@ export interface Stage {
   agentIds: string[];
 }
 
+/**
+ * THE CEILING. callCount() quotes a FLOOR — a node that calls a tool has to
+ * answer the result in another request, so the true cost is "N+". Nothing in
+ * this app stopped a run that blew past it, and a shape is allowed eight
+ * stages of six agents: one click could issue dozens of requests against the
+ * operator's own key. The budget is the stop, and it is enforced where the
+ * calls are COUNTED (the run loop), never in the button that starts them.
+ */
+export const DEFAULT_CALL_BUDGET = 40;
+export const BUDGET_CHOICES = [10, 20, 40, 80, 0] as const; // 0 = no ceiling
+
 /** Composer caps. Exported because customShapes.ts validates against them. */
 export const MAX_STAGES = 8;
 export const MAX_AGENTS_PER_STAGE = 6;

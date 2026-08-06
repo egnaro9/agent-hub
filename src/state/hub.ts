@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import type { Agent, Conversation, Message, MessageNode, Project, QueuedLine, StructuralEdge, Vec } from "../types";
-import { PRESETS, briefFor, callCount, plan, type Phase, type Topology, type TopologyNode } from "../agents/topology";
+import { PRESETS, briefFor, callCount, plan, DEFAULT_CALL_BUDGET, type Phase, type Topology, type TopologyNode } from "../agents/topology";
 import { getShape, toTopology, validateShape } from "../agents/customShapes";
 import { appendJournal } from "./journal";
 import type { RunExportV1, RunExportNode } from "./runExport";
@@ -182,6 +182,9 @@ interface HubState {
   sendToChannel: (projectId: string, text: string) => void;
   streamAgent: (projectId: string, agentId: string, opts?: TurnBrief) => Promise<void>;
   topologyRun: TopologyRun | null;
+  /** Model-call ceiling for a shape run; 0 means no ceiling. */
+  callBudget: number;
+  setCallBudget: (n: number) => void;
   /**
    * The last completed shape run as a gradable artifact — in memory only, a
    * run's export dies with the tab (the journal keeps the numbers; the FILE is
@@ -761,6 +764,8 @@ export const useHub = create<HubState>()(
   },
 
   topologyRun: null,
+  callBudget: DEFAULT_CALL_BUDGET,
+  setCallBudget: (n) => set({ callBudget: n }),
   lastRunExport: null,
 
   // Run a SHAPE in this room. The engine (agents/topology.ts) says what the
@@ -943,6 +948,16 @@ export const useHub = create<HubState>()(
     // Every node turn adds itself here as it finishes, so what the closing line
     // reports is measured, not planned.
     const spend: RunSpend = { calls: 0 };
+    // THE CEILING, enforced where the calls are COUNTED. The quote is a floor
+    // ("N+"), so a tool-using shape can outrun it; without a stop the only
+    // limit on one click was the shape's caps — eight stages of six agents,
+    // against the operator's own key. Checked before every node so a fan-out
+    // cannot straddle it, and 0 means the operator turned it off on purpose.
+    const budget = get().callBudget;
+    class BudgetStop extends Error {}
+    const checkBudget = () => {
+      if (budget > 0 && spend.calls >= budget) throw new BudgetStop();
+    };
     try {
       for (let i = 0; i < phases.length; i++) {
         const phase = phases[i];
@@ -951,6 +966,7 @@ export const useHub = create<HubState>()(
         // open the run can be handed what the step immediately before it left.
         const mark = get().channels[projectId]?.messages.length ?? 0;
         const turn = (node: TopologyNode, handedFrom: string | null = null) => {
+          checkBudget();
           nodeRecords.push({
             phase: phase.kind,
             nodeId: node.id,
@@ -1029,6 +1045,24 @@ export const useHub = create<HubState>()(
           if (opened) hand = opened.id;
         }
       }
+    } catch (err) {
+      // A stop is not a crash: say plainly that the ceiling ended the run, and
+      // let the finally below report what it cost getting there. Anything else
+      // keeps propagating.
+      if (!(err instanceof BudgetStop)) throw err;
+      note(
+        `Stopped at the ${budget}-call ceiling — ${spend.calls} model call${spend.calls === 1 ? "" : "s"} spent, ` +
+        `and the shape had more to run. The quote is a floor, not a limit: a node that calls a tool answers the ` +
+        `result in another request. Raise or clear the ceiling beside the run button if this shape is worth it.`
+      );
+      appendJournal({
+        kind: "run",
+        project: projectId,
+        shape: shapeId,
+        label: `${topology.label} — STOPPED at ceiling`,
+        quoted: price,
+        spent: spend.calls,
+      });
     } finally {
       // Posted in the finally, so a run that dies half-way still says what it
       // burned getting there.
@@ -1796,6 +1830,7 @@ export const useHub = create<HubState>()(
         ),
         assignments: s.assignments,
         mapLocked: s.mapLocked,
+        callBudget: s.callBudget,
         extraProjects: s.projects.filter((p) => !SEED_PROJECT_IDS.has(p.id)).map((p) => ({ ...p, liveActivity: undefined })),
         positions: Object.fromEntries([...s.projects, ...s.agents].map((x) => [x.id, x.pos])),
       }),
@@ -1806,6 +1841,7 @@ export const useHub = create<HubState>()(
           channels?: Record<string, Channel>;
           assignments?: Record<string, string>;
           mapLocked?: boolean;
+          callBudget?: number;
           extraProjects?: Project[];
           positions?: Record<string, Vec>;
         };
@@ -1826,6 +1862,7 @@ export const useHub = create<HubState>()(
           channels: p.channels ?? current.channels,
           assignments,
           mapLocked: p.mapLocked ?? current.mapLocked,
+          callBudget: p.callBudget ?? current.callBudget,
           projects,
           agents: current.agents.map((a) => ({
             ...a,

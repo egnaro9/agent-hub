@@ -2,6 +2,12 @@ import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { gotoHub, isolate, persistedState } from "./helpers";
 import { FAKE_KEY, stubAnthropic, type RecordedRequest } from "./anthropic-stub";
 
+/** Switch the composer to its form view. The composer now opens on the GRAPH;
+    this spec drives the form, which is the surface carrying every field.
+    Scoped to the panel — "form" and "graph" both collide elsewhere on the page. */
+const formView = (page: import("@playwright/test").Page) =>
+  page.getByTestId("shape-composer").getByRole("button", { name: "form", exact: true }).click();
+
 // ─────────────────────────────────────────────────────────────────────────────
 // A SHAPE THE OPERATOR DREW, RUN FOR REAL.
 //
@@ -130,6 +136,10 @@ const spentOver = (quoted: number, spent: number) =>
 async function composeMultiRound(page: Page) {
   await page.getByRole("button", { name: "+ new shape" }).click();
   await expect(page.getByTestId("shape-composer")).toBeVisible();
+  // The composer now opens on the GRAPH. This spec drives the form, which is
+  // the surface that carries every field (the graph deliberately hides some),
+  // so it selects it explicitly rather than depending on the default view.
+  await formView(page);
   await page.getByLabel("Shape name").fill(SHAPE);
 
   // (1) is the stage a new shape opens on: SINGLE manager → the first agent in
@@ -491,6 +501,7 @@ test.describe("the price chip is a floor, not a promise", () => {
     // requests land in one knowable sequence — this test is about the price, and
     // concurrency is already proven above.
     await page.getByRole("button", { name: "+ new shape" }).click();
+    await formView(page);
     await page.getByLabel("Shape name").fill(TOOL_SHAPE);
     await expect(page.getByLabel("Stage 1 agent 1")).toHaveValue("strat");
     await page.getByLabel("Add stage", { exact: true }).click();
@@ -642,6 +653,7 @@ test.describe("the run's context window", () => {
     await expect(page.getByText("6 in the room")).toBeVisible();
 
     await page.getByRole("button", { name: "+ new shape" }).click();
+    await formView(page);
     await page.getByLabel("Shape name").fill(LONG_SHAPE);
 
     // Four full-width stages, then a narrow round-2 fan-out. The middle three

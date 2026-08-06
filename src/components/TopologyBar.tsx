@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useHub } from "../state/hub";
-import { PRESETS, PRESET_IDS, callCount } from "../agents/topology";
+import { PRESETS, PRESET_IDS, callCount, BUDGET_CHOICES } from "../agents/topology";
 import { useChrome } from "../state/chrome";
 import { deleteShape, listShapes, toTopology, validateShape, type CustomShape } from "../agents/customShapes";
 import ShapeComposer, { PRICE_TITLE, type ComposerAgent } from "./ShapeComposer";
@@ -34,6 +34,8 @@ export default function TopologyBar({ projectId }: { projectId: string }) {
   const participants = useHub((s) => s.channels[projectId]?.participants ?? NO_ONE);
   const agents = useHub((s) => s.agents);
   const run = useHub((s) => s.topologyRun);
+  const callBudget = useHub((s) => s.callBudget);
+  const setCallBudget = useHub((s) => s.setCallBudget);
   const brainConnected = useHub((s) => s.brainConnected);
   const runTopology = useHub((s) => s.runTopology);
   const lastRunExport = useHub((s) => s.lastRunExport);
@@ -217,6 +219,30 @@ export default function TopologyBar({ projectId }: { projectId: string }) {
         >
           {calls === 0 ? "nothing to run" : `${calls}+ model calls`}
         </span>
+        {/* THE CEILING, beside the price it bounds. The quote is a floor; this
+            is the only number that stops anything. */}
+        <label
+          className="mono flex flex-none items-center gap-1 text-[10px] text-slate-500"
+          title="Hard stop for a shape run, checked before every node. The quote above is a floor — a node that calls a tool answers the result in another request."
+        >
+          ceiling
+          <select
+            aria-label="Model-call ceiling"
+            value={callBudget}
+            onChange={(e) => setCallBudget(Number(e.target.value))}
+            className={`mono cursor-pointer rounded border px-1 py-0.5 text-[10px] outline-none ${
+              callBudget === 0
+                ? "border-rose-300/40 bg-rose-400/10 text-rose-200"
+                : "border-white/12 bg-white/5 text-slate-300"
+            }`}
+          >
+            {BUDGET_CHOICES.map((n) => (
+              <option key={n} value={n} className="bg-[#0b1120]">
+                {n === 0 ? "none" : n}
+              </option>
+            ))}
+          </select>
+        </label>
         <button
           onClick={launch}
           disabled={!canLaunch}
