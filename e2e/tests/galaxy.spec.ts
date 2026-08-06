@@ -133,16 +133,34 @@ test.describe("the galaxy map", () => {
     await page.getByTestId("arrival-card").getByRole("button", { name: "Overview" }).click();
     await expect(page).toHaveURL(/#\/p\/crashkit$/);
 
+    // It must land AT THE PLANET, not merely raise a card over the wide map:
+    // this asserted only that a card appeared, and passed for a build that
+    // dumped you at the far view every time.
+    const atPlanet = async () => {
+      // The camera must COME TO REST at the planet. Sampling zoom on its own
+      // passes the instant after the click — it is still parked high from the
+      // last visit and only eases away to the wide view afterwards, so the
+      // settled zoom is the only honest question.
+      await expect
+        .poll(async () => {
+          const h = page.getByTestId("galaxy");
+          const settled = await h.getAttribute("data-zoom-settled");
+          return settled === "true" ? Number(await galaxyZoom(page)) : null;
+        }, { timeout: 10_000 })
+        .toBeGreaterThan(1.5);
+    };
+
     // from OVERVIEW: the name is the route back to the planet, not to the map
     await page.getByRole("button", { name: /Back to crashkit's world/i }).click();
-    await expect(page.getByTestId("arrival-card")).toBeVisible();
     await expect(page.getByTestId("arrival-card")).toContainText("crashkit");
+    await atPlanet();
 
     // and from WORK
     await page.getByTestId("arrival-card").getByRole("button", { name: "Work" }).click();
     await expect(page).toHaveURL(/#\/p\/crashkit\/work$/);
     await page.getByRole("button", { name: /Back to crashkit's world/i }).click();
     await expect(page.getByTestId("arrival-card")).toBeVisible();
+    await atPlanet();
     // it landed on the galaxy, not still inside the project
     await expect(page).not.toHaveURL(/#\/p\//);
   });

@@ -1614,7 +1614,7 @@ export default function GalaxyCanvas() {
       home = fitMap();
       // A raised card owns the camera: re-aim it for the new canvas instead of
       // leaving the world at a screen position chosen for the old one.
-      const staged = currentRef.current;
+      const staged = stagedId ?? currentRef.current;
       if (staged) { aimHero(staged); return; }
       if (!atHome) return;
       cam.tx = home.x; cam.ty = home.y; cam.tz = home.z;
@@ -1636,6 +1636,12 @@ export default function GalaxyCanvas() {
     };
     void hudZi;
 
+    // Which world is staged, tracked IMPERATIVELY. currentRef mirrors React
+    // state, so it is null for the instant between asking for a planet and
+    // React committing the card — and leaving a project shrinks the command
+    // strip, which resizes this canvas inside exactly that window. The resize
+    // handler then saw "no card" and aimed home, overriding the fly.
+    let stagedId: string | null = null;
     let arriveTimer: ReturnType<typeof setTimeout> | null = null;
     // THE ARRIVAL IS COMPOSED, not centred. With the card centred it covered
     // the very planet the trip was for. On a wide canvas the world takes the
@@ -1693,6 +1699,7 @@ export default function GalaxyCanvas() {
 
     flyRef.current = (id: string) => {
       if (!nodes.has(id)) return;
+      stagedId = id;
       setArrival(null); // swapping: the old card leaves before the new lands
       driftOn = false;
       aimHero(id);
@@ -1701,6 +1708,7 @@ export default function GalaxyCanvas() {
       arriveTimer = setTimeout(() => setArrival(id), reduced ? 0 : 560);
     };
     returnRef.current = () => {
+      stagedId = null;
       if (arriveTimer) clearTimeout(arriveTimer);
       setFlying(null); setArrival(null);
       setDrift(driftPref && !reduced);
