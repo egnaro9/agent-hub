@@ -95,6 +95,59 @@ test.describe("the galaxy map", () => {
     await page.mouse.up();
   });
 
+  test("the breadcrumb's project name goes back to that world's card, from either mode", async ({ page }) => {
+    await gotoHub(page);
+    await settleFlow(page);
+    await stillGalaxy(page);
+    await page.locator('[data-planet="crashkit"]').click();
+    await page.getByTestId("arrival-card").getByRole("button", { name: "Overview" }).click();
+    await expect(page).toHaveURL(/#\/p\/crashkit$/);
+
+    // from OVERVIEW: the name is the route back to the planet, not to the map
+    await page.getByRole("button", { name: /Back to crashkit's world/i }).click();
+    await expect(page.getByTestId("arrival-card")).toBeVisible();
+    await expect(page.getByTestId("arrival-card")).toContainText("crashkit");
+
+    // and from WORK
+    await page.getByTestId("arrival-card").getByRole("button", { name: "Work" }).click();
+    await expect(page).toHaveURL(/#\/p\/crashkit\/work$/);
+    await page.getByRole("button", { name: /Back to crashkit's world/i }).click();
+    await expect(page.getByTestId("arrival-card")).toBeVisible();
+    // it landed on the galaxy, not still inside the project
+    await expect(page).not.toHaveURL(/#\/p\//);
+  });
+
+  test("a raised card survives a resize — it never outgrows the canvas, and the world re-aims", async ({ page }) => {
+    await gotoHub(page);
+    await settleFlow(page);
+    await stillGalaxy(page);
+    await page.locator('[data-planet="crashkit"]').click();
+    await expect(page.getByTestId("arrival-card")).toBeVisible();
+
+    // The card lives in the CANVAS but used to size itself against the
+    // VIEWPORT — with the rail open on a narrow window that put a 600px card
+    // in a 450px canvas, clipped on both sides.
+    const fits = async () => {
+      const r = await page.evaluate(() => {
+        const host = document.querySelector('[data-testid="galaxy"]')!.getBoundingClientRect();
+        const card = document.querySelector('[data-testid="arrival-card"]')!.getBoundingClientRect();
+        return { over: Math.round(card.right - host.right), under: Math.round(card.left - host.left) };
+      });
+      expect(r.over).toBeLessThanOrEqual(0);
+      expect(r.under).toBeGreaterThanOrEqual(0);
+    };
+    await fits();
+    for (const width of [1000, 820, 700, 1200]) {
+      await page.setViewportSize({ width, height: 860 });
+      await page.waitForTimeout(250);
+      await fits();
+      await expect(page.getByTestId("arrival-card")).toBeVisible();
+    }
+    // and the trip still completes after all that
+    await page.getByTestId("arrival-card").getByRole("button", { name: "Overview" }).click();
+    await expect(page).toHaveURL(/#\/p\/crashkit$/);
+  });
+
   test("the immersive 3D mode is optional, entered and left by its own control", async ({ page }) => {
     await gotoHub(page);
     await settleFlow(page);

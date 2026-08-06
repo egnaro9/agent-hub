@@ -27,6 +27,7 @@ export default function MissionControl({ onMenu }: { onMenu?: () => void }) {
   const projectMode = useHub((s) => s.projectMode);
   const setProjectMode = useHub((s) => s.setProjectMode);
   const backToGraph = useHub((s) => s.backToGraph);
+  const requestPlanet = useHub((s) => s.requestPlanet);
   const summon = useHub((s) => s.summon);
   const brainConnected = useHub((s) => s.brainConnected);
   const setBrainConnected = useHub((s) => s.setBrainConnected);
@@ -160,12 +161,25 @@ export default function MissionControl({ onMenu }: { onMenu?: () => void }) {
       {project && (
         <>
           <span className="mono text-[11px] text-slate-700">/</span>
-          <span className="mono flex min-w-0 items-center gap-1.5 text-[11px] text-slate-100">
+          {/* The name is the way BACK TO THE PLANET. Inside a project the only
+              exit used to be "galaxy", which returns to the wide map — there
+              was no route to the world's own card, the front door you arrived
+              through. The breadcrumb already reads galaxy / project / mode, so
+              the middle rung is exactly where that belongs. */}
+          <button
+            onClick={() => {
+              backToGraph();
+              requestPlanet(project.id);
+            }}
+            title={`Back to ${project.name}'s world`}
+            aria-label={`Back to ${project.name}'s world`}
+            className="mono flex min-w-0 cursor-pointer items-center gap-1.5 text-[11px] text-slate-100 transition hover:text-white"
+          >
             <span className="h-1.5 w-1.5 flex-none rounded-full" style={{ background: project.hue, boxShadow: `0 0 6px ${project.hue}` }} />
             {/* phone-only cap: a long project name must not shove the mode
                 tabs off the strip. Desktop keeps the full name, unclipped. */}
             <span className={isPhone ? "max-w-[8.5rem] truncate" : ""}>{project.name}</span>
-          </span>
+          </button>
           <div className="ml-2 flex overflow-hidden rounded-md border border-white/10">
             {(["overview", "work"] as const).map((m) => (
               <button

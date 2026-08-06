@@ -1564,7 +1564,11 @@ export default function GalaxyCanvas() {
     onResize = () => {
       sizeAll();
       home = fitMap();
-      if (!atHome || currentRef.current) return;
+      // A raised card owns the camera: re-aim it for the new canvas instead of
+      // leaving the world at a screen position chosen for the old one.
+      const staged = currentRef.current;
+      if (staged) { aimHero(staged); return; }
+      if (!atHome) return;
       cam.tx = home.x; cam.ty = home.y; cam.tz = home.z;
       if (mode === "3d") { const f3 = fit3(); cam3.ttarget = f3.target; cam3.tdist = f3.dist; }
     };
@@ -1602,11 +1606,13 @@ export default function GalaxyCanvas() {
       return { z, tx, ty };
     };
 
-    flyRef.current = (id: string) => {
+    /** Aim the camera so this world sits in its side of the composition. The
+        frame depends on the CANVAS size, so a resize with a card up has to
+        re-aim — otherwise the planet keeps the screen position it was given
+        for the old width and drifts out of its half. */
+    const aimHero = (id: string) => {
       const n = nodes.get(id);
       if (!n) return;
-      setArrival(null); // swapping: the old card leaves before the new lands
-      driftOn = false;
       const { z, tx, ty } = heroFrame(id);
       if (mode === "3d") {
         const pp = pos3(id);
@@ -1625,6 +1631,13 @@ export default function GalaxyCanvas() {
         cam.tx = (n.x - (tx - W / 2) / z) / par;
         cam.ty = (n.y - (ty - H / 2) / z) / par;
       }
+    };
+
+    flyRef.current = (id: string) => {
+      if (!nodes.has(id)) return;
+      setArrival(null); // swapping: the old card leaves before the new lands
+      driftOn = false;
+      aimHero(id);
       setFlying(id);
       if (arriveTimer) clearTimeout(arriveTimer);
       arriveTimer = setTimeout(() => setArrival(id), reduced ? 0 : 560);
@@ -1719,7 +1732,7 @@ export default function GalaxyCanvas() {
             role="dialog"
             aria-label={`${arrivalProject.name} — choose a mode`}
             onClick={(e) => e.stopPropagation()}
-            className="gal-card glass w-[min(640px,86vw)] overflow-hidden rounded-2xl"
+            className="gal-card glass w-[min(640px,86%)] overflow-hidden rounded-2xl"
             style={{ animation: "gal-arrive .45s cubic-bezier(.2,.8,.2,1)" }}
           >
             <div className="h-[3px]" style={{ background: `linear-gradient(90deg, transparent, ${arrivalProject.hue}, transparent)` }} />
