@@ -772,6 +772,9 @@ export default function GalaxyCanvas() {
     // Screensaver re-arm: any interaction kills the drift, but 30s of stillness
     // brings it back (if ◐ is on) — and idle also overrides hoverPause, or a
     // cursor parked over the sky would block the resume forever.
+    // When the galaxy last painted. A stage covering it parks the loop, so a
+    // gap here means the map has NOT been on screen.
+    let lastDrawAt = performance.now();
     const IDLE_MS = 30_000;
     let lastInput = performance.now();
     const noteInput = () => { lastInput = performance.now(); };
@@ -1398,6 +1401,14 @@ export default function GalaxyCanvas() {
         raf = requestAnimationFrame(loop);
         return;
       }
+      // Frame-rate independence. The eases below are written as "fraction per
+      // 60fps frame"; on a loaded machine frames are scarce, so applying them
+      // per-frame made the camera take proportionally longer in WALL-CLOCK
+      // time — visible as sluggishness, and as a settle that misses its
+      // deadline under a parallel test run.
+      const dt = Math.min(50, now - lastDrawAt);
+      const per = (k: number) => 1 - Math.pow(1 - k, dt / 16.667);
+      lastDrawAt = now;
       const t = (now - t0) / 1000;
       tNow = t; frame++;
       const agents = s.agents;
@@ -1418,10 +1429,10 @@ export default function GalaxyCanvas() {
         const cur = currentRef.current;
         if (cur && nodes.has(cur)) cam3.ttarget = pos3(cur);
         if (driftOn && (!hoverPause || idle)) cam3.tyaw += 0.0007;
-        cam3.yaw += (cam3.tyaw - cam3.yaw) * 0.08;
-        cam3.pitch += (cam3.tpitch - cam3.pitch) * 0.08;
-        cam3.dist += (cam3.tdist - cam3.dist) * 0.07;
-        (["x", "y", "z"] as const).forEach((ax) => { cam3.target[ax] += (cam3.ttarget[ax] - cam3.target[ax]) * 0.06; });
+        cam3.yaw += (cam3.tyaw - cam3.yaw) * per(0.08);
+        cam3.pitch += (cam3.tpitch - cam3.pitch) * per(0.08);
+        cam3.dist += (cam3.tdist - cam3.dist) * per(0.07);
+        (["x", "y", "z"] as const).forEach((ax) => { cam3.target[ax] += (cam3.ttarget[ax] - cam3.target[ax]) * per(0.06); });
         spinHero(currentRef.current);
         draw3D(agents);
       } else {
@@ -1434,9 +1445,13 @@ export default function GalaxyCanvas() {
         // Eased, but SNAPPED once close: an asymptotic ease never lands, so
         // "the camera settled" would otherwise be false by a millistep forever
         // — visible as label micro-jitter and as a lock that reads as leaking.
-        cam.x += (cam.tx - cam.x) * 0.028;
-        cam.y += (cam.ty - cam.y) * 0.028;
-        cam.z += (cam.tz - cam.z) * 0.05;
+        // A FLY is purposeful; the idle drift is languid. One ease constant
+        // for both made the trip to a planet take ~3s, which reads as lag
+        // rather than cinema.
+        const ease = per(currentRef.current ? 0.075 : 0.028);
+        cam.x += (cam.tx - cam.x) * ease;
+        cam.y += (cam.ty - cam.y) * ease;
+        cam.z += (cam.tz - cam.z) * per(currentRef.current ? 0.085 : 0.05);
         if (Math.abs(cam.tx - cam.x) < 0.5) cam.x = cam.tx;
         if (Math.abs(cam.ty - cam.y) < 0.5) cam.y = cam.ty;
         if (Math.abs(cam.tz - cam.z) < 0.0005) cam.z = cam.tz;
@@ -1456,8 +1471,41 @@ export default function GalaxyCanvas() {
     const pointers = new Map<number, { x: number; y: number }>();
     let lastPinch = 0;
     let downAt = 0, downPos = { x: 0, y: 0 };
+    /** Which world is under this point, if any. The canvas is one element, so
+        a planet is only clickable if we say what is where — the labels were
+        doing that job alone, which meant the disc itself, the biggest thing on
+        screen, was inert. */
+    const hitPlanet = (clientX: number, clientY: number): string | null => {
+      const r = host.getBoundingClientRect();
+      const px = clientX - r.left, py = clientY - r.top;
+      let best: { id: string; d: number } | null = null;
+      if (mode === "3d") {
+        nodes.forEach((_n, id) => {
+          const pr = project3(pos3(id));
+          if (!pr) return;
+          const d = Math.hypot(px - pr.x, py - pr.y);
+          if (d < spriteFor(id).R * pr.s * 2.1 + 16 && (!best || d < best.d)) best = { id, d };
+        });
+      } else {
+        nodes.forEach((n, id) => {
+          const sp = spriteFor(id);
+          const [sx, syRaw] = w2s(n.x, n.y, 0.88 + n.z * 0.12);
+          const sy = syRaw + (reduced ? 0 : Math.sin(tNow * 0.12 + n.x * 0.01) * 2.2 * n.z);
+          const rad = sp.R * cam.z * n.z;
+          const d = Math.hypot(px - sx, py - sy);
+          if (d <= rad + 4 && (!best || d < best.d)) best = { id, d };
+        });
+      }
+      return best ? (best as { id: string }).id : null;
+    };
+    // A press only counts as a pick if it STARTED on the sky. Without this a
+    // press that began on a label or the HUD (where onDown bails early) would
+    // be judged against a stale timestamp from some earlier press.
+    let pressArmed = false;
+
     const onDown = (e: PointerEvent) => {
       noteInput();
+      pressArmed = false;
       // While the arrival card is up (or the camera is flying to it) the sky
       // is scenery: scrim events bubble to this host, so without this guard a
       // drag or pick "past the card" still steers the camera underneath it.
@@ -1471,11 +1519,16 @@ export default function GalaxyCanvas() {
       driftOn = false;
       atHome = false; // the operator is aiming now; resize must not re-frame
       downAt = performance.now(); downPos = { x: e.clientX, y: e.clientY };
+      pressArmed = true;
     };
     const onMove = (e: PointerEvent) => {
       noteInput(); // any cursor motion over the sky counts as presence
       const prev = pointers.get(e.pointerId);
-      if (!prev) return;
+      if (!prev) {
+        // not dragging: say whether there is a world under the cursor
+        host.style.cursor = !currentRef.current && hitPlanet(e.clientX, e.clientY) ? "pointer" : "";
+        return;
+      }
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (pointers.size === 2) {
         const [p1, p2] = [...pointers.values()];
@@ -1500,18 +1553,13 @@ export default function GalaxyCanvas() {
     const onUp = (e: PointerEvent) => {
       pointers.delete(e.pointerId);
       lastPinch = 0;
-      // A short, unmoved press in 3D is a planet pick (2.5D picks via labels).
-      if (mode === "3d" && !currentRef.current && performance.now() - downAt < 240 &&
+      // A short, unmoved press on a world opens it — in either projection.
+      if (pressArmed && !currentRef.current && performance.now() - downAt < 240 &&
         Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y) < 6) {
-        let best: { id: string; d: number } | null = null;
-        nodes.forEach((_n, id) => {
-          const pr = project3(pos3(id));
-          if (!pr) return;
-          const d = Math.hypot(e.clientX - pr.x, e.clientY - pr.y);
-          if (d < sprites.get(id)!.R * pr.s * 2.1 + 16 && (!best || d < best.d)) best = { id, d };
-        });
-        if (best) toggleRef.current((best as { id: string }).id);
+        const hit = hitPlanet(e.clientX, e.clientY);
+        if (hit) toggleRef.current(hit);
       }
+      pressArmed = false;
     };
     const onWheel = (e: WheelEvent) => {
       noteInput();
@@ -1630,6 +1678,16 @@ export default function GalaxyCanvas() {
         cam.tz = z;
         cam.tx = (n.x - (tx - W / 2) / z) / par;
         cam.ty = (n.y - (ty - H / 2) / z) / par;
+      }
+      // If the map has not been painting, we are arriving from a project
+      // stage — there is no motion to be continuous WITH, and easing from the
+      // wide view means the card lands seconds before its planet does. Land
+      // the camera where the composition wants it and let the card meet it.
+      if (performance.now() - lastDrawAt > 250) {
+        cam.x = cam.tx; cam.y = cam.ty; cam.z = cam.tz;
+        cam3.dist = cam3.tdist;
+        cam3.target = { ...cam3.ttarget };
+        cam3.yaw = cam3.tyaw; cam3.pitch = cam3.tpitch;
       }
     };
 

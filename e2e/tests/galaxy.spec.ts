@@ -95,6 +95,36 @@ test.describe("the galaxy map", () => {
     await page.mouse.up();
   });
 
+  test("the planet itself is clickable, not only its name", async ({ page }) => {
+    await gotoHub(page);
+    await settleFlow(page);
+    await stillGalaxy(page);
+
+    // Aim at the DISC — the label hangs below the planet, so going up from it
+    // lands on canvas that used to be completely inert.
+    const disc = await page.evaluate(() => {
+      const host = document.querySelector('[data-testid="galaxy"]')!.getBoundingClientRect();
+      const lab = document.querySelector('[data-planet="gradecore"]') as HTMLElement;
+      return { x: host.left + parseFloat(lab.style.left), y: host.top + parseFloat(lab.style.top) - 26 };
+    });
+    await page.mouse.move(disc.x, disc.y);
+    await expect
+      .poll(() => page.evaluate(() => (document.querySelector('[data-testid="galaxy"]') as HTMLElement).style.cursor))
+      .toBe("pointer");
+    await page.mouse.down();
+    await page.mouse.up();
+    await expect(page.getByTestId("arrival-card")).toContainText("gradecore");
+
+    // empty sky stays empty — a pick is a hit on a world, not anywhere
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("arrival-card")).toHaveCount(0);
+    await settleFlow(page);
+    await page.mouse.move(disc.x, disc.y - 220);
+    await page.mouse.down();
+    await page.mouse.up();
+    await expect(page.getByTestId("arrival-card")).toHaveCount(0);
+  });
+
   test("the breadcrumb's project name goes back to that world's card, from either mode", async ({ page }) => {
     await gotoHub(page);
     await settleFlow(page);
