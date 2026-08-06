@@ -509,6 +509,9 @@ export default function GalaxyCanvas() {
   const currentRef = useRef<string | null>(null);
   currentRef.current = arrival ?? flying;
   const toggleRef = useRef<(id: string) => void>(() => {});
+  // The scrim covers the sky while a card is up, so React needs the canvas's
+  // own hit test to tell a neighbouring WORLD from empty space.
+  const hitRef = useRef<(x: number, y: number) => string | null>(() => null);
   toggleRef.current = (id: string) => {
     if (currentRef.current === id) returnRef.current();
     else flyRef.current(id);
@@ -728,32 +731,65 @@ export default function GalaxyCanvas() {
       return { target, dist };
     };
 
-    // THE HERO SPIN. A world only turns while it is the one on stage: at map
-    // size a rotating surface is invisible (planets run 20-40px), and re-baking
-    // eighteen sprites a frame would be absurd for detail nobody can resolve.
-    // One planet, re-baked on a fixed cadence with an advancing longitude, is
-    // affordable — and at arrival size it is the whole point of the trip.
-    let heroId: string | null = null;
-    let heroSprite: Sprite | null = null;
-    let heroPhase = 0;
-    let heroTick = 0;
-    const HERO_EVERY = 3;      // frames between re-bakes — 20 steps/sec, and
-                               // slow rotation reads smooth well below 60
-    const HERO_SPEED = 0.0018; // radians per frame: one full turn in ~58s
-    const spinHero = (id: string | null) => {
-      if (!id) { heroId = null; heroSprite = null; return; }
-      if (id !== heroId) { heroId = id; heroPhase = 0; heroSprite = null; }
-      if (heroTick++ % HERO_EVERY) return;
-      heroPhase += HERO_SPEED * HERO_EVERY;
-      const p2 = useHub.getState().projects.find((pp) => pp.id === id);
+    // THE SPIN. A world turns while it is BIG — and a stage full of frozen
+    // neighbours around one turning planet reads worse than nothing turning at
+    // all, which is exactly what a single-hero spin looked like. So every
+    // planet large enough to resolve turns, and the cost stays flat: one
+    // re-bake per tick, ROUND-ROBIN across the spinning set, so adding
+    // neighbours costs frame RATE per planet rather than frame TIME.
+    //
+    // At map size none of this runs: planets are 20-40px there, where a
+    // rotating surface is invisible and re-baking eighteen sprites would buy
+    // detail nobody can resolve.
+    const SPIN_MIN_R = 26;     // screen radius below which rotation is invisible
+    const SPIN_EVERY = 3;      // frames between re-bakes
+    const SPIN_SPEED = 0.0018; // radians per frame: a turn in ~58s
+    const spinning = new Map<string, Sprite>();
+    const phases = new Map<string, number>();
+    let spinTick = 0;
+    let spinCursor = 0;
+    const clearSpin = () => {
+      if (spinning.size) { spinning.clear(); phases.clear(); }
+    };
+    /** Which worlds are currently worth turning: on screen, and big enough. */
+    const spinnable = (): string[] => {
+      const out: string[] = [];
+      nodes.forEach((n, id) => {
+        const sp = sprites.get(id)!;
+        if (mode === "3d") {
+          const pr = project3(pos3(id));
+          if (pr && sp.R * pr.s * 2.1 >= SPIN_MIN_R) out.push(id);
+          return;
+        }
+        const r = sp.R * cam.z * n.z;
+        if (r < SPIN_MIN_R) return;
+        const [sx, sy] = w2s(n.x, n.y, 0.88 + n.z * 0.12);
+        if (sx > -r * 2 && sx < W + r * 2 && sy > -r * 2 && sy < H + r * 2) out.push(id);
+      });
+      return out;
+    };
+    const spinFrame = (staged: string | null) => {
+      if (!staged) { clearSpin(); return; }
+      if (spinTick++ % SPIN_EVERY) return;
+      const set = spinnable();
+      if (set.length === 0) { clearSpin(); return; }
+      // Drop worlds that left the set, so a sprite can't be stuck mid-turn
+      // after the camera moves away from it.
+      for (const id of [...spinning.keys()]) if (!set.includes(id)) { spinning.delete(id); phases.delete(id); }
+      const id = set[spinCursor++ % set.length];
       const n = nodes.get(id);
-      if (!p2 || !n) return;
+      const p2 = useHub.getState().projects.find((pp) => pp.id === id);
+      if (!n || !p2) return;
+      // Each world keeps its own phase and its own rate — a stage rotating in
+      // lockstep reads as one mechanism, not as separate bodies.
+      const rate = SPIN_SPEED * (0.75 + ((idSeed(id) % 100) / 100) * 0.5);
+      phases.set(id, (phases.get(id) ?? ((idSeed(id) % 628) / 100)) + rate * SPIN_EVERY * set.length);
       const kind = KIND_OF[id] ?? FALLBACK_KINDS[idSeed(id) % FALLBACK_KINDS.length];
       const crew = Object.values(useHub.getState().assignments).filter((pid) => pid === id).length;
-      heroSprite = bakePlanet(id, p2.hue, kind, radiusOf(id, crew), heroPhase);
+      spinning.set(id, bakePlanet(id, p2.hue, kind, radiusOf(id, crew), phases.get(id)!));
     };
-    /** The sprite to draw for a planet: the spinning one if it is on stage. */
-    const spriteFor = (id: string) => (id === heroId && heroSprite ? heroSprite : sprites.get(id)!);
+    /** The sprite to draw: the turning one where a world is turning. */
+    const spriteFor = (id: string) => spinning.get(id) ?? sprites.get(id)!;
 
     // The fitted frame is also the DRIFT's home — the idle cruise has to orbit
     // where the system actually is, not a constant from a past viewport.
@@ -1433,7 +1469,7 @@ export default function GalaxyCanvas() {
         cam3.pitch += (cam3.tpitch - cam3.pitch) * per(0.08);
         cam3.dist += (cam3.tdist - cam3.dist) * per(0.07);
         (["x", "y", "z"] as const).forEach((ax) => { cam3.target[ax] += (cam3.ttarget[ax] - cam3.target[ax]) * per(0.06); });
-        spinHero(currentRef.current);
+        spinFrame(currentRef.current);
         draw3D(agents);
       } else {
         if (driftOn && !reduced && (!hoverPause || idle)) {
@@ -1455,7 +1491,7 @@ export default function GalaxyCanvas() {
         if (Math.abs(cam.tx - cam.x) < 0.5) cam.x = cam.tx;
         if (Math.abs(cam.ty - cam.y) < 0.5) cam.y = cam.ty;
         if (Math.abs(cam.tz - cam.z) < 0.0005) cam.z = cam.tz;
-        spinHero(currentRef.current);
+        spinFrame(currentRef.current);
         drawScene(t, agents);
         drawEmissive(t, agents);
         bloom(); post();
@@ -1502,6 +1538,7 @@ export default function GalaxyCanvas() {
     // press that began on a label or the HUD (where onDown bails early) would
     // be judged against a stale timestamp from some earlier press.
     let pressArmed = false;
+    hitRef.current = hitPlanet;
 
     const onDown = (e: PointerEvent) => {
       noteInput();
@@ -1791,7 +1828,19 @@ export default function GalaxyCanvas() {
         <div
           data-testid="arrival-scrim"
           className="gal-scrim absolute inset-0 z-30 flex items-center"
-          onClick={() => returnRef.current()}
+          onClick={(e) => {
+            // The sky behind a card is not just a dismiss target — the
+            // neighbours are right there, and being unable to step to one
+            // without backing all the way out was busywork. A world under the
+            // pointer swaps the card to it; empty space still lowers it.
+            const hit = hitRef.current(e.clientX, e.clientY);
+            if (hit && hit !== arrival) flyRef.current(hit);
+            else returnRef.current();
+          }}
+          onMouseMove={(e) => {
+            const hit = hitRef.current(e.clientX, e.clientY);
+            (e.currentTarget as HTMLDivElement).style.cursor = hit && hit !== arrival ? "pointer" : "";
+          }}
         >
           <div
             data-testid="arrival-card"

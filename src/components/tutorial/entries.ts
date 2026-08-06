@@ -41,7 +41,7 @@ export const SECTIONS: Section[] = [
           "The default view: every project is a planet — sized by weight, surfaced by what it is (gas bands, craters, ice, an ember world, city lights, one twin) — arranged in thematic clusters on orbital rings. Agents are moons orbiting the project their assignment names; related projects are joined by energy filaments.",
         how: "Drag to pan, scroll or pinch to zoom. Click a planet — the disc itself, or its name — to enter it; the cursor turns to a pointer over a world. Bottom right: − / + / ⤢ fit, ◐ idle drift, 3D for the immersive mode, and the lock. ⤢ measures the system against the current window, so it frames everything on a laptop half-window and on a 5K display alike.",
         gotcha:
-          "It never unmounts — your camera survives a trip into a project. Planets ride fixed cluster rings now, so there is nothing to drag out of place; the idle camera drifts until you touch anything, and comes back on its own after 30 quiet seconds (◐ brings it back sooner, or turns it off for good).",
+          "It never unmounts — your camera survives a trip into a project. Planets ride fixed cluster rings now, so there is nothing to drag out of place; the idle camera drifts until you touch anything, and comes back on its own after 30 quiet seconds (◐ brings it back sooner, or turns it off for good). Worlds ROTATE while they are big enough to see it — every planet on screen at arrival size, not just the one you came for, each on its own phase and rate. At map size nothing turns: a planet is 20-40px there, where a rotating surface is invisible.",
       },
       {
         title: "🔓 lock",
@@ -58,7 +58,7 @@ export const SECTIONS: Section[] = [
         how:
           "Click the planet itself or its name (Tab + Enter works too), then pick `Overview` or `Work`. To leave a project: press Escape, or click `galaxy` at the top left. To go back to a world's CARD from inside it, click the project name in the breadcrumb — `galaxy / crashkit / [overview|work]` — which lands you at that planet rather than the wide map.",
         gotcha:
-          "On a wide canvas the arrival is COMPOSED: the world takes the left third at a consistent hero size (a small project is not a lesser event) and the card takes the right, so the close-up is on display rather than hidden behind the card. Below about 700px of canvas there is no room to stage that and the card returns to centre. Escape pressed inside a text field blurs the field instead of navigating, so leaving from the room composer takes two presses. Turning the ◐ drift off is remembered — a trip into a project and back won't restart it.",
+          "While a card is up the neighbouring worlds are still LIVE: the cursor turns to a pointer over one, and clicking it swaps the card to that world — stepping between projects no longer means backing out to the map first. Empty sky still lowers the card. On a wide canvas the arrival is COMPOSED: the world takes the left third at a consistent hero size (a small project is not a lesser event) and the card takes the right, so the close-up is on display rather than hidden behind the card. Below about 700px of canvas there is no room to stage that and the card returns to centre. Escape pressed inside a text field blurs the field instead of navigating, so leaving from the room composer takes two presses. Turning the ◐ drift off is remembered — a trip into a project and back won't restart it.",
       },
       {
         title: "overview / work",

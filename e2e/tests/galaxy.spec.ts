@@ -125,6 +125,57 @@ test.describe("the galaxy map", () => {
     await expect(page.getByTestId("arrival-card")).toHaveCount(0);
   });
 
+  test("a neighbouring world can be stepped to without backing out first", async ({ page }) => {
+    await gotoHub(page);
+    await settleFlow(page);
+    await stillGalaxy(page);
+    await page.locator('[data-planet="crashkit"]').click();
+    await expect(page.getByTestId("arrival-card")).toContainText("crashkit");
+    await expect(page.getByTestId("galaxy")).toHaveAttribute("data-zoom-settled", "true");
+
+    // Sweep the sky BEHIND the scrim for a world that isn't the staged one.
+    // The scrim's cursor is the affordance under test as much as the click is:
+    // without it nothing signals that the neighbours are still live.
+    const box = (await page.getByTestId("galaxy").boundingBox())!;
+    const card = (await page.getByTestId("arrival-card").boundingBox())!;
+    const scrimCursor = () =>
+      page.evaluate(() => (document.querySelector('[data-testid="arrival-scrim"]') as HTMLElement).style.cursor);
+
+    // The sweep runs INSIDE the page: one round trip instead of several hundred
+    // (a move + a read per probe point times a 1400x900 grid times ~50ms each
+    // blows the test budget long before it finds anything).
+    const hit = await page.evaluate(
+      ({ card }) => {
+        const scrim = document.querySelector('[data-testid="arrival-scrim"]') as HTMLElement;
+        const b = scrim.getBoundingClientRect();
+        for (let x = b.left + 40; x < b.right - 40; x += 22) {
+          for (let y = b.top + 40; y < b.bottom - 40; y += 22) {
+            // the card is a child of the scrim and stops its own clicks
+            if (x > card.x - 8 && x < card.x + card.width + 8 && y > card.y - 8 && y < card.y + card.height + 8) continue;
+            scrim.style.cursor = "";
+            scrim.dispatchEvent(new MouseEvent("mousemove", { clientX: x, clientY: y, bubbles: true }));
+            if (scrim.style.cursor === "pointer") return { x, y };
+          }
+        }
+        return null;
+      },
+      { card }
+    );
+    expect(hit, "some world is reachable behind the scrim").toBeTruthy();
+
+    // Clicking it SWAPS the card rather than dismissing — the scrim used to
+    // read every click as "leave".
+    await page.mouse.click(hit!.x, hit!.y);
+    await expect(page.getByTestId("arrival-card")).toBeVisible();
+    await expect(page.getByTestId("arrival-card")).not.toContainText("crashkit");
+
+    // ...and empty sky still means leave.
+    await page.mouse.move(box.x + 12, box.y + 12);
+    expect(await scrimCursor()).not.toBe("pointer");
+    await page.mouse.click(box.x + 12, box.y + 12);
+    await expect(page.getByTestId("arrival-card")).toHaveCount(0);
+  });
+
   test("the breadcrumb's project name goes back to that world's card, from either mode", async ({ page }) => {
     await gotoHub(page);
     await settleFlow(page);
