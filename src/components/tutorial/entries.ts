@@ -39,7 +39,7 @@ export const SECTIONS: Section[] = [
         title: "the galaxy",
         what:
           "The default view: every project is a planet — sized by weight, surfaced by what it is (gas bands, craters, ice, an ember world, city lights, one twin) — arranged in thematic clusters on orbital rings. Agents are moons orbiting the project their assignment names; related projects are joined by energy filaments.",
-        how: "Drag to pan, scroll or pinch to zoom. Click a planet (or its label) to enter it. Bottom right: − / + / ⤢ fit, ◐ idle drift, 3D for the immersive mode, and the lock.",
+        how: "Drag to pan, scroll or pinch to zoom. Click a planet — the disc itself, or its name — to enter it; the cursor turns to a pointer over a world. Bottom right: − / + / ⤢ fit, ◐ idle drift, 3D for the immersive mode, and the lock. ⤢ measures the system against the current window, so it frames everything on a laptop half-window and on a 5K display alike.",
         gotcha:
           "It never unmounts — your camera survives a trip into a project. Planets ride fixed cluster rings now, so there is nothing to drag out of place; the idle camera drifts until you touch anything, and comes back on its own after 30 quiet seconds (◐ brings it back sooner, or turns it off for good).",
       },
@@ -56,14 +56,14 @@ export const SECTIONS: Section[] = [
         what:
           "Clicking a planet flies the camera in and raises an ARRIVAL CARD — name, crew, latest activity — with `← galaxy`, `Overview` and `Work` on it. A sidebar row does the same from anywhere on the map; clicking the same row again (or the dimmed sky, or Escape) lowers the card. Clicking a different planet or row while a card is up swaps it.",
         how:
-          "Click a planet or its label (Tab + Enter works too), then pick `Overview` or `Work`. To leave a project: press Escape, or click `galaxy` at the top left.",
+          "Click the planet itself or its name (Tab + Enter works too), then pick `Overview` or `Work`. To leave a project: press Escape, or click `galaxy` at the top left. To go back to a world's CARD from inside it, click the project name in the breadcrumb — `galaxy / crashkit / [overview|work]` — which lands you at that planet rather than the wide map.",
         gotcha:
-          "Escape pressed inside a text field blurs the field instead of navigating, so leaving from the room composer takes two presses. Turning the ◐ drift off is remembered — a trip into a project and back won't restart it.",
+          "On a wide canvas the arrival is COMPOSED: the world takes the left third at a consistent hero size (a small project is not a lesser event) and the card takes the right, so the close-up is on display rather than hidden behind the card. Below about 700px of canvas there is no room to stage that and the card returns to centre. Escape pressed inside a text field blurs the field instead of navigating, so leaving from the room composer takes two presses. Turning the ◐ drift off is remembered — a trip into a project and back won't restart it.",
       },
       {
         title: "overview / work",
         what:
-          "Every project has two modes. Overview renders a hand-built 2.5D scene for that project. Work gives you a task list, a file list, the topology bar and the room.",
+          "Every project has two modes. Overview renders a hand-built 2.5D scene for that project. Work gives you a task list, a file list, the topology bar and the room — plus a gate-ops card when this repo has `hub/*` branches or the danger zone is armed. The cards sit SIDE BY SIDE in a band above the room, and each folds to a pill on a single row — so a folded workstation hands its whole height to the transcript.",
         how: "The segmented control next to the project name in the top bar. Or click `enter the workroom ▸` inside any overview scene.",
         gotcha:
           "The mode is global — it follows you between projects — except that entering a project always resets you to overview. In work mode both side panels read the REAL repo: files show the repo root, and tasks show open GitHub issues where the repo has them, falling back to recent commits where it does not — the header names which is on screen. A project you minted in the hub says `no repo` instead of pretending.",
@@ -82,6 +82,15 @@ export const SECTIONS: Section[] = [
         how: "Type the hash in the address bar, or just navigate and watch it update.",
         gotcha:
           "`/work` is the only mode suffix the URL matcher accepts. `#/p/crashkit/overview` matches nothing and silently leaves you where you were, as does an unknown project id.",
+      },
+      {
+        title: "folding the chrome away",
+        what:
+          "Every piece of furniture collapses: the whole navigation rail, its header, projects and agents sections independently, the top command strip, and the galaxy's own control cluster. Work mode folds too — tasks, files, gate ops and the topology bar each become a small pill on one row.",
+        how:
+          "Chevrons where each piece lives: `⟨` in the rail header collapses the rail (a `⟩` strip brings it back), `▸/▾` on the `projects` and `agents` labels, `▴` at the right end of the top strip (a floating `▾` pill reopens it), `⌄` at the end of the zoom cluster, and a `▾` in the corner of each work-mode card.",
+        gotcha:
+          "Every choice is remembered across reloads, in its own storage slice separate from the hub's state. Folded pieces GIVE THEIR SPACE BACK rather than leaving an empty box: fold all three rail sections and the rail narrows as well, and the search field folds with the two lists it filters, since it has nothing left to filter.",
       },
       {
         title: "search and pins",
@@ -337,10 +346,10 @@ export const SECTIONS: Section[] = [
       {
         title: "composing your own shape",
         what:
-          "`+ new shape` opens a composer: name it, then stack stages. Each stage is SINGLE (one agent), FAN-OUT (all at once, none seeing another's answer), IN-ORDER (each seeing the whole conversation) or HAND-OFF (each seeing only the one before it), with a role and agents drawn from whoever is in this room. Saved shapes join the chip strip and run the same path as the presets.",
-        how: "In a WORK tab, `+ new shape`. Add stages, reorder with ↑/↓, and watch the price move as you build. `edit` and `delete` appear beside a selected saved shape.",
+          "`+ new shape` opens a composer with THREE views of one shape — `graph`, `form` and `json` — and it opens on the graph. A shape is a stack of steps: each is SINGLE (one agent), FAN-OUT (all at once, none seeing another's answer), IN-ORDER (each seeing the whole conversation) or HAND-OFF (each seeing only the one before it), with a role and agents drawn from whoever is in this room. Saved shapes join the chip strip and run the same path as the presets.",
+        how: "In a WORK tab, `+ new shape`. On the GRAPH, click a node to open its inspector (step kind, role, and which step the agent belongs to); the toolbar adds and removes roles and steps, `tidy` drops empty steps, `lock` freezes the shape. The FORM carries every field including the ones the graph hides, and reorders steps with ↑/↓. The JSON is the object the runner reads, editable live. The price moves as you build in any of them.",
         gotcha:
-          "Multi-round is the point — SINGLE manager → FAN-OUT workers → SINGLE judge → FAN-OUT again → judge — and a stage that speaks a second time is badged `round 2` and told so. Caps: 8 stages, 6 agents each. Reusing an existing name REPLACES that shape, which the composer now warns about rather than doing silently. Saved shapes live in this browser only.",
+          "The three views are not three sources of truth — they edit the same steps, so the picture is always what the runner will execute. The graph is LAYERED on purpose: the engine runs ordered steps at depth 1 (workers never spawn workers, which is what keeps the price countable), so there is no free-form wiring to draw and none is offered. What the graph earns over the form is the one thing a dropdown buries: the edges show WHO READS WHOSE ANSWER, which is the entire difference between IN-ORDER and HAND-OFF at identical price. Multi-round is the point — SINGLE manager → FAN-OUT workers → SINGLE judge → FAN-OUT again → judge — and a stage that speaks a second time is badged `round 2` and told so. Caps: 8 steps, 6 agents each. Reusing an existing name REPLACES that shape, which the composer warns about rather than doing silently. Saved shapes live in this browser only.",
         needsKey: true,
       },
       {
@@ -349,6 +358,15 @@ export const SECTIONS: Section[] = [
         how: "Read the `N+ model calls` chip. It moves as you switch shapes, edit a shape, or the room's population changes. When the run finishes it reports the EXACT number it actually spent — counted request by request as each call goes out, never estimated afterwards.",
         gotcha:
           "The `+` is honest, not decorative: agents keep their tools inside a shape, and a node that reads the repo takes another turn — up to four per node. So a fan-out of four quotes 5+ and can spend more; the closing line tells you which, and every free tool call an agent makes appears as its own dim row in the transcript, so you can see WHERE the extra calls went. A shape the room cannot fill reads `nothing to run` instead of a price, and the launch button stays dark.",
+        needsKey: true,
+      },
+      {
+        title: "the ceiling — the number that stops things",
+        what:
+          "A hard limit on how many model calls one shape run may issue, checked before every node. Reaching it ends the run, posts a line in the room naming the ceiling, still reports what was spent, and writes a STOPPED row to the journal.",
+        how: "The `ceiling` selector beside `run ▸`: 10, 20, 40, 80, or `none`. It is remembered across reloads.",
+        gotcha:
+          "This exists because the price chip is a FLOOR, not a limit — a node that calls a tool answers the result in another request, and a shape may hold 8 steps of 6 agents, so one click could issue dozens of requests against your own key. The ceiling is enforced in the runner where the calls are counted, not in the button, so it stops a run that is already going. `none` is a real choice and it means exactly that: nothing will stop the run.",
         needsKey: true,
       },
       {
