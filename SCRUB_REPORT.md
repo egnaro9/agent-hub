@@ -16,21 +16,21 @@ identity seam.
 ## Fixed in place
 
 ### 1. `docs/ROADMAP.md` — named the private harness repo (BLOCKER)
-The CAP-CATALOG-1 arc said "The hub cannot read local harness-system files."
+The CAP-CATALOG-1 arc said "The hub cannot read local the-private-harness-repo files."
 **Fix:** now reads "the dev harness's private workspace files" — same meaning,
-no private name. `git grep harness-system` over the tree: zero hits.
+no private name. `git grep the-private-harness-repo` over the tree: zero hits.
 **Residual (history):** the name exists in ~20 historical commits of this
 file. A public flip therefore requires a history squash/rewrite or a fresh
 single-commit export — a HEAD edit alone is not sufficient. Decision needed
 at flip time, not before.
 
 ### 2. `worlds_shoot.mjs` — absolute path leaking the macOS username (BLOCKER)
-The screenshot path hard-coded a `/private/tmp/claude-501/-Users-lonimua/…`
+The screenshot path hard-coded a `<local-scratchpad-path>/…`
 scratchpad location — linking the public dev identity to the personal
 identity the doctrine protects, plus an agent-session directory layout.
 **Fix:** screenshots now write to a repo-relative `shots/` directory
-(created on run, gitignored). Tree scan for `lonimua`, `/Users/`,
-`/private/tmp`: zero hits.
+(created on run, gitignored). Tree scan for `<machine-user>`, `/Users/`,
+the temp-directory prefix: zero hits.
 **Residual (history):** the path is in prior commits — same flip-time
 history treatment as finding 1.
 
@@ -117,8 +117,8 @@ right cost.
 
 ## Scan appendix (all run at this commit)
 
-- `git grep harness-system` → 0
-- `git grep -E "lonimua|/Users/|/private/tmp|Desktop/Resume"` → 0
+- `git grep the-private-harness-repo` → 0
+- `git grep -E "<machine-user>|/Users/|<tmp-prefix>|Desktop/Resume"` → 0
 - token-shape grep (tree + history), test/placeholder constants excluded → 0
 - private-name sweep (game lineage, role names, personal domains, emails) → 0
 - `wmscan` over new/edited prose-bearing files → CLEAN (selftest PASS)
