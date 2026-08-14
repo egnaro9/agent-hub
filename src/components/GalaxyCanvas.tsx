@@ -4,6 +4,7 @@ import { useChrome } from "../state/chrome";
 import { STRUCTURAL } from "../data/mock";
 import { PAINTERS } from "./planets";
 import { SUN, BLACK_HOLE, WORMHOLES, sunGlow, sunCaption, perturb, wormholeTarget, type Wormhole } from "./constellation";
+import { FIT_MARGIN, solveMapFit, type FitBody } from "./galaxyFit";
 import { fetchRegistryCount, type RegistryCount } from "../data/registry";
 import type { Agent, Project } from "../types";
 
@@ -619,8 +620,13 @@ export default function GalaxyCanvas() {
 
     // ── view state ──
     let W = 0, H = 0;
-    const DPR = Math.min(devicePixelRatio || 1, 2);
+    let DPR = Math.min(devicePixelRatio || 1, 2);
     const sizeAll = () => {
+      // Re-read per call: browser page zoom changes devicePixelRatio LIVE,
+      // and a backing store sized with the mount-time value renders every
+      // later frame soft (or oversampled) after a Cmd+−/+ — observed as a
+      // clean-2× backing store on a canvas the browser had since rescaled.
+      DPR = Math.min(devicePixelRatio || 1, 2);
       W = host.clientWidth; H = host.clientHeight;
       view.width = W * DPR; view.height = H * DPR;
       vx.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -653,7 +659,7 @@ export default function GalaxyCanvas() {
     // A fixed home zoom fits one viewport. These solve for the camera that
     // frames every planet in the CURRENT canvas, so the same button gives a
     // whole system on a laptop half-window and on a 5K display.
-    const MARGIN = { x: 74, top: 58, bottom: 104 }; // labels hang below; HUD owns the bottom-right
+    const MARGIN = FIT_MARGIN; // labels hang below; HUD owns the bottom-right
     // The constellation bodies are part of what the fit frames — a sun the
     // home view crops is a registry nobody sees. They ride parallax 1.
     const CEL_EXTENT = [
@@ -664,41 +670,24 @@ export default function GalaxyCanvas() {
 
     /** 2.5D: planets ride a parallax factor, so the fit is solved iteratively
         — each recentring changes every node's effective offset. Radii scale
-        with zoom exactly like positions, which is what lets one z fall out. */
+        with zoom exactly like positions, which is what lets one z fall out.
+        The solve itself lives in galaxyFit.ts, pure and unit-pinned; this
+        wrapper only gathers what is currently out there. */
     const fitMap = () => {
-      if (nodes.size === 0 || W === 0) return { x: HOME.x, y: HOME.y, z: HOME.z };
-      let cx = 0, cy = 0;
-      nodes.forEach((n) => { cx += n.x; cy += n.y; });
-      cx /= nodes.size; cy /= nodes.size;
-      let z = HOME.z;
-      for (let pass = 0; pass < 6; pass++) {
-        let uMin = Infinity, uMax = -Infinity, vMin = Infinity, vMax = -Infinity;
-        nodes.forEach((n, id) => {
-          const p = 0.88 + n.z * 0.12;
-          const sp = sprites.get(id)!;
-          // a ring is WIDE and FLAT (ringPath: rx 2.1R, ry 0.62R) — reserving
-          // its width vertically shrank the whole frame for two planets
-          const ring = RINGED.has(id);
-          const rx = sp.R * n.z * (ring ? 2.25 : 1.2);
-          const ry = sp.R * n.z * (ring ? 1.2 : 1.2);
-          const u = n.x - cx * p, v = n.y - cy * p;
-          uMin = Math.min(uMin, u - rx); uMax = Math.max(uMax, u + rx);
-          vMin = Math.min(vMin, v - ry); vMax = Math.max(vMax, v + ry);
+      const bodies: FitBody[] = [];
+      nodes.forEach((n, id) => {
+        const sp = sprites.get(id)!;
+        // a ring is WIDE and FLAT (ringPath: rx 2.1R, ry 0.62R) — reserving
+        // its width vertically shrank the whole frame for two planets
+        const ring = RINGED.has(id);
+        bodies.push({
+          x: n.x, y: n.y, p: 0.88 + n.z * 0.12,
+          rx: sp.R * n.z * (ring ? 2.25 : 1.2), ry: sp.R * n.z * 1.2,
+          centroid: true,
         });
-        CEL_EXTENT.forEach((b) => {
-          const u = b.x - cx, v = b.y - cy;
-          uMin = Math.min(uMin, u - b.rx); uMax = Math.max(uMax, u + b.rx);
-          vMin = Math.min(vMin, v - b.ry); vMax = Math.max(vMax, v + b.ry);
-        });
-        const availW = Math.max(140, W - MARGIN.x * 2);
-        const availH = Math.max(140, H - MARGIN.top - MARGIN.bottom);
-        z = Math.max(0.2, Math.min(3.1, Math.min(availW / Math.max(1, uMax - uMin), availH / Math.max(1, vMax - vMin))));
-        // land the content's midpoint on the viewport's optical centre
-        const wantV = (MARGIN.top - MARGIN.bottom) / (2 * z);
-        cx += (uMin + uMax) / 2 / 0.94;
-        cy += ((vMin + vMax) / 2 - wantV) / 0.94;
-      }
-      return { x: cx, y: cy, z };
+      });
+      CEL_EXTENT.forEach((b) => bodies.push({ x: b.x, y: b.y, rx: b.rx, ry: b.ry, p: 1, centroid: false }));
+      return solveMapFit(bodies, W, H, HOME);
     };
 
     /** The system's TRUE 3D centre — the midpoint of what is actually out
@@ -1804,6 +1793,21 @@ export default function GalaxyCanvas() {
       positionLabels(agents);
       raf = requestAnimationFrame(loop);
     };
+    // ── first paint, synchronously at mount ───────────────────────────────
+    // The loop parks while the tab is hidden — and a tab that LOADS in the
+    // background never gets a single rAF, so nothing below ever ran: every
+    // label sat unpositioned at the host's corner (absolute + translate(-50%)
+    // of its own width — the "galaxy collapsed to one point" a background-tab
+    // reader measures) and the canvas stayed blank until the first visible
+    // frame. Paint once here, unconditionally: the map's DOM and canvas are
+    // correct from the moment they exist, whether or not a frame ever fires.
+    {
+      const agents0 = useHub.getState().agents;
+      drawScene(0, agents0);
+      drawEmissive(0, agents0);
+      bloom(); post();
+      positionLabels(agents0);
+    }
     let raf = requestAnimationFrame(loop);
 
     // HUD drift wiring is declared below; setDrift is hoisted here so the
