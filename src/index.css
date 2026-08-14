@@ -137,6 +137,54 @@ body {
 .gal-lab:hover .tag { opacity: 1; }
 .gal-lab:hover .n { color: #f2f6ff; }
 
+/* Celestial labels — the registry, the portals, the void. Their own class,
+   never .gal-lab: that class is an e2e contract ("one label per project"),
+   and none of these is a project. Sun and wormholes are real anchors, so
+   keyboard and screen readers get them for free; captions reveal on hover
+   AND focus, per the map's hover-caption rule. */
+.gal-cel {
+  position: absolute; transform: translate(-50%, 0);
+  text-align: center; pointer-events: auto; cursor: pointer;
+  transition: opacity .45s; user-select: none; -webkit-user-select: none;
+  text-decoration: none; display: block;
+}
+.gal-cel .n {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10.5px; font-weight: 500; letter-spacing: .22em;
+  text-transform: uppercase; color: #c6d4ea;
+  text-shadow: 0 1px 8px rgba(2,4,10,.95); white-space: nowrap;
+}
+.gal-cel .rule, .gal-cel .m {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  pointer-events: none;
+}
+.gal-cel .rule {
+  top: 17px; width: 26px; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(190,210,240,.45), transparent);
+}
+.gal-cel .m {
+  top: 23px; font-family: ui-monospace, Menlo, monospace; font-size: 7.5px;
+  letter-spacing: .14em; text-transform: uppercase; color: #8496b4;
+  white-space: nowrap; text-shadow: 0 1px 6px rgba(2,4,10,.9);
+  opacity: 0; transition: opacity .3s;
+}
+.gal-cel:hover .m, .gal-cel:focus-visible .m { opacity: 1; }
+.gal-cel:hover .n, .gal-cel:focus-visible .n { color: #f2f6ff; }
+.gal-cel--sun .n { color: #ffe2a8; }
+.gal-cel--sun:hover .n, .gal-cel--sun:focus-visible .n { color: #fff3d4; }
+.gal-cel--wh .n { color: var(--wh, #9fb4d8); font-size: 9px; letter-spacing: .26em; }
+.gal-cel--wh .n::before { content: "◍ "; opacity: .8; }
+/* The void: no nameplate — a hover/focus reveal seated on the body itself.
+   The box is sized per frame to the horizon, so the hover area IS the
+   effect, never a mystery zone in empty sky. */
+.gal-cel--hole {
+  transform: translate(-50%, -50%);
+  border-radius: 50%; cursor: default; outline-offset: 4px;
+}
+.gal-cel--hole .m {
+  top: calc(100% + 8px); color: #93a4c2; letter-spacing: .18em;
+}
+
 @keyframes gal-arrive {
   from { opacity: 0; transform: translateY(14px); }
   to { opacity: 1; transform: none; }

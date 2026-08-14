@@ -3,6 +3,8 @@ import { useHub } from "../state/hub";
 import { useChrome } from "../state/chrome";
 import { STRUCTURAL } from "../data/mock";
 import { PAINTERS } from "./planets";
+import { SUN, BLACK_HOLE, WORMHOLES, sunGlow, sunCaption, perturb, wormholeTarget, type Wormhole } from "./constellation";
+import { fetchRegistryCount, type RegistryCount } from "../data/registry";
 import type { Agent, Project } from "../types";
 
 /* ════════════════════════════════════════════════════════════════════════════
@@ -17,6 +19,13 @@ import type { Agent, Project } from "../types";
    emissive passes through a real additive bloom chain (offscreen → half-res →
    quarter-res blur → lighter), over fbm-baked nebulae, three parallax star
    layers, film grain and a vignette.
+
+   The constellation layer (constellation.ts) adds the bodies that are NOT
+   planets: the SUN — the evidence registry, corona data-bound to the live
+   accepted-claim count, the one click that leaves for the registry page; the
+   BLACK HOLE — the harness, rendered only by lensing, accretion and the
+   perturbed orbits nearby, with no way in; and WORMHOLES — ring-and-aperture
+   portals to destinations best experienced where they run.
 
    Two projections share the sprites and the bloom: the default 2.5D map, and
    an optional immersive 3D mode (free-orbit camera, planets revolving on
@@ -473,17 +482,23 @@ function layout(projects: Project[]) {
     // structure — inner ring = closest to the heart of the cluster.
     const sorted = [...members].sort((a, b) => degreeOf(b.id) - degreeOf(a.id));
     const zs = [1.06, 1, 0.92, 1.02, 0.88, 0.82, 0.9, 0.78, 0.86];
+    // The vac heart is the SUN's seat, not a planet's: every suite world
+    // rides a ring around the registry its claims are bound to. Everywhere
+    // else the most-connected member still anchors its cluster.
+    const sunSeat = cl.id === "vac";
+    const first = sunSeat ? 0 : 1; // ring-one slots start here
+    const ring1 = sunSeat ? 5 : 4; // and hold this many
     sorted.forEach((p, i) => {
       seed = idSeed(p.id) + 7;
       const y3 = (rnd() - 0.5) * 120;
-      if (i === 0 && members.length > 1) {
+      if (i === 0 && members.length > 1 && !sunSeat) {
         nodes.set(p.id, { x: cl.cx, y: cl.cy, z: 1.06, cluster: cl, ringRad: 0, ang: 0, y3, orbSpeed: 0 });
         return;
       }
-      const ringIdx = members.length === 1 ? 0 : i <= 4 ? 1 : 2;
+      const ringIdx = members.length === 1 && !sunSeat ? 0 : i < first + ring1 ? 1 : 2;
       const rad = ringIdx === 0 ? 0 : ringIdx === 1 ? 265 : 455;
-      const onRing = ringIdx === 1 ? Math.min(4, sorted.length - 1) : sorted.length - 5;
-      const slot = ringIdx === 1 ? i - 1 : i - 5;
+      const onRing = ringIdx === 1 ? Math.min(ring1, sorted.length - first) : sorted.length - first - ring1;
+      const slot = ringIdx === 1 ? i - first : i - first - ring1;
       const off = ringIdx === 1 ? -0.55 : 0.42;
       const a = off + (slot / Math.max(onRing, 1)) * TAU;
       nodes.set(p.id, {
@@ -536,6 +551,14 @@ export default function GalaxyCanvas() {
     // ── bakes ──
     const { projects } = useHub.getState();
     const nodes = layout(projects);
+    // Base coordinates are the truth the perturbation field bends: positions
+    // re-derive from here every frame, so the unseen mass can never
+    // accumulate drift into the layout.
+    const base = new Map<string, { x: number; y: number }>();
+    nodes.forEach((n, id) => base.set(id, { x: n.x, y: n.y }));
+    // The registry read lands asynchronously; until it does the sun burns at
+    // its dim default and the label says it is still reading.
+    let reg: RegistryCount | null = null;
     const sprites = new Map<string, Sprite>();
     const assignmentsNow = useHub.getState().assignments;
     projects.forEach((p) => {
@@ -631,6 +654,13 @@ export default function GalaxyCanvas() {
     // frames every planet in the CURRENT canvas, so the same button gives a
     // whole system on a laptop half-window and on a 5K display.
     const MARGIN = { x: 74, top: 58, bottom: 104 }; // labels hang below; HUD owns the bottom-right
+    // The constellation bodies are part of what the fit frames — a sun the
+    // home view crops is a registry nobody sees. They ride parallax 1.
+    const CEL_EXTENT = [
+      { x: SUN.x, y: SUN.y, rx: SUN.r * 2.2, ry: SUN.r * 2.2 },
+      { x: BLACK_HOLE.x, y: BLACK_HOLE.y, rx: BLACK_HOLE.r * 2.3, ry: BLACK_HOLE.r * 2.3 },
+      ...WORMHOLES.map((w) => ({ x: w.x, y: w.y, rx: w.r * 1.7, ry: w.r * 1.2 })),
+    ];
 
     /** 2.5D: planets ride a parallax factor, so the fit is solved iteratively
         — each recentring changes every node's effective offset. Radii scale
@@ -654,6 +684,11 @@ export default function GalaxyCanvas() {
           const u = n.x - cx * p, v = n.y - cy * p;
           uMin = Math.min(uMin, u - rx); uMax = Math.max(uMax, u + rx);
           vMin = Math.min(vMin, v - ry); vMax = Math.max(vMax, v + ry);
+        });
+        CEL_EXTENT.forEach((b) => {
+          const u = b.x - cx, v = b.y - cy;
+          uMin = Math.min(uMin, u - b.rx); uMax = Math.max(uMax, u + b.rx);
+          vMin = Math.min(vMin, v - b.ry); vMax = Math.max(vMax, v + b.ry);
         });
         const availW = Math.max(140, W - MARGIN.x * 2);
         const availH = Math.max(140, H - MARGIN.top - MARGIN.bottom);
@@ -838,6 +873,9 @@ export default function GalaxyCanvas() {
         z: (n.cluster.cy + Math.sin(a) * n.ringRad * 1.05) * SPREAD3,
       };
     };
+    /** Celestial bodies sit on the galactic plane in 3D — the same mapping
+        the non-ring planets use. */
+    const cel3 = (b: { x: number; y: number }) => ({ x: b.x * SPREAD3, y: 0, z: b.y * SPREAD3 });
     const project3 = (p: { x: number; y: number; z: number }) => {
       const c = cam3, dx = p.x - c.target.x, dy = p.y - c.target.y, dz = p.z - c.target.z;
       const cy = Math.cos(c.yaw), sy = Math.sin(c.yaw);
@@ -877,6 +915,59 @@ export default function GalaxyCanvas() {
       d.addEventListener("click", () => toggleRef.current(p.id));
       labelHost.appendChild(d);
       labelEls.set(p.id, d);
+    });
+
+    // ── celestial labels: the registry, the portals, the void ──────────────
+    // Their own class, never .gal-lab — that class is an e2e contract ("one
+    // label per project"), and none of these is a project. Sun and wormholes
+    // are REAL anchors: keyboard reachable natively, and the estate rule
+    // (same tab inside egnaro9.github.io, new tab external) is just href +
+    // target. The void gets no nameplate — a hover/focus reveal seated on
+    // the body, saying only what an observer could measure.
+    const celEls = new Map<string, HTMLElement>();
+    const portalAnchor = (id: string, cls: string, url: string, aria: string, html: string) => {
+      const a = document.createElement("a");
+      a.className = `gal-cel ${cls}`;
+      a.dataset.cel = id;
+      a.href = url;
+      if (wormholeTarget(url).newTab) { a.target = "_blank"; a.rel = "noopener"; }
+      a.setAttribute("aria-label", aria);
+      a.innerHTML = html;
+      labelHost.appendChild(a);
+      celEls.set(id, a);
+      return a;
+    };
+    const sunLab = portalAnchor(
+      "sun", "gal-cel--sun", SUN.url,
+      `${SUN.name} — the live registry page`,
+      `<div class="n">${SUN.name}</div><div class="rule"></div><div class="m">${sunCaption(null)}</div>`
+    );
+    WORMHOLES.forEach((w) => {
+      const el = portalAnchor(
+        w.id, "gal-cel--wh", w.url,
+        `${w.name} — portal: ${w.claim}`,
+        `<div class="n">${w.name}</div><div class="rule"></div><div class="m">${w.claim} · opens live</div>`
+      );
+      el.style.setProperty("--wh", w.hue);
+    });
+    const holeLab = document.createElement("div");
+    holeLab.className = "gal-cel gal-cel--hole";
+    holeLab.dataset.cel = "hole";
+    holeLab.tabIndex = 0;
+    holeLab.setAttribute("aria-label", "the harness — unseen mass, read from the motion of everything else");
+    holeLab.innerHTML = `<div class="m">the harness — unseen mass, read from the motion of everything else</div>`;
+    labelHost.appendChild(holeLab);
+    celEls.set("hole", holeLab);
+
+    // The sun's brightness is a verifiable claim: bind it to the registry the
+    // moment the count lands. On failure the caption stays honest — last seen
+    // or nothing — and the corona keeps its dim default.
+    fetchRegistryCount().then((r) => {
+      if (disposed) return;
+      reg = r;
+      const m = sunLab.querySelector<HTMLElement>(".m");
+      if (m) m.textContent = sunCaption(r);
+      sunLab.setAttribute("aria-label", `${SUN.name} — ${sunCaption(r)}`);
     });
 
     // live agent list per frame — assignment + status straight from the store
@@ -940,6 +1031,120 @@ export default function GalaxyCanvas() {
       });
     };
 
+    // ── the constellation painters ─────────────────────────────────────────
+    // All four draw at SCREEN scale on the shared contexts, so the flat map
+    // and the 3D projection use the same art with different (sx, sy, R).
+    const off = (sx: number, sy: number, R: number) =>
+      sx < -R * 3 || sx > W + R * 3 || sy < -R * 3 || sy > H + R * 3;
+
+    /** The sun's diffuse photosphere. Corona and its data-bound brightness
+        live on the emissive layer (emitSun) so they pass through bloom. */
+    const paintSun = (sx: number, sy: number, R: number, t: number) => {
+      if (off(sx, sy, R)) return;
+      const { glow } = sunGlow(reg?.accepted ?? null);
+      const breathe = reduced ? 1 : 1 + Math.sin(t * 0.55) * 0.02;
+      const r0 = R * breathe;
+      const core = vx.createRadialGradient(sx, sy, 0, sx, sy, r0);
+      core.addColorStop(0, "rgba(255,252,242,.98)");
+      core.addColorStop(0.62, `rgba(255,236,186,${0.55 + glow * 0.4})`);
+      core.addColorStop(1, "rgba(255,214,140,0)");
+      vx.fillStyle = core;
+      vx.beginPath(); vx.arc(sx, sy, r0, 0, TAU); vx.fill();
+    };
+    const emitSun = (sx: number, sy: number, R: number, t: number) => {
+      const { glow, corona } = sunGlow(reg?.accepted ?? null);
+      const breathe = reduced ? 1 : 1 + Math.sin(t * 0.55) * 0.02;
+      const cr = R * corona * breathe;
+      if (off(sx, sy, cr)) return;
+      const g = ex.createRadialGradient(sx, sy, R * 0.3, sx, sy, cr);
+      g.addColorStop(0, `rgba(255,240,205,${0.12 + 0.5 * glow})`);
+      g.addColorStop(0.4, `rgba(255,220,150,${0.22 * glow})`);
+      g.addColorStop(1, "rgba(255,210,140,0)");
+      ex.fillStyle = g;
+      ex.beginPath(); ex.arc(sx, sy, cr, 0, TAU); ex.fill();
+    };
+
+    /** The unseen mass. No surface is ever painted — the sky's own light
+        dies toward the horizon, the background lenses into thin arcs, and an
+        accretion streak glows. Everything else it "shows" is the perturbed
+        motion of its neighbours. */
+    const paintHole = (sx: number, sy: number, R: number, t: number) => {
+      if (off(sx, sy, R * 2.3)) return;
+      const v = vx.createRadialGradient(sx, sy, 0, sx, sy, R * 2.3);
+      v.addColorStop(0, "rgba(1,2,6,.97)");
+      v.addColorStop(0.42, "rgba(1,2,6,.88)");
+      v.addColorStop(1, "rgba(1,2,6,0)");
+      vx.fillStyle = v;
+      vx.beginPath(); vx.arc(sx, sy, R * 2.3, 0, TAU); vx.fill();
+      const spin = reduced ? 0 : t * 0.07;
+      vx.save(); vx.translate(sx, sy); vx.rotate(-0.35);
+      for (let k = 0; k < 3; k++) {
+        const rr = R * (1.32 + k * 0.3);
+        vx.strokeStyle = `rgba(200,215,240,${0.11 - k * 0.03})`;
+        vx.lineWidth = 0.8;
+        vx.beginPath(); vx.ellipse(0, 0, rr, rr * 0.42, 0, spin + k, spin + k + 2.1); vx.stroke();
+      }
+      const acc = vx.createLinearGradient(-R * 1.9, 0, R * 1.9, 0);
+      acc.addColorStop(0, "rgba(255,196,150,0)");
+      acc.addColorStop(0.28, "rgba(255,196,150,.28)");
+      acc.addColorStop(0.5, "rgba(255,226,190,.08)");
+      acc.addColorStop(0.75, "rgba(190,205,235,.12)");
+      acc.addColorStop(1, "rgba(190,205,235,0)");
+      vx.strokeStyle = acc; vx.lineWidth = Math.max(1, R * 0.16);
+      vx.beginPath(); vx.ellipse(0, 0, R * 1.55, R * 0.5, 0, 0, TAU); vx.stroke();
+      vx.restore();
+    };
+    const emitHole = (sx: number, sy: number, R: number, _t: number) => {
+      if (off(sx, sy, R * 1.3)) return;
+      // the photon ring — the one bright thing, and it is bent LIGHT, not
+      // surface; the approaching side beams brighter, doppler-fashion
+      ex.save(); ex.translate(sx, sy); ex.rotate(-0.35);
+      ex.strokeStyle = "rgba(255,214,168,.4)"; ex.lineWidth = Math.max(0.8, R * 0.07);
+      ex.beginPath(); ex.ellipse(0, 0, R * 1.06, R * 1.02, 0, 0, TAU); ex.stroke();
+      ex.strokeStyle = "rgba(255,236,200,.75)"; ex.lineWidth = Math.max(1, R * 0.1);
+      ex.beginPath(); ex.ellipse(0, 0, R * 1.06, R * 1.02, 0, Math.PI * 0.75, Math.PI * 1.35); ex.stroke();
+      ex.restore();
+    };
+
+    /** A portal is ring-and-aperture, never a disc: a dark throat punched in
+        the sky, a doubled rim in the destination's hue. Planet rings are wide
+        and FLAT — an aperture stays steep so the two never read alike. */
+    const paintWormhole = (w: Wormhole, sx: number, sy: number, R: number, _t: number) => {
+      if (off(sx, sy, R * 1.6)) return;
+      vx.save(); vx.translate(sx, sy); vx.rotate(-0.5);
+      const th = vx.createRadialGradient(0, 0, 0, 0, 0, R * 0.85);
+      th.addColorStop(0, "rgba(2,3,9,.95)");
+      th.addColorStop(0.75, "rgba(2,3,9,.6)");
+      th.addColorStop(1, "rgba(2,3,9,0)");
+      vx.fillStyle = th;
+      vx.beginPath(); vx.ellipse(0, 0, R * 0.85, R * 0.46, 0, 0, TAU); vx.fill();
+      for (const [rr, ry, col, lw] of [
+        [R, R * 0.55, rgba(w.hue, 0.75), Math.max(1.1, R * 0.13)],
+        [R * 0.78, R * 0.42, "rgba(255,255,255,.5)", Math.max(0.7, R * 0.06)],
+      ] as const) {
+        vx.strokeStyle = col; vx.lineWidth = lw;
+        vx.beginPath(); vx.ellipse(0, 0, rr, ry, 0, 0, TAU); vx.stroke();
+      }
+      vx.restore();
+    };
+    const emitWormhole = (w: Wormhole, sx: number, sy: number, R: number, t: number, i: number) => {
+      if (off(sx, sy, R * 1.6)) return;
+      ex.save(); ex.translate(sx, sy); ex.rotate(-0.5);
+      ex.strokeStyle = rgba(mix(w.hue, "#ffffff", 0.35), 0.5);
+      ex.lineWidth = Math.max(1, R * 0.1);
+      ex.beginPath(); ex.ellipse(0, 0, R, R * 0.55, 0, 0, TAU); ex.stroke();
+      // the traveller — one bright bead running the rim; parked when reduced
+      const u = reduced ? (i * 0.27) % 1 : (t * 0.22 + i * 0.27) % 1;
+      const a = u * TAU;
+      const bx2 = Math.cos(a) * R, by2 = Math.sin(a) * R * 0.55;
+      const bead = ex.createRadialGradient(bx2, by2, 0, bx2, by2, R * 0.34);
+      bead.addColorStop(0, rgba(mix(w.hue, "#ffffff", 0.6), 0.9));
+      bead.addColorStop(1, "rgba(0,0,0,0)");
+      ex.fillStyle = bead;
+      ex.beginPath(); ex.arc(bx2, by2, R * 0.34, 0, TAU); ex.fill();
+      ex.restore();
+    };
+
     const drawScene = (t: number, agents: Agent[]) => {
       vx.clearRect(0, 0, W, H);
       const bg = vx.createLinearGradient(0, 0, W, H);
@@ -976,6 +1181,13 @@ export default function GalaxyCanvas() {
         const ox = ((-cam.x * l.p * cam.z) % s + s) % s, oy = ((-cam.y * l.p * cam.z) % s + s) % s;
         for (let x = ox - s; x < W; x += s) for (let y = oy - s; y < H; y += s) vx.drawImage(l.c, x, y, s, s);
       });
+
+      // the unseen mass dims the sky it sits in — before rings and filaments,
+      // which may legitimately cross its outer fringe as bent light
+      {
+        const [hx, hy] = w2s(BLACK_HOLE.x, BLACK_HOLE.y);
+        paintHole(hx, hy, BLACK_HOLE.r * cam.z, t);
+      }
 
       CLUSTER_DEF.forEach((cl) => {
         const members = [...nodes.values()].filter((n) => n.cluster.id === cl.id);
@@ -1016,6 +1228,17 @@ export default function GalaxyCanvas() {
         vx.beginPath(); vx.moveTo(ax, ay); vx.quadraticCurveTo(cxp, cyp, bx, by); vx.stroke();
       });
 
+      // the sun and the portals sit under the planets, so a world crossing
+      // the registry's face occludes it the way it occludes everything else
+      {
+        const [sx2, sy2] = w2s(SUN.x, SUN.y);
+        paintSun(sx2, sy2, SUN.r * cam.z, t);
+      }
+      WORMHOLES.forEach((w) => {
+        const [wx2, wy2] = w2s(w.x, w.y);
+        paintWormhole(w, wx2, wy2, w.r * cam.z, t);
+      });
+
       drawMoons(agents, "back");
       const order = [...nodes.entries()].sort((a, b) => a[1].z - b[1].z);
       order.forEach(([id, n]) => {
@@ -1042,6 +1265,18 @@ export default function GalaxyCanvas() {
 
     const drawEmissive = (t: number, agents: Agent[]) => {
       ex.clearRect(0, 0, W, H);
+      // Celestial light goes down FIRST: the planet-disc punch below occludes
+      // the sun's corona and the portals' rims exactly like every far glow.
+      {
+        const [sx2, sy2] = w2s(SUN.x, SUN.y);
+        emitSun(sx2, sy2, SUN.r * cam.z, t);
+        const [hx, hy] = w2s(BLACK_HOLE.x, BLACK_HOLE.y);
+        emitHole(hx, hy, BLACK_HOLE.r * cam.z, t);
+        WORMHOLES.forEach((w, i) => {
+          const [wx2, wy2] = w2s(w.x, w.y);
+          emitWormhole(w, wx2, wy2, w.r * cam.z, t, i);
+        });
+      }
       // Bloom composites this canvas ADDITIVELY over the finished scene, so a
       // glow left here by a moon on the far side of its planet shines straight
       // through the disc. Far-side glows go down first, then every planet disc
@@ -1328,6 +1563,35 @@ export default function GalaxyCanvas() {
         if (crewNames.length) el.title = crewNames.map((nm) => `${nm} is working here`).join(", ");
         else el.removeAttribute("title");
       });
+      // celestial labels ride the same projections as their bodies
+      celEls.forEach((el, id) => {
+        const b = id === "sun" ? SUN : id === "hole" ? BLACK_HOLE : WORMHOLES.find((w) => w.id === id);
+        if (!b) return;
+        let x: number, y: number, below: number, o: number;
+        if (mode === "3d") {
+          const pr = project3(cel3(b));
+          if (!pr) { el.style.opacity = "0"; return; }
+          x = pr.x; y = pr.y; below = b.r * pr.s * 2.1;
+          o = Math.min(1, pr.s * 2.2);
+        } else {
+          const [sx, sy] = w2s(b.x, b.y);
+          x = sx; y = sy; below = b.r * cam.z;
+          const floor = Math.min(0.3, home.z * 0.92);
+          o = cam.z < floor ? 0 : Math.min(1, (cam.z - floor + 0.02) * 6);
+        }
+        if (id === "hole") {
+          // the void's reveal sits ON the body: the hover area is the effect
+          const d = Math.max(30, below * 2.6);
+          el.style.width = el.style.height = `${Math.round(d)}px`;
+          el.style.left = `${Math.round(x)}px`;
+          el.style.top = `${Math.round(y)}px`;
+          el.style.opacity = "1";
+          return;
+        }
+        el.style.left = `${Math.round(x)}px`;
+        el.style.top = `${Math.round(y + below * 1.15 + 13)}px`;
+        el.style.opacity = `${o}`;
+      });
     };
 
     const draw3D = (agents: Agent[]) => {
@@ -1382,9 +1646,23 @@ export default function GalaxyCanvas() {
         vx.stroke();
       });
       vx.globalCompositeOperation = "source-over";
-      type Item = { kind: "planet"; id: string; pr: NonNullable<ReturnType<typeof project3>> } |
-                  { kind: "moon"; ag: Agent; pr: NonNullable<ReturnType<typeof project3>> };
+      type Pr = NonNullable<ReturnType<typeof project3>>;
+      type Item = { kind: "planet"; id: string; pr: Pr } |
+                  { kind: "moon"; ag: Agent; pr: Pr } |
+                  { kind: "sun"; pr: Pr } | { kind: "hole"; pr: Pr } |
+                  { kind: "wh"; w: Wormhole; i: number; pr: Pr };
       const items: Item[] = [];
+      {
+        // the constellation rides the same depth sort as everything else
+        const ps = project3(cel3(SUN));
+        if (ps) items.push({ kind: "sun", pr: ps });
+        const ph = project3(cel3(BLACK_HOLE));
+        if (ph) items.push({ kind: "hole", pr: ph });
+        WORMHOLES.forEach((w, i) => {
+          const pw = project3(cel3(w));
+          if (pw) items.push({ kind: "wh", w, i, pr: pw });
+        });
+      }
       nodes.forEach((_n, id) => {
         const pr = project3(pos3(id));
         if (pr) items.push({ kind: "planet", id, pr });
@@ -1420,6 +1698,18 @@ export default function GalaxyCanvas() {
           const g = ex.createRadialGradient(it.pr.x, it.pr.y, R * 0.7, it.pr.x, it.pr.y, R * 1.9);
           g.addColorStop(0, rgba(p.hue, 0.18)); g.addColorStop(1, rgba(p.hue, 0));
           ex.fillStyle = g; ex.beginPath(); ex.arc(it.pr.x, it.pr.y, R * 1.9, 0, TAU); ex.fill();
+        } else if (it.kind === "sun") {
+          const R = SUN.r * it.pr.s * 2.1;
+          paintSun(it.pr.x, it.pr.y, R, tNow);
+          emitSun(it.pr.x, it.pr.y, R, tNow);
+        } else if (it.kind === "hole") {
+          const R = BLACK_HOLE.r * it.pr.s * 2.1;
+          paintHole(it.pr.x, it.pr.y, R, tNow);
+          emitHole(it.pr.x, it.pr.y, R, tNow);
+        } else if (it.kind === "wh") {
+          const R = it.w.r * it.pr.s * 2.1;
+          paintWormhole(it.w, it.pr.x, it.pr.y, R, tNow);
+          emitWormhole(it.w, it.pr.x, it.pr.y, R, tNow, it.i);
         } else {
           const r = Math.max(1.8, 5.5 * it.pr.s * 2.1);
           vx.fillStyle = mix(it.ag.color, "#ffffff", 0.3);
@@ -1479,6 +1769,14 @@ export default function GalaxyCanvas() {
         spinFrame(currentRef.current);
         draw3D(agents);
       } else {
+        // The unseen mass signs every nearby orbit — positions re-derive
+        // from base each frame; under reduced motion the field is static
+        // (t = 0): worlds sit visibly off their rings but stop swaying.
+        nodes.forEach((n, id) => {
+          const b = base.get(id)!;
+          const q = perturb(b.x, b.y, reduced ? 0 : t);
+          n.x = b.x + q.dx; n.y = b.y + q.dy;
+        });
         if (driftOn && !reduced && (!hoverPause || idle)) {
           // the cruise orbits the FITTED home, so it can't wander the system
           // off-screen on a viewport the constant was never chosen for
@@ -1541,6 +1839,35 @@ export default function GalaxyCanvas() {
       }
       return best ? (best as { id: string }).id : null;
     };
+    /** Sun and wormholes take clicks; the void takes none — a click into the
+        hole does exactly what falls into it. Checked before hitPlanet so a
+        portal is never mistaken for the world beside it. */
+    const hitCel = (clientX: number, clientY: number): { url: string } | null => {
+      const rct = host.getBoundingClientRect();
+      const px = clientX - rct.left, py = clientY - rct.top;
+      const bodies = [
+        { x: SUN.x, y: SUN.y, r: SUN.r * 1.15, url: SUN.url },
+        ...WORMHOLES.map((w) => ({ x: w.x, y: w.y, r: w.r * 1.4, url: w.url })),
+      ];
+      for (const b of bodies) {
+        if (mode === "3d") {
+          const pr = project3(cel3(b));
+          if (!pr) continue;
+          if (Math.hypot(px - pr.x, py - pr.y) <= b.r * pr.s * 2.1 + 10) return { url: b.url };
+        } else {
+          const [sx, sy] = w2s(b.x, b.y);
+          if (Math.hypot(px - sx, py - sy) <= b.r * cam.z + 6) return { url: b.url };
+        }
+      }
+      return null;
+    };
+    /** The estate rule, enforced at the jump: same tab inside
+        egnaro9.github.io — a jump that never leaves his name — and a new tab
+        for everything external. */
+    const openPortal = (url: string) => {
+      if (wormholeTarget(url).newTab) window.open(url, "_blank", "noopener");
+      else location.assign(url);
+    };
     // A press only counts as a pick if it STARTED on the sky. Without this a
     // press that began on a label or the HUD (where onDown bails early) would
     // be judged against a stale timestamp from some earlier press.
@@ -1558,7 +1885,7 @@ export default function GalaxyCanvas() {
       // of the host, and pointer CAPTURE here would retarget their click
       // events to the host — a map you can pan from anywhere but whose
       // buttons stop working is worse than one with a smaller drag surface.
-      if ((e.target as HTMLElement).closest(".gal-lab, button")) return;
+      if ((e.target as HTMLElement).closest(".gal-lab, .gal-cel, button")) return;
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       driftOn = false;
       atHome = false; // the operator is aiming now; resize must not re-frame
@@ -1569,8 +1896,9 @@ export default function GalaxyCanvas() {
       noteInput(); // any cursor motion over the sky counts as presence
       const prev = pointers.get(e.pointerId);
       if (!prev) {
-        // not dragging: say whether there is a world under the cursor
-        host.style.cursor = !currentRef.current && hitPlanet(e.clientX, e.clientY) ? "pointer" : "";
+        // not dragging: say whether there is a world or a portal under the cursor
+        host.style.cursor =
+          !currentRef.current && (hitCel(e.clientX, e.clientY) || hitPlanet(e.clientX, e.clientY)) ? "pointer" : "";
         return;
       }
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -1600,8 +1928,12 @@ export default function GalaxyCanvas() {
       // A short, unmoved press on a world opens it — in either projection.
       if (pressArmed && !currentRef.current && performance.now() - downAt < 240 &&
         Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y) < 6) {
-        const hit = hitPlanet(e.clientX, e.clientY);
-        if (hit) toggleRef.current(hit);
+        const portal = hitCel(e.clientX, e.clientY);
+        if (portal) openPortal(portal.url);
+        else {
+          const hit = hitPlanet(e.clientX, e.clientY);
+          if (hit) toggleRef.current(hit);
+        }
       }
       pressArmed = false;
     };

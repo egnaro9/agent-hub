@@ -1,6 +1,16 @@
 import { useHub, agentInScope } from "../state/hub";
 import { useChrome } from "../state/chrome";
+import { SUN, WORMHOLES, wormholeTarget } from "./constellation";
 import type { Agent } from "../types";
+
+// The constellation is an enhancement, never the only path: every portal the
+// map draws as a wormhole is also a plain link here, with the same estate
+// rule (same tab inside egnaro9.github.io, new tab external). The registry —
+// the map's sun — leads the list.
+const PORTALS = [
+  { id: SUN.id, name: SUN.name, claim: "the live evidence registry — do not trust us, run it", url: SUN.url, hue: "#eab308" },
+  ...WORMHOLES,
+];
 
 const statusText = (a: Agent, projectName?: string) =>
   a.status.kind === "idle"
@@ -191,6 +201,30 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </button>
         {sbProjects && rest.map(projectRow)}
         {sbProjects && visible.length === 0 && <div className="mono px-4 py-2 text-[10px] text-slate-500">nothing matches "{search}"</div>}
+        {sbProjects && PORTALS.some((w) => match(w.name)) && (
+          <>
+            <div className="mx-4 my-2 border-t border-white/6" />
+            <div className="mono px-4 pb-1 text-[9.5px] tracking-[0.25em] text-slate-500 uppercase">
+              portals <span className="text-slate-700">· live</span>
+            </div>
+            {PORTALS.filter((w) => match(w.name)).map((w) => {
+              const newTab = wormholeTarget(w.url).newTab;
+              return (
+                <a
+                  key={w.id}
+                  href={w.url}
+                  {...(newTab ? { target: "_blank", rel: "noopener" } : {})}
+                  className="group flex w-full items-center gap-2.5 px-4 py-[6px] transition hover:bg-white/4"
+                  title={w.claim}
+                >
+                  <span className="mono flex-none text-[10px]" style={{ color: w.hue }}>◍</span>
+                  <span className="mono flex-1 truncate text-[11px] text-slate-400 group-hover:text-slate-200">{w.name}</span>
+                  <span className="mono flex-none text-[8px] tracking-wider text-slate-600 uppercase">{newTab ? "↗" : "→"}</span>
+                </a>
+              );
+            })}
+          </>
+        )}
       </div>
 
       {/* agents */}
