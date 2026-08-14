@@ -3,3 +3,5 @@ dist
 *.local
 .DS_Store
 e2e/run-artifacts
+test-results
+shots
