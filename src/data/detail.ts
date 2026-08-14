@@ -16,11 +16,11 @@ export const PROJECT_DETAIL: Record<string, ProjectDetail> = {
     [["Harden refusal-echo grader", "done"], ["Variance panel polish", "doing"], ["Battery: tool-abuse deep set", "todo"]]
   ),
   "model-drift": D(
-    [["models", "16 · 5 labs"], ["suite", "35 frozen tasks"], ["cadence", "daily cron"]],
-    [["Publish minimum-detectable-regression", "todo"], ["Emit suite size into metrics.json", "todo"], ["Flip-analysis recording", "done"]]
+    [["models", "16 · 5 labs"], ["suite", "35 frozen tasks"], ["noise floor", "measured, 3 same-day runs"]],
+    [["Measure the floor under the drift signal", "done"], ["VAC bundle: board recomputed offline", "done"], ["Flip-analysis recording", "done"]]
   ),
   gradecore: D(
-    [["tests", "84"], ["repos sharing it", "4"], ["LLM judges", "0"]],
+    [["tests", "84"], ["evalmut's verdict on it", "3 holes, fairly classed"], ["LLM judges", "0"]],
     [["Document the sign-test refusal", "done"], ["grounding_score edge cases", "doing"]]
   ),
   "tapdodge-engine": D(
@@ -38,6 +38,27 @@ export const PROJECT_DETAIL: Record<string, ProjectDetail> = {
   "harness-builder": D(
     [["sweep cost", "$0.99 · 20 tasks"], ["result", "more scaffolding scored worse"], ["honesty", "refuses undecidable"]],
     [["Field note: the sign test", "done"], ["Second suite: regression-capable", "todo"]]
+  ),
+  // ── the verifiable-evaluation region ────────────────────────────────────
+  evalmut: D(
+    [["operators", "18 · mined, cited"], ["dogfood", "3 holes in its own dependency"], ["LLM judges", "0"]],
+    [["8 adversarial cold-critique rounds", "done"], ["Launch: dev.to + LinkedIn", "done"], ["Operator backlog triage", "todo"]]
+  ),
+  "reference-fleet": D(
+    [["members", "6 + 1 native"], ["board protocol", "paired · exact rates"], ["naive suite caught", "1 of 6"]],
+    [["Audit board, CI-reproduced", "done"], ["Native defect measured (LoRA)", "done"], ["Fleet v2 expansion", "todo"]]
+  ),
+  "agent-certlab": D(
+    [["contracts", "7 · all regraded in CI"], ["task families", "3"], ["calibration agents", "3, separated by policy"]],
+    [["Machine family: coordinated seeds", "done"], ["Cloud certification in Actions", "done"], ["Gate on own contract (vac-gate)", "done"]]
+  ),
+  "vac-protocol": D(
+    [["registry", "11 accepted · 0 pending"], ["tamper fixtures", "15, all refused"], ["evidence profiles", "5"]],
+    [["Fifth profile: the drift board", "done"], ["Independent replay workflow", "done"], ["External replay requests", "todo"]]
+  ),
+  "vac-gate": D(
+    [["failure reasons", "17 · named"], ["tests", "16 · gate run as subprocess"], ["regrade scope", "certlab-bundle-v1"]],
+    [["Liveness test per refusal", "done"], ["Dogfood workflow in the lab", "done"], ["Freshness policy (v2)", "todo"]]
   ),
 };
 

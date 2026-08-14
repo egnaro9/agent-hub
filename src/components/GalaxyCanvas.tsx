@@ -74,6 +74,8 @@ const CLUSTER_DEF: { id: string; name: string; cx: number; cy: number; cap: numb
   { id: "harness", name: "harness & agents", cx: 1150, cy: -380, cap: 96 },
   { id: "runtime", name: "runtimes", cx: 1000, cy: 660, cap: 96 },
   { id: "studio", name: "studio", cx: -30, cy: 1010, cap: 80 },
+  // The suite-era region: the trust layer and its issuers/instruments.
+  { id: "vac", name: "verifiable evaluation", cx: 2150, cy: 150, cap: 110 },
   // Operator-minted projects land here: a young system on the frontier.
   { id: "founded", name: "founded", cx: -700, cy: -520, cap: 80 },
 ];
@@ -84,6 +86,8 @@ const CLUSTER_OF: Record<string, string> = {
   "agent-graph": "harness", "mcp-tools": "harness", "llm-gateway": "harness",
   "tapdodge-engine": "runtime", "match3-engine": "runtime", "evals-differential-oracle": "runtime",
   "cast-pipeline": "studio",
+  "vac-protocol": "vac", "agent-certlab": "vac", "reference-fleet": "vac",
+  evalmut: "vac", "vac-gate": "vac",
 };
 const KIND_OF: Record<string, Kind> = {
   gradecore: "gas", crashkit: "ember", "model-drift": "gas", "rag-eval-lab": "ocean",
@@ -92,6 +96,8 @@ const KIND_OF: Record<string, Kind> = {
   "agent-graph": "city", "mcp-tools": "ice", "llm-gateway": "gas",
   "match3-engine": "rock", "tapdodge-engine": "gas", "evals-differential-oracle": "twin",
   "cast-pipeline": "ocean",
+  "vac-protocol": "rock", "agent-certlab": "city", "reference-fleet": "rock",
+  evalmut: "ember", "vac-gate": "rock",
 };
 // Planet size is RATIONAL, not curated: mass = how much of the system runs
 // through this world. Each structural link adds heft, resident crew adds a
@@ -214,8 +220,8 @@ function bakePlanet(id: string, hue: string, kind: Kind, radius: number, phase =
 
   const bespoke = PAINTERS[id];
   if (bespoke) {
-    // Eighteen individual worlds — each surface derived from what the project
-    // IS (see planets.ts). The archetype switch below only serves projects
+    // Individual worlds — each surface derived from what the project IS
+    // (see planets.ts). The archetype switch below only serves projects
     // minted at runtime, which have no story yet.
     bespoke({ g, ge, cx: cx0, cy: cy0, R, hue, rnd, fbm, rgba, mix, LIGHT, TAU, phase });
   } else if (kind === "gas") {
@@ -544,6 +550,7 @@ export default function GalaxyCanvas() {
       { c: bakeNebula("#7c3aed", { stretch: 1.8, gain: 0.95 }), x: 1180, y: -420, s: 1600, p: 0.5, a: 0.44, dark: false },
       { c: bakeNebula("#2563eb", { stretch: 1.5, gain: 0.9 }), x: 1020, y: 680, s: 1450, p: 0.5, a: 0.38, dark: false },
       { c: bakeNebula("#be185d", { stretch: 1.3, gain: 0.8 }), x: -40, y: 1050, s: 1150, p: 0.5, a: 0.3, dark: false },
+      { c: bakeNebula("#a16207", { stretch: 1.6, gain: 0.9 }), x: 2170, y: 190, s: 1550, p: 0.5, a: 0.36, dark: false },
       { c: bakeNebula("#03040a", { stretch: 2.8, gain: 1.25 }), x: 420, y: 180, s: 2300, p: 0.44, a: 0.55, dark: true },
     ];
     const STARL = [

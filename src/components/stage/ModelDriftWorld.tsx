@@ -59,6 +59,10 @@ export default function ModelDriftWorld() {
     { k: "the suite", big: "35 tasks", sub: "frozen · deterministically graded", w: 230, z: 25, x: "26%", y: "66%", tilt: -2, hot: false },
     { k: "scored on", big: "5 metrics", sub: "accuracy · speed · verbosity · reliability · refusal", w: 250, z: 41, x: "58%", y: "56%", tilt: 5, hot: false },
     { k: "the cadence", big: "daily", sub: "cron · public board", w: 180, z: -25, x: "79%", y: "22%", tilt: 8, hot: false },
+    // The floor was measured, not assumed: three runs of the identical frozen
+    // suite, half an hour apart, moved Sonnet 5 by 9 points while 11 of 16
+    // models did not move at all — the spread under any drift signal.
+    { k: "the noise floor", big: "9 pts", sub: "three same-day runs of the SAME suite — 11 of 16 models unmoved; a board alerting on one run alerts on sampling", w: 244, z: 8, x: "44%", y: "18%", tilt: 2, hot: false },
   ];
 
   return (
@@ -198,6 +202,9 @@ export default function ModelDriftWorld() {
             </a>
           </div>
           <p className="mono mt-4 text-[10px] text-slate-600">◆ the suite never changes — only the models do</p>
+          <p className="mono mt-1.5 text-[10px] text-slate-600">
+            ◆ evidence profile no. 5 — the board's standings recompute offline from the committed rows
+          </p>
         </div>
       </motion.div>
     </div>

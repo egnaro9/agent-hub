@@ -553,7 +553,7 @@ export const useHub = create<HubState>()(
 
   // The WORK panel's two cards. Lazy and once-per-project-per-session, because
   // these are two more requests against the SAME 60/hr unauthenticated budget
-  // the commit feed is already spending from — doing this for all 18 projects
+  // the commit feed is already spending from — doing this for every project
   // up front would empty it in one browsing session and leave every card blank
   // for an hour. github.ts parks the answers (failures included) in
   // sessionStorage, so a tab reload doesn't re-spend either.

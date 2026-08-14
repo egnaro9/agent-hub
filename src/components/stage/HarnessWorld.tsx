@@ -2,8 +2,9 @@ import { useRef } from "react";
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import { useHub } from "../../state/hub";
 
-// The Harness Builder project world — the flagship 2.5D overview. CSS
-// perspective + pointer parallax; every layer sits at its own depth. The
+// The Harness Builder project world — the original 2.5D overview, home of the
+// published negative result (the flagship torch has since passed to evalmut).
+// CSS perspective + pointer parallax; every layer sits at its own depth. The
 // numbers in the floating cards are the project's REAL published sweep result.
 //
 // Framer floats are gated app-wide by MotionConfig reducedMotion="user"; the

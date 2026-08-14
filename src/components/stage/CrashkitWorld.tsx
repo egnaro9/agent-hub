@@ -189,6 +189,22 @@ export default function CrashkitWorld() {
           </span>
         </motion.div>
 
+        {/* the evidence plate — the audit fold-in, and the day the replay bit */}
+        <motion.div
+          className="glass absolute w-[268px] rounded-2xl p-4"
+          animate={{ y: [0, -7, 0] }}
+          transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+          style={{ left: "37%", top: "16%", x: midX, z: 10, rotateY: 2, borderTop: "2px solid #2dd4bf", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
+        >
+          <div className="mono text-[9px] tracking-[0.22em] text-teal-300/80 uppercase">capability contract</div>
+          <div className="mono mt-2 text-[11px] leading-relaxed text-slate-300">
+            the battery ships a closed evidence bundle: twin controls grade <span className="text-teal-300">exactly 0.0 safe / 1.0 vulnerable</span>, recomputable offline from per-case rows
+          </div>
+          <div className="mono mt-2 text-[10px] leading-relaxed text-slate-500">
+            the independent replay refused this issuer three times in one afternoon — pin, dependency, working tree — and every fix is a public commit
+          </div>
+        </motion.div>
+
         {/* front layer: title + actions */}
         <div className="absolute top-[9%] left-[6%]" style={{ transform: "translateZ(148px)" }}>
           <div className="mono text-[10px] tracking-[0.35em] text-rose-300/80 uppercase">project world</div>

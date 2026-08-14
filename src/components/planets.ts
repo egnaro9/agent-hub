@@ -1,5 +1,5 @@
 /* ════════════════════════════════════════════════════════════════════════════
-   EIGHTEEN WORLDS, EIGHTEEN SURFACES — REBUILT, THEN PUT THROUGH CRITIQUE.
+   EVERY SEEDED WORLD GETS ITS OWN SURFACE — REBUILT, THEN PUT THROUGH CRITIQUE.
 
    Every project's planet is individualized the way its overview world and its
    card are: the surface program is derived from what the project actually IS.
@@ -163,7 +163,7 @@ const mottle = (p: PaintCtx, s: Sphere, n: number, light: string, dark: string, 
   }
 };
 
-/* ═══ the eighteen ════════════════════════════════════════════════════════ */
+/* ═══ the seeded worlds ═══════════════════════════════════════════════════ */
 
 export const PAINTERS: Record<string, Painter> = {
 
@@ -1529,5 +1529,235 @@ export const PAINTERS: Record<string, Painter> = {
       }
     }
     dust(p, 60, "rgba(235,235,252,.05)", "rgba(8,6,16,.09)");
+  },
+
+  /* ═══ the verifiable-evaluation region (suite era) ═══════════════════════ */
+
+  /* vac-protocol — THE SEALED LEDGER. Parchment-gold registry world: a wide
+     ledger band of ruled entry rows with lit accepted-entry ticks, and one
+     great wax seal pressed over the band — the sha256 pin, the hero. */
+  "vac-protocol": (p) => {
+    const { g, ge, cx, cy, rnd, fbm, rgba, mix, hue, R, TAU } = p;
+    const s = sphere(p, 0.4);
+    g.fillStyle = "rgba(196,168,104,.5)"; g.fillRect(cx - R, cy - R, 2 * R, 2 * R);
+    for (let i = 0; i < 7; i++) {
+      const lat = -1.2 + (i / 6) * 2.4;
+      g.fillStyle = i % 2 ? "rgba(240,220,168,.14)" : "rgba(88,64,26,.18)";
+      s.band(g, lat, lat + 0.12, (lon) => (fbm(lon * 1.3 + i * 2.7, lat * 4) - 0.5) * 0.07); g.fill();
+    }
+    // the ledger band — vellum dark, ruled, spanning well over a third
+    g.fillStyle = "rgba(30,22,8,.62)"; s.band(g, -0.36, 0.3); g.fill();
+    for (const edge of [-0.36, 0.3]) {
+      g.strokeStyle = "rgba(250,236,190,.55)"; g.lineWidth = 1;
+      g.beginPath(); s.latLine(g, edge); g.stroke();
+    }
+    // ruled entry rows, each with its accepted tick at the row head
+    for (let i = 0; i < 5; i++) {
+      const lat = -0.24 + i * 0.12;
+      g.strokeStyle = "rgba(244,226,170,.35)"; g.lineWidth = 0.6;
+      g.beginPath(); s.latLine(g, lat); g.stroke();
+      for (let k = 0; k < 3; k++) {
+        s.spot(g, -1.05 + k * 0.42 + i * 0.09, lat - 0.05, (gg) => {
+          gg.fillStyle = "rgba(250,238,196,.75)";
+          gg.fillRect(-R * 0.032, -R * 0.008, R * 0.064, R * 0.016);
+        });
+      }
+    }
+    // THE SEAL — one wax ring pressed over the band, rim bright, core stamped
+    s.spot(g, 0.62, -0.03, (gg) => {
+      gg.strokeStyle = "rgba(255,238,180,.95)"; gg.lineWidth = R * 0.022;
+      gg.beginPath(); gg.arc(0, 0, R * 0.19, 0, TAU); gg.stroke();
+      gg.strokeStyle = "rgba(120,86,26,.9)"; gg.lineWidth = R * 0.012;
+      gg.beginPath(); gg.arc(0, 0, R * 0.145, 0, TAU); gg.stroke();
+      // the stamp: a hash mark, not a crest
+      gg.strokeStyle = "rgba(255,244,204,.9)"; gg.lineWidth = R * 0.014;
+      for (const d of [-0.035, 0.035]) {
+        gg.beginPath(); gg.moveTo(d * R, -R * 0.085); gg.lineTo(d * R, R * 0.085); gg.stroke();
+        gg.beginPath(); gg.moveTo(-R * 0.085, d * R); gg.lineTo(R * 0.085, d * R); gg.stroke();
+      }
+    });
+    s.spot(ge, 0.62, -0.03, (gg) => {
+      gg.strokeStyle = rgba(mix(hue, "#ffe9a8", 0.6), 0.8); gg.lineWidth = R * 0.02;
+      gg.beginPath(); gg.arc(0, 0, R * 0.19, 0, TAU); gg.stroke();
+      const m = gg.createRadialGradient(0, 0, 0, 0, 0, R * 0.24);
+      m.addColorStop(0, "rgba(255,233,168,.35)"); m.addColorStop(1, "rgba(0,0,0,0)");
+      gg.fillStyle = m; gg.beginPath(); gg.arc(0, 0, R * 0.24, 0, TAU); gg.fill();
+    });
+    dust(p, 90, "rgba(255,244,210,.06)", "rgba(40,28,10,.09)");
+  },
+
+  /* agent-certlab — THE PROVING YARDS. Slate city-world with three walled
+     test yards on rising latitudes — one per task family — each gridded into
+     six cells; the hero yard burns all six green: the 6/6 run. */
+  "agent-certlab": (p) => {
+    const { g, ge, cx, cy, rnd, fbm, rgba, mix, hue, R } = p;
+    const s = sphere(p, 0.44);
+    g.fillStyle = "rgba(24,34,46,.72)"; g.fillRect(cx - R, cy - R, 2 * R, 2 * R);
+    for (let i = 0; i < 8; i++) {
+      const lat = -1.25 + (i / 7) * 2.5;
+      g.strokeStyle = rgba(mix(hue, "#0c1420", 0.6), 0.2 + rnd() * 0.1); g.lineWidth = 1.6 + rnd() * 2;
+      g.beginPath(); s.latLine(g, lat, (lon) => (fbm(lon * 1.4 + i * 2.2, lat * 3) - 0.5) * 0.12); g.stroke();
+    }
+    // three yards: [family, centre lon/lat, lit?] — the top one is the hero
+    const yards: [number, number, boolean][] = [[-0.62, 0.42, false], [0.05, -0.28, false], [0.6, 0.12, true]];
+    yards.forEach(([lon, lat, lit]) => {
+      // curtain wall
+      const w = 0.46, h = 0.34;
+      g.strokeStyle = lit ? "rgba(190,228,255,.85)" : "rgba(148,180,210,.55)";
+      g.lineWidth = lit ? 1.6 : 1.1;
+      if (s.cell(g, lon - w, lon + w, lat - h, lat + h)) g.stroke();
+      // six cells inside, 3 × 2
+      for (let a = 0; a < 3; a++) for (let b = 0; b < 2; b++) {
+        const lo0 = lon - w * 0.72 + a * w * 0.5, la0 = lat - h * 0.6 + b * h * 0.62;
+        const ctx2 = lit ? ge : g;
+        ctx2.fillStyle = lit ? "rgba(120,255,190,.75)" : "rgba(90,116,142,.5)";
+        if (s.cell(ctx2, lo0, lo0 + w * 0.36, la0, la0 + h * 0.44)) ctx2.fill();
+        if (lit) { g.fillStyle = "rgba(150,240,200,.6)"; if (s.cell(g, lo0, lo0 + w * 0.36, la0, la0 + h * 0.44)) g.fill(); }
+      }
+    });
+    // the dispatch road between the yards — work arriving from off-world
+    g.strokeStyle = "rgba(140,190,235,.4)"; g.lineWidth = 0.9;
+    g.beginPath(); s.latLine(g, 0.02, (lon) => Math.sin(lon * 2.1) * 0.16); g.stroke();
+    mottle(p, s, 10, "rgba(52,70,88,1)", "rgba(14,22,32,1)", 0.3);
+    dust(p, 80, "rgba(200,225,250,.05)", "rgba(6,10,16,.09)");
+  },
+
+  /* reference-fleet — THE BEACON ARCHIPELAGO. A dark basalt sea; six beacons
+     ride one great-circle survey line — each broken in exactly one documented
+     way, so each lamp burns a different measured intensity. One sits off the
+     line: the native member, trained rather than constructed. */
+  "reference-fleet": (p) => {
+    const { g, ge, cx, cy, rnd, fbm, rgba, mix, hue, R, TAU } = p;
+    const s = sphere(p, 0.42);
+    g.fillStyle = "rgba(16,12,10,.78)"; g.fillRect(cx - R, cy - R, 2 * R, 2 * R);
+    for (let i = 0; i < 9; i++) {
+      const lat = -1.25 + (i / 8) * 2.5;
+      g.strokeStyle = `rgba(70,48,34,${0.16 + rnd() * 0.1})`; g.lineWidth = 1.4 + rnd() * 1.8;
+      g.beginPath(); s.latLine(g, lat, (lon) => (fbm(lon * 1.6 + i * 3.1, lat * 4) - 0.5) * 0.1); g.stroke();
+    }
+    // the survey line the fleet rides — a bright rule across the disc
+    g.strokeStyle = rgba(mix(hue, "#ffd9a8", 0.4), 0.5); g.lineWidth = 1;
+    g.beginPath(); s.latLine(g, 0.06); g.stroke();
+    // six beacons at even stations, intensities stated, not uniform
+    const glow = [0.95, 0.8, 0.65, 0.85, 0.7, 0.55];
+    for (let i = 0; i < 6; i++) {
+      const lon = -1.15 + i * 0.46, lat = 0.06;
+      s.spot(g, lon, lat, (gg) => {
+        gg.fillStyle = "rgba(30,22,16,.9)";
+        gg.fillRect(-R * 0.02, -R * 0.07, R * 0.04, R * 0.09);
+        gg.fillStyle = `rgba(255,214,150,${glow[i]})`;
+        gg.beginPath(); gg.arc(0, -R * 0.085, R * 0.026, 0, TAU); gg.fill();
+      });
+      s.spot(ge, lon, lat, (gg) => {
+        const m = gg.createRadialGradient(0, -R * 0.085, 0, 0, -R * 0.085, R * 0.11);
+        m.addColorStop(0, `rgba(255,206,130,${glow[i] * 0.9})`); m.addColorStop(1, "rgba(0,0,0,0)");
+        gg.fillStyle = m; gg.beginPath(); gg.arc(0, -R * 0.085, R * 0.11, 0, TAU); gg.fill();
+      });
+    }
+    // the native member — off the constructed line, lamp haloed but diffuse
+    s.spot(g, 0.35, -0.55, (gg) => {
+      gg.fillStyle = "rgba(30,22,16,.9)"; gg.fillRect(-R * 0.02, -R * 0.06, R * 0.04, R * 0.08);
+      gg.fillStyle = "rgba(255,190,120,.6)";
+      gg.beginPath(); gg.arc(0, -R * 0.075, R * 0.03, 0, TAU); gg.fill();
+    });
+    s.spot(ge, 0.35, -0.55, (gg) => {
+      const m = gg.createRadialGradient(0, -R * 0.075, 0, 0, -R * 0.075, R * 0.16);
+      m.addColorStop(0, "rgba(255,180,110,.5)"); m.addColorStop(1, "rgba(0,0,0,0)");
+      gg.fillStyle = m; gg.beginPath(); gg.arc(0, -R * 0.075, R * 0.16, 0, TAU); gg.fill();
+    });
+    dust(p, 100, "rgba(255,220,180,.05)", "rgba(10,6,4,.1)");
+  },
+
+  /* evalmut — THE INOCULATED WORLD. A pale culture-plate sphere; dark
+     injection punctures walk the equatorial band, each CAUGHT one ringed by
+     a bright immune halo — and one bare puncture near the terminator: the
+     hole a suite would let ship green. */
+  evalmut: (p) => {
+    const { g, ge, cx, cy, rnd, fbm, rgba, mix, hue, R, TAU } = p;
+    const s = sphere(p, 0.4);
+    g.fillStyle = "rgba(202,220,168,.4)"; g.fillRect(cx - R, cy - R, 2 * R, 2 * R);
+    for (let i = 0; i < 6; i++) {
+      const lat = -1.15 + (i / 5) * 2.3;
+      g.fillStyle = i % 2 ? "rgba(232,246,200,.12)" : "rgba(60,80,30,.14)";
+      s.band(g, lat, lat + 0.16, (lon) => (fbm(lon * 1.1 + i * 2.9, lat * 3) - 0.5) * 0.09); g.fill();
+    }
+    // the assay band — the run in progress
+    g.fillStyle = "rgba(24,34,10,.5)"; s.band(g, -0.3, 0.26); g.fill();
+    // caught mutations: puncture + immune ring (the ring is the hero motif)
+    const stations: [number, number][] = [[-1.0, 0.02], [-0.55, -0.14], [-0.1, 0.1], [0.38, -0.06], [0.85, 0.05]];
+    stations.forEach(([lon, lat]) => {
+      s.spot(g, lon, lat, (gg) => {
+        gg.fillStyle = "rgba(14,18,6,.92)";
+        gg.beginPath(); gg.arc(0, 0, R * 0.028, 0, TAU); gg.fill();
+        gg.strokeStyle = rgba(mix(hue, "#eaffc0", 0.5), 0.9); gg.lineWidth = R * 0.013;
+        gg.beginPath(); gg.arc(0, 0, R * 0.062, 0, TAU); gg.stroke();
+      });
+      s.spot(ge, lon, lat, (gg) => {
+        gg.strokeStyle = rgba(mix(hue, "#eaffc0", 0.6), 0.7); gg.lineWidth = R * 0.011;
+        gg.beginPath(); gg.arc(0, 0, R * 0.062, 0, TAU); gg.stroke();
+      });
+    });
+    // the hole — a puncture NO ring ever formed around, drifting toward dark
+    s.spot(g, 1.05, -0.42, (gg) => {
+      gg.fillStyle = "rgba(10,12,4,.95)";
+      gg.beginPath(); gg.arc(0, 0, R * 0.034, 0, TAU); gg.fill();
+      gg.strokeStyle = "rgba(10,12,4,.5)"; gg.lineWidth = 0.8;
+      for (let k = 0; k < 5; k++) {
+        const a = (k / 5) * TAU + 0.4;
+        gg.beginPath(); gg.moveTo(Math.cos(a) * R * 0.04, Math.sin(a) * R * 0.04);
+        gg.lineTo(Math.cos(a) * R * 0.075, Math.sin(a) * R * 0.075); gg.stroke();
+      }
+    });
+    mottle(p, s, 12, "rgba(226,240,196,1)", "rgba(70,88,40,1)", 0.28);
+    dust(p, 90, "rgba(240,250,214,.06)", "rgba(30,40,14,.08)");
+  },
+
+  /* vac-gate — THE CHECKPOINT. One great curtain wall pole-to-pole across
+     the disc; a single gate arch stands open and green at the crossing, and
+     red refusal lamps stud the wall's whole length — every other way through
+     answers with a named reason. */
+  "vac-gate": (p) => {
+    const { g, ge, cx, cy, rnd, fbm, rgba, mix, hue, R, TAU } = p;
+    const s = sphere(p, 0.44);
+    g.fillStyle = "rgba(30,18,22,.72)"; g.fillRect(cx - R, cy - R, 2 * R, 2 * R);
+    for (let i = 0; i < 8; i++) {
+      const lat = -1.25 + (i / 7) * 2.5;
+      g.strokeStyle = `rgba(90,52,60,${0.18 + rnd() * 0.1})`; g.lineWidth = 1.5 + rnd() * 2;
+      g.beginPath(); s.latLine(g, lat, (lon) => (fbm(lon * 1.3 + i * 2.6, lat * 3) - 0.5) * 0.11); g.stroke();
+    }
+    // the wall: a doubled meridian spanning the whole disc
+    for (const off of [-0.045, 0.045]) {
+      g.strokeStyle = rgba(mix(hue, "#ffd0d8", 0.25), 0.75); g.lineWidth = 2;
+      g.beginPath(); s.meridian(g, 0.18 + off, -1.35, 1.35); g.stroke();
+    }
+    // refusal lamps along the wall — the named reasons, each one a stop
+    for (let k = -5; k <= 5; k++) {
+      if (k === 0) continue; // the arch stands where the lamps don't
+      const lat = k * 0.24;
+      s.spot(g, 0.18, lat, (gg) => {
+        gg.fillStyle = "rgba(255,120,140,.85)";
+        gg.beginPath(); gg.arc(0, 0, R * 0.016, 0, TAU); gg.fill();
+      });
+      s.spot(ge, 0.18, lat, (gg) => {
+        gg.fillStyle = rgba(mix(hue, "#ff9aae", 0.5), 0.45);
+        gg.beginPath(); gg.arc(0, 0, R * 0.03, 0, TAU); gg.fill();
+      });
+    }
+    // THE GATE — the one green arch, brightest thing on the disc
+    s.spot(g, 0.18, 0, (gg) => {
+      gg.strokeStyle = "rgba(150,255,200,.95)"; gg.lineWidth = R * 0.02;
+      gg.beginPath(); gg.arc(0, R * 0.02, R * 0.085, Math.PI, TAU); gg.stroke();
+      gg.beginPath(); gg.moveTo(-R * 0.085, R * 0.02); gg.lineTo(-R * 0.085, R * 0.09); gg.stroke();
+      gg.beginPath(); gg.moveTo(R * 0.085, R * 0.02); gg.lineTo(R * 0.085, R * 0.09); gg.stroke();
+    });
+    s.spot(ge, 0.18, 0, (gg) => {
+      gg.strokeStyle = "rgba(140,255,195,.85)"; gg.lineWidth = R * 0.016;
+      gg.beginPath(); gg.arc(0, R * 0.02, R * 0.085, Math.PI, TAU); gg.stroke();
+      const m = gg.createRadialGradient(0, R * 0.02, 0, 0, R * 0.02, R * 0.17);
+      m.addColorStop(0, "rgba(150,255,200,.4)"); m.addColorStop(1, "rgba(0,0,0,0)");
+      gg.fillStyle = m; gg.beginPath(); gg.arc(0, R * 0.02, R * 0.17, 0, TAU); gg.fill();
+    });
+    mottle(p, s, 10, "rgba(70,44,52,1)", "rgba(22,12,16,1)", 0.3);
+    dust(p, 85, "rgba(255,214,224,.05)", "rgba(12,6,8,.1)");
   },
 };

@@ -71,7 +71,7 @@ export const SECTIONS: Section[] = [
       {
         title: "the scenes",
         what:
-          "All 18 seeded projects have their own overview scene, built from that project's real story. The numbers in them are hard-coded published results.",
+          "All 23 seeded projects have their own overview scene, built from that project's real story. The numbers in them are hard-coded published results.",
         how: "Nothing to click. Move the pointer for parallax.",
         gotcha:
           "Everything in a scene is decoration except the one `enter the workroom ▸` button. Scenes compose at a fixed width and scale as a single image, so a wider window makes the same composition bigger — it never reflows.",

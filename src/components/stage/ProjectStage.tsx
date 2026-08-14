@@ -24,6 +24,11 @@ const McpToolsWorld = lazy(() => import("./McpToolsWorld"));
 const PromptRegressWorld = lazy(() => import("./PromptRegressWorld"));
 const PiEvalWorld = lazy(() => import("./PiEvalWorld"));
 const CastPipelineWorld = lazy(() => import("./CastPipelineWorld"));
+const EvalmutWorld = lazy(() => import("./EvalmutWorld"));
+const ReferenceFleetWorld = lazy(() => import("./ReferenceFleetWorld"));
+const AgentCertlabWorld = lazy(() => import("./AgentCertlabWorld"));
+const VacProtocolWorld = lazy(() => import("./VacProtocolWorld"));
+const VacGateWorld = lazy(() => import("./VacGateWorld"));
 
 // Per-project overview worlds. A project without an entry gets the standard
 // overview template; adding a world is one import + one line here.
@@ -46,6 +51,11 @@ const WORLDS: Record<string, React.ComponentType> = {
   "prompt-regress": PromptRegressWorld,
   "pi-eval": PiEvalWorld,
   "cast-pipeline": CastPipelineWorld,
+  evalmut: EvalmutWorld,
+  "reference-fleet": ReferenceFleetWorld,
+  "agent-certlab": AgentCertlabWorld,
+  "vac-protocol": VacProtocolWorld,
+  "vac-gate": VacGateWorld,
 };
 
 // ---- the WORK panel's two cards ---------------------------------------------

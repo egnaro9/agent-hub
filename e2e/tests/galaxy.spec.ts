@@ -16,8 +16,8 @@ test.describe("the galaxy map", () => {
     await gotoHub(page);
     await settleFlow(page);
     await stillGalaxy(page);
-    // all 18 seed planets present, addressable by id
-    await expect(page.locator(".gal-lab")).toHaveCount(18);
+    // all 23 seed planets present, addressable by id
+    await expect(page.locator(".gal-lab")).toHaveCount(23);
     await expect(page.locator('[data-planet="gradecore"]')).toBeVisible();
 
     // Clicking a planet flies in and raises the ARRIVAL CARD — the deliberate

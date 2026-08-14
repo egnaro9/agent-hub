@@ -11,7 +11,7 @@ export const PROJECTS: Project[] = [
   { id: "rag-eval-lab", name: "rag-eval-lab", tagline: "RAG pipeline that catches planted hallucinations", langs: ["Python", "FastAPI"], pos: { x: 520, y: 540 }, hue: "#60a5fa", activity: ["BM25 matches SciFact baseline", "faithfulness delegates to gradecore", "CI posts runs to eval-history"] },
   { id: "eval-history", name: "eval-history", tagline: "Postgres memory for every eval run — what regressed?", langs: ["FastAPI", "Postgres"], pos: { x: 700, y: 760 }, hue: "#f472b6", activity: ["compare endpoint: 5 better, 1 worse → regressed", "CI on PG 16 + 18", "crash-test runs tagged source=crash_test"] },
   { id: "mcp-tools", name: "mcp-tools", tagline: "The eval stack, exposed to agents over MCP", langs: ["Python", "MCP"], pos: { x: 560, y: 120 }, hue: "#a78bfa", activity: ["calc / search / grade_answer / compare_runs + a board reader", "AST-sandboxed evaluator", "wireable into Claude Desktop"] },
-  { id: "harness-builder", name: "harness-builder", tagline: "Draw a harness, sweep it, measure your assumption", langs: ["Python", "JS"], pos: { x: 1120, y: 660 }, hue: "#fbbf24", activity: ["more scaffolding scored worse, 22× cost", "refused to declare an unbacked winner", "188 tests"] },
+  { id: "harness-builder", name: "harness-builder", tagline: "Draw a harness, sweep it, measure your assumption", langs: ["Python", "JS"], pos: { x: 1120, y: 660 }, hue: "#fbbf24", activity: ["more scaffolding scored worse, 22× cost", "refused to declare an unbacked winner", "17 of 20 tasks tied; p<0.05 unreachable"] },
   { id: "prompt-regress", name: "prompt-regress", tagline: "Merge gate that blocks eval regressions on PRs", langs: ["Python", "Actions"], pos: { x: 1290, y: 430 }, hue: "#34d399", activity: ["baseline vs branch comparison", "gates these very repos", "ships as a GitHub Action"] },
   { id: "pi-gates", name: "pi-gates", tagline: "Refusal gates for a second harness — fail closed", langs: ["TypeScript"], pos: { x: 1500, y: 250 }, hue: "#fb7185", activity: ["agent's own APPROVE resolves to null", "armed-banner or it isn't running", "source must be interactive"] },
   { id: "agentic-dev-harness", name: "agentic-dev-harness", tagline: "The five-stage loop that reviews itself", langs: ["Shell", "Hooks"], pos: { x: 1340, y: 90 }, hue: "#22d3ee", activity: ["Strategy→Execution→Critic→Eval→Ops", "cold critic in fresh context", "gates on every irreversible step"] },
@@ -23,6 +23,12 @@ export const PROJECTS: Project[] = [
   { id: "eval-dashboard", name: "eval-dashboard", tagline: "Turns an eval run into metric cards; flags hallucinations", langs: ["Next.js", "TypeScript"], pos: { x: 760, y: 940 }, hue: "#60a5fa", activity: ["runtime schema validation", "29 tests", "static export"] },
   { id: "pi-eval", name: "pi-eval", tagline: "Deterministic grading as a pi package — no LLM judges", langs: ["TypeScript"], pos: { x: 1620, y: 400 }, hue: "#2dd4bf", activity: ["fixed predicates only", "gradecli holds zero grading logic, on purpose", "live + verified"] },
   { id: "cast-pipeline", name: "cast-pipeline", tagline: "Record a terminal demo once, fan it out to every surface", langs: ["Shell", "Python"], pos: { x: 960, y: 900 }, hue: "#fb7185", activity: ["asciinema → player/GIF/mp4", "every scene ends on a catch", "two-layer palette: vars + tokens"] },
+  // ── the verifiable-evaluation region (suite era, 2026-08) ──────────────────
+  { id: "evalmut", name: "evalmut", tagline: "Mutation testing for eval suites — does your check check anything?", langs: ["Python"], pos: { x: 2250, y: 500 }, hue: "#a3e635", activity: ["18 mined operators, each names a real origin", "found 3 holes in its own dependency's graders", "tool-fault false positives at zero since round six"] },
+  { id: "reference-fleet", name: "reference-fleet", tagline: "Models broken one documented way each — to measure the benchmark", langs: ["Python"], pos: { x: 2350, y: 320 }, hue: "#f97316", activity: ["6 members, defects mined from real incidents", "audit board: the naive suite caught 1 of 6", "native LoRA: mixture 0.507 in, 0.200 out greedy"] },
+  { id: "agent-certlab", name: "agent-certlab", tagline: "Capability contracts for coding agents, evidence attached", langs: ["Python", "Actions"], pos: { x: 2100, y: 180 }, hue: "#38bdf8", activity: ["7 contracts committed — every verdict regraded in CI", "one run certified entirely inside Actions", "null 0/6 · oracle 6/6 · test-deleter 0/6, by policy"] },
+  { id: "vac-protocol", name: "vac-protocol", tagline: "Verifiable Agent Claims — do not trust us, run it", langs: ["Python", "Actions"], pos: { x: 1900, y: 300 }, hue: "#eab308", activity: ["registry: 11 accepted entries, zero pending", "15 tampered fixtures, every one refused", "prints on every run: structural PASS is not a replay"] },
+  { id: "vac-gate", name: "vac-gate", tagline: "No verified capability contract, no green check", langs: ["Python", "Actions"], pos: { x: 2000, y: 560 }, hue: "#f43f5e", activity: ["17 named failure reasons, each proven to fire", "regrade-unsupported fails loud, never skips silent", "the contract issuer gates on its own contract"] },
 ];
 
 export const AGENTS: Agent[] = [
@@ -49,6 +55,19 @@ export const STRUCTURAL: StructuralEdge[] = [
   { id: "s11", source: "agent-graph", target: "rag-eval-lab", label: "retrieves via" },
   { id: "s12", source: "rag-eval-lab", target: "eval-dashboard", label: "renders" },
   { id: "s13", source: "pi-eval", target: "pi-gates", label: "pi ecosystem" },
+  // The verifiable-evaluation region: vac-protocol is the trust layer over
+  // five live issuers (its five evidence profiles, verbatim), vac-gate holds
+  // CI to it. Program chain: evalmut → reference-fleet → agent-certlab.
+  { id: "s14", source: "evalmut", target: "gradecore", label: "built on" },
+  { id: "s15", source: "reference-fleet", target: "evalmut", label: "answer key for" },
+  { id: "s16", source: "agent-certlab", target: "reference-fleet", label: "same discipline" },
+  { id: "s17", source: "vac-protocol", target: "agent-certlab", label: "evidence profile" },
+  { id: "s18", source: "vac-protocol", target: "reference-fleet", label: "evidence profile" },
+  { id: "s19", source: "vac-protocol", target: "evalmut", label: "evidence profile" },
+  { id: "s20", source: "vac-protocol", target: "crashkit", label: "evidence profile" },
+  { id: "s21", source: "vac-protocol", target: "model-drift", label: "evidence profile" },
+  { id: "s22", source: "vac-gate", target: "vac-protocol", label: "verifies with" },
+  { id: "s23", source: "vac-gate", target: "agent-certlab", label: "dogfooded by" },
 ];
 
 // Seed assignments so the hub is alive on first paint.
