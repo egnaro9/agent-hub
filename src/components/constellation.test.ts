@@ -155,8 +155,8 @@ describe("perturb", () => {
 
 describe("wormholeTarget", () => {
   it("keeps a jump inside egnaro9.github.io in this tab", () => {
-    expect(wormholeTarget("https://egnaro9.github.io/vac-protocol/").newTab).toBe(false);
-    expect(wormholeTarget("https://egnaro9.github.io/seraphlight-studios/tap-dodge-rush/play/").newTab).toBe(false);
+    expect(wormholeTarget("https://erikhill.dev/vac-protocol/").newTab).toBe(false);
+    expect(wormholeTarget("https://erikhill.dev/seraphlight-studios/tap-dodge-rush/play/").newTab).toBe(false);
   });
 
   it("opens external hosts in a new tab", () => {

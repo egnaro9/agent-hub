@@ -160,7 +160,7 @@ export default function MissionControl({ onMenu }: { onMenu?: () => void }) {
           dim text — "not very obvious that that's what takes you back" was
           the operator's exact review note. */}
       <a
-        href="https://egnaro9.github.io/"
+        href="https://erikhill.dev/"
         title="Back to the portfolio hub"
         className="mono cursor-pointer rounded-md border border-amber-400/50 bg-amber-400/15 px-3 py-1 text-[11px] font-semibold text-amber-300 transition hover:bg-amber-400/25 hover:text-amber-200"
       >

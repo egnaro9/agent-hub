@@ -210,7 +210,7 @@ export default function Match3World() {
               enter the workroom ▸
             </button>
             <a
-              href="https://egnaro9.github.io/match3-engine/"
+              href="https://erikhill.dev/match3-engine/"
              
               className="mono cursor-pointer rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-[11.5px] text-slate-300 transition hover:bg-white/10"
             >

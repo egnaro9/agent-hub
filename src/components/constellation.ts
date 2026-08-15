@@ -76,7 +76,7 @@ export const SUN = {
   x: POSE0.sun.x,
   y: POSE0.sun.y,
   r: 100,
-  url: "https://egnaro9.github.io/vac-protocol/",
+  url: "https://erikhill.dev/vac-protocol/",
 } as const;
 
 /** The unseen half. x/y are its frozen seat — the live position is
@@ -137,7 +137,7 @@ export const WORMHOLES: Wormhole[] = [
     id: "wh-fleet-audit",
     name: "fleet audit board",
     claim: "the naive suite caught 1 of 6 — live, CI-replayed",
-    url: "https://egnaro9.github.io/reference-fleet/",
+    url: "https://erikhill.dev/reference-fleet/",
     ...door(5.95, 0.8), r: 96, hue: "#f97316",
   },
   {
@@ -151,14 +151,14 @@ export const WORMHOLES: Wormhole[] = [
     id: "wh-drift-board",
     name: "model-drift board",
     claim: "16 LLMs watched daily on a frozen suite",
-    url: "https://egnaro9.github.io/model-drift/",
+    url: "https://erikhill.dev/model-drift/",
     ...door(2.54), r: 96, hue: "#2dd4bf",
   },
   {
     id: "wh-seraphlight",
     name: "tap dodge rush",
     claim: "one engine, two runtimes, diffed — playable here",
-    url: "https://egnaro9.github.io/seraphlight-studios/tap-dodge-rush/play/",
+    url: "https://erikhill.dev/seraphlight-studios/tap-dodge-rush/play/",
     ...door(4.16, 0.84), r: 96, hue: "#60a5fa",
   },
 ];
@@ -169,7 +169,9 @@ export const WORMHOLES: Wormhole[] = [
     host-plus-slash matching, so a lookalike (crashkit.onrender.com.evil.com)
     never passes as estate. */
 const ESTATE_HOSTS = [
-  "https://egnaro9.github.io",
+  "https://erikhill.dev",
+  "https://www.erikhill.dev",
+  "https://erikhill.dev",
   "https://agent-hub-exiz.onrender.com",
   "https://crashkit.onrender.com",
   "https://eval-history.onrender.com",
