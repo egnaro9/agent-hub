@@ -101,7 +101,7 @@ export default function App() {
           <button
             aria-label="Expand navigation"
             onClick={() => useChrome.getState().toggle("sidebar")}
-            className="mono grid h-7 w-7 cursor-pointer place-items-center rounded text-[12px] text-slate-500 transition hover:bg-white/10 hover:text-slate-100"
+            className="mono grid h-7 w-7 cursor-pointer place-items-center rounded text-[12px] text-cyan-300/80 transition hover:bg-white/10 hover:text-cyan-100"
           >
             ⟩
           </button>
@@ -114,7 +114,7 @@ export default function App() {
         <button
           aria-label="Expand top bar"
           onClick={() => useChrome.getState().toggle("topBar")}
-          className="mono absolute top-2 right-2 z-40 grid h-6 w-8 cursor-pointer place-items-center rounded-md border border-white/10 bg-[#070b17]/85 text-[10px] text-slate-400 backdrop-blur transition hover:text-slate-100"
+          className="mono absolute top-2 right-2 z-40 grid h-6 w-8 cursor-pointer place-items-center rounded-md border border-cyan-300/40 bg-[#070b17]/85 text-[10px] text-cyan-300/80 backdrop-blur transition hover:text-cyan-100"
         >
           ▾
         </button>

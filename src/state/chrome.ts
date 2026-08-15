@@ -1,10 +1,16 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
 
 /* Operator chrome preferences — which pieces of UI furniture are open.
    Deliberately OUTSIDE the hub store: collapsing the top bar is not hub
    state, nothing simulates against it, and it must survive reloads without
-   riding along in the hub snapshot. Everything defaults OPEN. */
+   riding along in the hub snapshot. Everything defaults OPEN.
+
+   SESSION-scoped (operator call, 2026-08-15): a fold sticks through reloads
+   of THIS tab, but a fresh visit always opens the full face. Persisted
+   forever, one idle collapse silently became the permanent default — "once
+   minimized, forevermore closed" was the review note. Same rule as the play
+   page's mute: a choice is for the session, the default is for the house. */
 
 export type ChromeKey =
   | "sidebar" | "sbHeader" | "sbProjects" | "sbAgents" | "topBar" | "hud"
@@ -39,6 +45,6 @@ export const useChrome = create<ChromeState>()(
       wkTopology: true,
       toggle: (k) => set((s) => ({ [k]: !s[k] })),
     }),
-    { name: "agent-hub:chrome" }
+    { name: "agent-hub:chrome", storage: createJSONStorage(() => sessionStorage) }
   )
 );

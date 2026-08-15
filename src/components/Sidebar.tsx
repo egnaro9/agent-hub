@@ -151,7 +151,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             aria-label={sbHeader ? "Collapse header" : "Expand header"}
             aria-expanded={sbHeader}
             onClick={() => toggleChrome("sbHeader")}
-            className="mono grid h-5 w-5 cursor-pointer place-items-center rounded text-[9px] text-slate-600 transition hover:bg-white/10 hover:text-slate-200"
+            className={`mono grid h-5 w-5 cursor-pointer place-items-center rounded text-[9px] transition hover:bg-white/10 hover:text-slate-200 ${sbHeader ? "text-slate-600" : "text-cyan-300/80"}`}
           >
             {sbHeader ? "▾" : "▸"}
           </button>
@@ -198,7 +198,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           onClick={() => toggleChrome("sbProjects")}
           className={`mono flex w-full cursor-pointer items-center gap-1.5 px-4 text-left text-[9.5px] tracking-[0.25em] whitespace-nowrap text-slate-400 uppercase transition hover:text-slate-200 ${sbProjects ? "pb-2" : ""}`}
         >
-          <span className="text-slate-600">{sbProjects ? "▾" : "▸"}</span>
+          <span className={sbProjects ? "text-slate-600" : "text-cyan-300/80"}>{sbProjects ? "▾" : "▸"}</span>
           projects <span className="text-slate-700">· {visible.length}</span>
         </button>
         {sbProjects && rest.map(projectRow)}
@@ -236,7 +236,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           onClick={() => toggleChrome("sbAgents")}
           className={`mono flex w-full cursor-pointer items-center gap-1.5 px-4 text-left text-[9.5px] tracking-[0.25em] whitespace-nowrap text-slate-400 uppercase transition hover:text-slate-200 ${sbAgents ? "pb-2" : ""}`}
         >
-          <span className="text-slate-600">{sbAgents ? "▾" : "▸"}</span>
+          <span className={sbAgents ? "text-slate-600" : "text-cyan-300/80"}>{sbAgents ? "▾" : "▸"}</span>
           agents <span className="text-slate-700">· {visibleAgents.length}</span>
         </button>
         {sbAgents && visibleAgents.map((a) => {

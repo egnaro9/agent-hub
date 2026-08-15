@@ -2446,6 +2446,7 @@ export default function GalaxyCanvas() {
           aria-expanded={hudOpen}
           onClick={() => useChrome.getState().toggle("hud")}
           className="gal-hbtn"
+          style={hudOpen ? undefined : { color: "#67e8f9", borderColor: "rgba(103,232,249,.5)" }}
         >
           {hudOpen ? "⌄" : "⌃"}
         </button>
