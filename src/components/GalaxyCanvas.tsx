@@ -1130,64 +1130,66 @@ export default function GalaxyCanvas() {
         the sky, a doubled rim in the destination's hue. Planet rings are wide
         and FLAT — an aperture stays steep so the two never read alike. */
     const paintWormhole = (w: Wormhole, sx: number, sy: number, R: number, t: number) => {
-      if (off(sx, sy, R * 2.1)) return;
-      // The doors wear the harness hole's anatomy in their destination's hue:
-      // a dark throat, an equatorial accretion band doppler-graded across its
-      // width, a razor photon ring at the throat's lip, and the lensed
-      // far-side halo bent over and under. Kin to the hole, keyed to where
-      // each one goes — flat coin rings read as UI, these read as MASS.
-      vx.save(); vx.translate(sx, sy); vx.rotate(-0.5);
-      const th = vx.createRadialGradient(0, 0, 0, 0, 0, R * 1.05);
-      th.addColorStop(0, "rgba(1,2,7,.97)");
-      th.addColorStop(0.6, "rgba(1,2,7,.75)");
-      th.addColorStop(1, "rgba(1,2,7,0)");
-      vx.fillStyle = th;
-      vx.beginPath(); vx.arc(0, 0, R * 1.05, 0, TAU); vx.fill();
-      const spin = reduced ? 0 : t * 0.05;
-      // equatorial band, two passes — wide warm body + hot inner edge
-      const acc = vx.createLinearGradient(-R * 1.5, 0, R * 1.5, 0);
-      acc.addColorStop(0, rgba(mix(w.hue, "#ffffff", 0.55), 0.5));
-      acc.addColorStop(0.5, rgba(w.hue, 0.22));
-      acc.addColorStop(1, rgba(mix(w.hue, "#000000", 0.35), 0.12));
-      vx.strokeStyle = acc; vx.lineWidth = Math.max(1.3, R * 0.2);
-      vx.beginPath(); vx.ellipse(0, 0, R * 1.18, R * 0.42, 0, 0, TAU); vx.stroke();
-      vx.strokeStyle = acc; vx.lineWidth = Math.max(1, R * 0.09);
-      vx.beginPath(); vx.ellipse(0, 0, R * 0.92, R * 0.32, 0, 0, TAU); vx.stroke();
-      // the lensed far side — over the top, under the bottom
-      const halo = vx.createLinearGradient(-R, 0, R, 0);
-      halo.addColorStop(0, rgba(mix(w.hue, "#ffffff", 0.4), 0.34));
-      halo.addColorStop(1, rgba(w.hue, 0.1));
-      vx.strokeStyle = halo; vx.lineWidth = Math.max(1, R * 0.1);
-      vx.beginPath(); vx.ellipse(0, 0, R * 0.86, R * 0.94, 0, Math.PI * 1.04, Math.PI * 1.96); vx.stroke();
-      vx.lineWidth = Math.max(0.8, R * 0.07);
-      vx.beginPath(); vx.ellipse(0, 0, R * 0.86, R * 0.9, 0, Math.PI * 0.08, Math.PI * 0.92); vx.stroke();
-      // faint background lensing arcs, like the hole's
-      for (let k = 0; k < 2; k++) {
-        vx.strokeStyle = `rgba(200,215,240,${0.1 - k * 0.04})`;
-        vx.lineWidth = 0.8;
-        const rr = R * (1.35 + k * 0.35);
-        vx.beginPath(); vx.ellipse(0, 0, rr, rr * 0.5, 0, spin + k * 1.7, spin + k * 1.7 + 2.0); vx.stroke();
-      }
+      if (off(sx, sy, R * 2.2)) return;
+      /* SPHERICAL, by operator decree (2026-08-15): each door is a small
+         black hole BODY — a round shadow wrapped in a colour-appropriate
+         CORONA — not the old flat ring-aperture. It stays unmistakable
+         beside a planet because it is dark where planets are lit: the only
+         bright parts are bent light in the destination's hue. */
+      vx.save(); vx.translate(sx, sy);
+      // the corona — soft hue glow breathing around the body
+      const breathe = reduced ? 0 : Math.sin(t * 0.8 + R) * 0.06;
+      const cor = vx.createRadialGradient(0, 0, R * 0.4, 0, 0, R * 1.9);
+      cor.addColorStop(0, rgba(w.hue, 0.34 + breathe));
+      cor.addColorStop(0.45, rgba(w.hue, 0.14));
+      cor.addColorStop(1, rgba(w.hue, 0));
+      vx.fillStyle = cor;
+      vx.beginPath(); vx.arc(0, 0, R * 1.9, 0, TAU); vx.fill();
+      // the sphere itself: a deep round shadow with a faint hue limb —
+      // the roundness IS the limb gradient, same trick as the planets
+      const sph = vx.createRadialGradient(-R * 0.18, -R * 0.2, R * 0.05, 0, 0, R * 0.72);
+      sph.addColorStop(0, "rgba(2,3,8,1)");
+      sph.addColorStop(0.72, "rgba(2,3,8,.99)");
+      sph.addColorStop(0.94, rgba(mix(w.hue, "#000000", 0.45), 0.9));
+      sph.addColorStop(1, rgba(w.hue, 0.55));
+      vx.fillStyle = sph;
+      vx.beginPath(); vx.arc(0, 0, R * 0.72, 0, TAU); vx.fill();
+      // tilted accretion band crossing the FACE — in front below, behind above,
+      // which is what sells the sphere; doppler-graded across its width
+      vx.save(); vx.rotate(-0.42);
+      const acc = vx.createLinearGradient(-R * 1.4, 0, R * 1.4, 0);
+      acc.addColorStop(0, rgba(mix(w.hue, "#ffffff", 0.55), 0.6));
+      acc.addColorStop(0.5, rgba(w.hue, 0.28));
+      acc.addColorStop(1, rgba(mix(w.hue, "#000000", 0.3), 0.14));
+      vx.strokeStyle = acc; vx.lineWidth = Math.max(1.2, R * 0.13);
+      // far side (top arc) first, dimmed — it passes BEHIND the body
+      vx.globalAlpha = 0.4;
+      vx.beginPath(); vx.ellipse(0, 0, R * 1.06, R * 0.34, 0, Math.PI, TAU); vx.stroke();
+      vx.globalAlpha = 1;
+      vx.beginPath(); vx.ellipse(0, 0, R * 1.06, R * 0.34, 0, 0, Math.PI); vx.stroke();
+      vx.restore();
       vx.restore();
     };
     const emitWormhole = (w: Wormhole, sx: number, sy: number, R: number, t: number, i: number) => {
       if (off(sx, sy, R * 1.6)) return;
-      ex.save(); ex.translate(sx, sy); ex.rotate(-0.5);
-      // photon ring at the throat's lip — bright, thin, and doppler-arced
-      ex.strokeStyle = rgba(mix(w.hue, "#ffffff", 0.45), 0.55);
-      ex.lineWidth = Math.max(1, R * 0.07);
-      ex.beginPath(); ex.ellipse(0, 0, R * 0.8, R * 0.62, 0, 0, TAU); ex.stroke();
-      ex.strokeStyle = rgba(mix(w.hue, "#ffffff", 0.7), 0.9);
-      ex.lineWidth = Math.max(1.2, R * 0.09);
-      ex.beginPath(); ex.ellipse(0, 0, R * 0.8, R * 0.62, 0, Math.PI * 0.72, Math.PI * 1.32); ex.stroke();
-      // the accretion band's bloom
-      ex.strokeStyle = rgba(mix(w.hue, "#ffffff", 0.3), 0.35);
-      ex.lineWidth = Math.max(1, R * 0.12);
-      ex.beginPath(); ex.ellipse(0, 0, R * 1.18, R * 0.42, 0, 0, TAU); ex.stroke();
+      ex.save(); ex.translate(sx, sy);
+      // photon ring hugging the spherical shadow — bright, thin, doppler-arced
+      ex.strokeStyle = rgba(mix(w.hue, "#ffffff", 0.5), 0.6);
+      ex.lineWidth = Math.max(1, R * 0.06);
+      ex.beginPath(); ex.arc(0, 0, R * 0.74, 0, TAU); ex.stroke();
+      ex.strokeStyle = rgba(mix(w.hue, "#ffffff", 0.75), 0.95);
+      ex.lineWidth = Math.max(1.2, R * 0.08);
+      ex.beginPath(); ex.arc(0, 0, R * 0.74, Math.PI * 0.7, Math.PI * 1.3); ex.stroke();
+      // the band's near-side bloom
+      ex.save(); ex.rotate(-0.42);
+      ex.strokeStyle = rgba(mix(w.hue, "#ffffff", 0.35), 0.4);
+      ex.lineWidth = Math.max(1, R * 0.1);
+      ex.beginPath(); ex.ellipse(0, 0, R * 1.06, R * 0.34, 0, 0, Math.PI); ex.stroke();
+      ex.restore();
       // the traveller — one bright bead running the rim; parked when reduced
       const u = reduced ? (i * 0.27) % 1 : (t * 0.22 + i * 0.27) % 1;
       const a = u * TAU;
-      const bx2 = Math.cos(a) * R, by2 = Math.sin(a) * R * 0.55;
+      const bx2 = Math.cos(a) * R * 1.06, by2 = Math.sin(a) * R * 0.34;
       const bead = ex.createRadialGradient(bx2, by2, 0, bx2, by2, R * 0.34);
       bead.addColorStop(0, rgba(mix(w.hue, "#ffffff", 0.6), 0.9));
       bead.addColorStop(1, "rgba(0,0,0,0)");
