@@ -1129,30 +1129,61 @@ export default function GalaxyCanvas() {
     /** A portal is ring-and-aperture, never a disc: a dark throat punched in
         the sky, a doubled rim in the destination's hue. Planet rings are wide
         and FLAT — an aperture stays steep so the two never read alike. */
-    const paintWormhole = (w: Wormhole, sx: number, sy: number, R: number, _t: number) => {
-      if (off(sx, sy, R * 1.6)) return;
+    const paintWormhole = (w: Wormhole, sx: number, sy: number, R: number, t: number) => {
+      if (off(sx, sy, R * 2.1)) return;
+      // The doors wear the harness hole's anatomy in their destination's hue:
+      // a dark throat, an equatorial accretion band doppler-graded across its
+      // width, a razor photon ring at the throat's lip, and the lensed
+      // far-side halo bent over and under. Kin to the hole, keyed to where
+      // each one goes — flat coin rings read as UI, these read as MASS.
       vx.save(); vx.translate(sx, sy); vx.rotate(-0.5);
-      const th = vx.createRadialGradient(0, 0, 0, 0, 0, R * 0.85);
-      th.addColorStop(0, "rgba(2,3,9,.95)");
-      th.addColorStop(0.75, "rgba(2,3,9,.6)");
-      th.addColorStop(1, "rgba(2,3,9,0)");
+      const th = vx.createRadialGradient(0, 0, 0, 0, 0, R * 1.05);
+      th.addColorStop(0, "rgba(1,2,7,.97)");
+      th.addColorStop(0.6, "rgba(1,2,7,.75)");
+      th.addColorStop(1, "rgba(1,2,7,0)");
       vx.fillStyle = th;
-      vx.beginPath(); vx.ellipse(0, 0, R * 0.85, R * 0.46, 0, 0, TAU); vx.fill();
-      for (const [rr, ry, col, lw] of [
-        [R, R * 0.55, rgba(w.hue, 0.75), Math.max(1.1, R * 0.13)],
-        [R * 0.78, R * 0.42, "rgba(255,255,255,.5)", Math.max(0.7, R * 0.06)],
-      ] as const) {
-        vx.strokeStyle = col; vx.lineWidth = lw;
-        vx.beginPath(); vx.ellipse(0, 0, rr, ry, 0, 0, TAU); vx.stroke();
+      vx.beginPath(); vx.arc(0, 0, R * 1.05, 0, TAU); vx.fill();
+      const spin = reduced ? 0 : t * 0.05;
+      // equatorial band, two passes — wide warm body + hot inner edge
+      const acc = vx.createLinearGradient(-R * 1.5, 0, R * 1.5, 0);
+      acc.addColorStop(0, rgba(mix(w.hue, "#ffffff", 0.55), 0.5));
+      acc.addColorStop(0.5, rgba(w.hue, 0.22));
+      acc.addColorStop(1, rgba(mix(w.hue, "#000000", 0.35), 0.12));
+      vx.strokeStyle = acc; vx.lineWidth = Math.max(1.3, R * 0.2);
+      vx.beginPath(); vx.ellipse(0, 0, R * 1.18, R * 0.42, 0, 0, TAU); vx.stroke();
+      vx.strokeStyle = acc; vx.lineWidth = Math.max(1, R * 0.09);
+      vx.beginPath(); vx.ellipse(0, 0, R * 0.92, R * 0.32, 0, 0, TAU); vx.stroke();
+      // the lensed far side — over the top, under the bottom
+      const halo = vx.createLinearGradient(-R, 0, R, 0);
+      halo.addColorStop(0, rgba(mix(w.hue, "#ffffff", 0.4), 0.34));
+      halo.addColorStop(1, rgba(w.hue, 0.1));
+      vx.strokeStyle = halo; vx.lineWidth = Math.max(1, R * 0.1);
+      vx.beginPath(); vx.ellipse(0, 0, R * 0.86, R * 0.94, 0, Math.PI * 1.04, Math.PI * 1.96); vx.stroke();
+      vx.lineWidth = Math.max(0.8, R * 0.07);
+      vx.beginPath(); vx.ellipse(0, 0, R * 0.86, R * 0.9, 0, Math.PI * 0.08, Math.PI * 0.92); vx.stroke();
+      // faint background lensing arcs, like the hole's
+      for (let k = 0; k < 2; k++) {
+        vx.strokeStyle = `rgba(200,215,240,${0.1 - k * 0.04})`;
+        vx.lineWidth = 0.8;
+        const rr = R * (1.35 + k * 0.35);
+        vx.beginPath(); vx.ellipse(0, 0, rr, rr * 0.5, 0, spin + k * 1.7, spin + k * 1.7 + 2.0); vx.stroke();
       }
       vx.restore();
     };
     const emitWormhole = (w: Wormhole, sx: number, sy: number, R: number, t: number, i: number) => {
       if (off(sx, sy, R * 1.6)) return;
       ex.save(); ex.translate(sx, sy); ex.rotate(-0.5);
-      ex.strokeStyle = rgba(mix(w.hue, "#ffffff", 0.35), 0.5);
-      ex.lineWidth = Math.max(1, R * 0.1);
-      ex.beginPath(); ex.ellipse(0, 0, R, R * 0.55, 0, 0, TAU); ex.stroke();
+      // photon ring at the throat's lip — bright, thin, and doppler-arced
+      ex.strokeStyle = rgba(mix(w.hue, "#ffffff", 0.45), 0.55);
+      ex.lineWidth = Math.max(1, R * 0.07);
+      ex.beginPath(); ex.ellipse(0, 0, R * 0.8, R * 0.62, 0, 0, TAU); ex.stroke();
+      ex.strokeStyle = rgba(mix(w.hue, "#ffffff", 0.7), 0.9);
+      ex.lineWidth = Math.max(1.2, R * 0.09);
+      ex.beginPath(); ex.ellipse(0, 0, R * 0.8, R * 0.62, 0, Math.PI * 0.72, Math.PI * 1.32); ex.stroke();
+      // the accretion band's bloom
+      ex.strokeStyle = rgba(mix(w.hue, "#ffffff", 0.3), 0.35);
+      ex.lineWidth = Math.max(1, R * 0.12);
+      ex.beginPath(); ex.ellipse(0, 0, R * 1.18, R * 0.42, 0, 0, TAU); ex.stroke();
       // the traveller — one bright bead running the rim; parked when reduced
       const u = reduced ? (i * 0.27) % 1 : (t * 0.22 + i * 0.27) % 1;
       const a = u * TAU;
