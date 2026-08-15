@@ -196,7 +196,7 @@ function FilesCard({
                   the thing it names — GitHub's own view of it. */}
               <a
                 href={`https://github.com/egnaro9/${repo}/${e.kind === "dir" ? "tree" : "blob"}/main/${encodeURI(e.name)}`}
-                target="_blank"
+                target="erikhill-out"
                 rel="noreferrer noopener"
                 title={`Open ${e.name} on GitHub`}
                 aria-label={`Open ${e.name} on GitHub`}
@@ -280,7 +280,7 @@ function TasksCard({ work, commits, repo }: { work: RepoWork | undefined; commit
               <span className="mono mt-px flex-none text-[10.5px] text-slate-600">#{i.number}</span>
               <a
                 href={`https://github.com/egnaro9/${repo}/issues/${i.number}`}
-                target="_blank"
+                target="erikhill-out"
                 rel="noreferrer noopener"
                 title={`Open issue #${i.number} on GitHub`}
                 aria-label={`Open issue #${i.number} on GitHub`}
@@ -320,7 +320,7 @@ function TasksCard({ work, commits, repo }: { work: RepoWork | undefined; commit
                   commit LIST rather than pretending to address one commit. */}
               <a
                 href={`https://github.com/egnaro9/${repo}/commits/main`}
-                target="_blank"
+                target="erikhill-out"
                 rel="noreferrer noopener"
                 title="Open this repo's commits on GitHub"
                 aria-label="Open this repo's commits on GitHub"
@@ -409,7 +409,7 @@ function GateOpsCard({ work }: { work: RepoWork | undefined }) {
             </span>
             <a
               href={b.prUrl || b.url}
-              target="_blank"
+              target="erikhill-out"
               rel="noreferrer noopener"
               className="mono min-w-0 flex-1 truncate text-[10.5px] text-slate-300 underline decoration-white/20 hover:decoration-cyan-200"
               title={b.prNumber ? `PR #${b.prNumber}` : "branch — open the PR in GitHub"}
@@ -551,8 +551,7 @@ export default function ProjectStage({ projectId }: { projectId: string }) {
                 ))}
                 <a
                   href={`https://github.com/egnaro9/${project.id}`}
-                  target="_blank"
-                  rel="noopener"
+                  target="erikhill-out"
                   className="mono rounded border px-2 py-0.5 text-[10px] transition hover:brightness-125"
                   style={{ borderColor: `${project.hue}66`, color: project.hue, background: `${project.hue}14` }}
                 >

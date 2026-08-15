@@ -215,7 +215,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                 <a
                   key={w.id}
                   href={w.url}
-                  {...(newTab ? { target: "_blank", rel: "noopener" } : {})}
+                  {...(newTab ? { target: "erikhill-out" } : {})}
                   className="group flex w-full items-center gap-2.5 px-4 py-[6px] transition hover:bg-white/4"
                   title={w.claim}
                 >

@@ -141,7 +141,7 @@ export default function ProvidersPanel({ onClose }: { onClose: () => void }) {
                 <div className="flex-1" />
                 <a
                   href={v.docs}
-                  target="_blank"
+                  target="erikhill-out"
                   rel="noreferrer noopener"
                   className="mono text-[9px] text-slate-500 transition hover:text-slate-300"
                 >

@@ -927,7 +927,7 @@ export default function GalaxyCanvas() {
       a.className = `gal-cel ${cls}`;
       a.dataset.cel = id;
       a.href = url;
-      if (wormholeTarget(url).newTab) { a.target = "_blank"; a.rel = "noopener"; }
+      if (wormholeTarget(url).newTab) a.target = "erikhill-out";
       a.setAttribute("aria-label", aria);
       a.innerHTML = html;
       labelHost.appendChild(a);
@@ -1983,7 +1983,7 @@ export default function GalaxyCanvas() {
         egnaro9.github.io — a jump that never leaves his name — and a new tab
         for everything external. */
     const openPortal = (url: string) => {
-      if (wormholeTarget(url).newTab) window.open(url, "_blank", "noopener");
+      if (wormholeTarget(url).newTab) window.open(url, "erikhill-out");
       else location.assign(url);
     };
     // A press only counts as a pick if it STARTED on the sky. Without this a

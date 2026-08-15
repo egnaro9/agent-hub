@@ -194,8 +194,7 @@ export default function ModelDriftWorld() {
             </button>
             <a
               href="https://egnaro9.github.io/model-drift/"
-              target="_blank"
-              rel="noopener"
+              target="erikhill-out"
               className="mono cursor-pointer rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-[11.5px] text-slate-300 transition hover:bg-white/10"
             >
               ▶ open the live board

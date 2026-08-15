@@ -51,7 +51,7 @@ function Row({ e }: { e: JournalEntry }) {
           {e.error ? (
             <span className="text-rose-200/80">{e.message} — {e.error}</span>
           ) : (
-            <a href={e.url} target="_blank" rel="noreferrer noopener" className="text-cyan-200 underline decoration-cyan-200/40 hover:decoration-cyan-200">
+            <a href={e.url} target="erikhill-out" rel="noreferrer noopener" className="text-cyan-200 underline decoration-cyan-200/40 hover:decoration-cyan-200">
               {e.branch}
             </a>
           )}
