@@ -156,7 +156,7 @@ export default function EvalHistoryWorld() {
           className="glass absolute w-[248px] rounded-2xl p-4"
           animate={{ y: [0, -7, 0] }}
           transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
-          style={{ left: "69%", top: "17%", x: midX, z: -33, rotateY: 7, borderTop: "2px solid #f472b6", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
+          style={{ left: "69%", top: "17%", x: midX, z: -33, rotateY: -3.1, borderTop: "2px solid #f472b6", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
         >
           <div className="flex items-start gap-3">
             <svg viewBox="0 0 24 30" className="mt-0.5 w-[20px] shrink-0">

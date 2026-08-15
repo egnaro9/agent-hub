@@ -133,7 +133,7 @@ export default function VacGateWorld() {
           className="glass absolute w-[250px] rounded-2xl p-4"
           animate={REDUCE ? undefined : { y: [0, -7, 0] }}
           transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
-          style={{ left: "69%", top: "24%", x: midX, z: -20, rotateY: 7, borderTop: "2px solid #f43f5e", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
+          style={{ left: "69%", top: "24%", x: midX, z: -20, rotateY: -3.1, borderTop: "2px solid #f43f5e", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
         >
           <div className="mono text-[9px] tracking-[0.22em] text-rose-300/80 uppercase">dogfood</div>
           <div className="mono mt-2 text-[11px] leading-relaxed text-slate-300">

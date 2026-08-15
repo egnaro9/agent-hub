@@ -174,7 +174,7 @@ export default function PiEvalWorld() {
           className="glass absolute w-[280px] rounded-2xl p-4"
           animate={{ y: [0, 8, 0] }}
           transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
-          style={{ left: "63%", top: "48%", x: midX, z: 0, rotateY: 7, borderTop: "2px solid #2dd4bf", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
+          style={{ left: "63%", top: "48%", x: midX, z: 0, rotateY: -3.1, borderTop: "2px solid #2dd4bf", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
         >
           <div className="mono text-[11px] leading-relaxed text-slate-300">
             gradecli holds <span className="font-semibold text-teal-300" style={{ textShadow: "0 0 14px #2dd4bf66" }}>zero</span> grading logic — on purpose
@@ -186,7 +186,7 @@ export default function PiEvalWorld() {
           className="glass absolute w-[236px] rounded-2xl p-4"
           animate={{ y: [0, -7, 0] }}
           transition={{ duration: 6.5, repeat: Infinity, ease: "easeInOut" }}
-          style={{ left: "74%", top: "12%", x: midX, z: 59, rotateY: 6, borderTop: "2px solid #2dd4bf", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
+          style={{ left: "74%", top: "12%", x: midX, z: 59, rotateY: -2.7, borderTop: "2px solid #2dd4bf", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
         >
           <div className="mono text-[9px] tracking-[0.22em] text-teal-300/80 uppercase">sequence</div>
           <div className="mono mt-2 text-[10.5px] leading-relaxed text-slate-300">

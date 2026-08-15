@@ -139,7 +139,7 @@ export default function AgentCertlabWorld() {
           className="glass absolute w-[262px] rounded-2xl p-4"
           animate={REDUCE ? undefined : { y: [0, -7, 0] }}
           transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
-          style={{ left: "68%", top: "23%", x: midX, z: -20, rotateY: 7, borderTop: "2px solid #38bdf8", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
+          style={{ left: "68%", top: "23%", x: midX, z: -20, rotateY: -3.1, borderTop: "2px solid #38bdf8", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
         >
           <div className="mono text-[9px] tracking-[0.22em] text-sky-300/80 uppercase">the cloud run</div>
           <div className="mono mt-2 text-[11px] leading-relaxed text-slate-300">

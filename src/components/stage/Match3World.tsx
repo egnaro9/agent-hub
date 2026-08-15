@@ -169,7 +169,7 @@ export default function Match3World() {
           className="glass absolute w-[248px] rounded-2xl p-4"
           animate={{ y: [0, -7, 0] }}
           transition={{ duration: 6.5, repeat: Infinity, ease: "easeInOut" }}
-          style={{ left: "68%", top: "55%", x: midX, z: 33, rotateY: 7, borderTop: "2px solid #a78bfa", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
+          style={{ left: "68%", top: "55%", x: midX, z: 33, rotateY: -3.1, borderTop: "2px solid #a78bfa", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
         >
           <div className="mono text-[9px] tracking-[0.22em] text-violet-300/80 uppercase">runtime</div>
           <div className="mono mt-2 text-[11px] leading-relaxed text-slate-300">

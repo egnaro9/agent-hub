@@ -128,7 +128,7 @@ export default function EvalmutWorld() {
           className="glass absolute w-[250px] rounded-2xl p-4"
           animate={REDUCE ? undefined : { y: [0, -7, 0] }}
           transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
-          style={{ left: "68%", top: "24%", x: midX, z: -20, rotateY: 7, borderTop: "2px solid #a3e635", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
+          style={{ left: "68%", top: "24%", x: midX, z: -20, rotateY: -3.1, borderTop: "2px solid #a3e635", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
         >
           <div className="mono text-[9px] tracking-[0.22em] text-slate-500 uppercase">8 adversarial rounds</div>
           <div className="mt-3 flex h-[52px] items-end gap-1.5">

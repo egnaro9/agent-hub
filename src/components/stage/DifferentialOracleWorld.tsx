@@ -202,7 +202,7 @@ export default function DifferentialOracleWorld() {
           className="glass absolute w-[248px] rounded-2xl p-4"
           animate={{ y: [0, -8, 0] }}
           transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
-          style={{ left: "70%", top: "48%", x: midX, z: 33, rotateY: 7, borderTop: "2px solid #a78bfa", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
+          style={{ left: "70%", top: "48%", x: midX, z: 33, rotateY: -3.1, borderTop: "2px solid #a78bfa", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
         >
           <div className="mono text-[12px] leading-snug text-slate-300">
             seeded — <span className="text-violet-300">a prediction, not a sample</span>
