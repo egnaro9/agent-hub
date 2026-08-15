@@ -37,14 +37,15 @@ import { ARMS, CLUSTER_OF, GALAXY_CENTER, SPIRAL, armSlot, spiralPos } from "./g
     midpoint sits exactly on the galactic center at every t. */
 export const BINARY = {
   center: GALAXY_CENTER,
-  /** seconds per orbit — slow enough to read as celestial, not mechanical */
-  period: 96,
+  /** seconds per orbit — spun up (operator call): a close binary WHIRLS,
+      and the pair's hurry against the disc's calm is the impressive part */
+  period: 34,
   /** the pose at t = 0 — the frozen state the mount paint draws */
   theta0: -0.8,
   sunMass: 1,
   holeMass: 1.7,
   /** separation between the two bodies, world px */
-  sep: 210,
+  sep: 300,
 } as const;
 
 const dSun = (BINARY.sep * BINARY.holeMass) / (BINARY.sunMass + BINARY.holeMass);
@@ -74,7 +75,7 @@ export const SUN = {
   name: "the registry",
   x: POSE0.sun.x,
   y: POSE0.sun.y,
-  r: 68,
+  r: 100,
   url: "https://egnaro9.github.io/vac-protocol/",
 } as const;
 
@@ -85,7 +86,7 @@ export const BLACK_HOLE = {
   id: "the-harness",
   x: POSE0.hole.x,
   y: POSE0.hole.y,
-  r: 58,
+  r: 88,
   influence: 950,
 } as const;
 
