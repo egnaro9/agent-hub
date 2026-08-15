@@ -58,7 +58,7 @@ export default function PromptRegressWorld() {
       onPointerMove={onMove}
       className="relative h-full min-h-0 overflow-hidden"
       style={{
-        perspective: "1300px",
+        perspective: "2600px",
         background: `radial-gradient(1200px 640px at 30% 8%, ${GREEN}1c, transparent 55%), radial-gradient(900px 700px at 85% 90%, ${ROSE}12, transparent 60%), radial-gradient(760px 420px at 50% 80%, #2dd4bf0d, transparent 65%)`,
       }}
     >

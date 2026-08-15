@@ -48,7 +48,7 @@ export default function EvalDashboardWorld() {
       ref={ref}
       onPointerMove={onMove}
       className="relative h-full min-h-0 overflow-hidden"
-      style={{ perspective: "1300px", background: "radial-gradient(1100px 600px at 30% 10%, #60a5fa14, transparent 55%), radial-gradient(900px 700px at 85% 90%, #2dd4bf0e, transparent 60%)" }}
+      style={{ perspective: "2600px", background: "radial-gradient(1100px 600px at 30% 10%, #60a5fa14, transparent 55%), radial-gradient(900px 700px at 85% 90%, #2dd4bf0e, transparent 60%)" }}
     >
       <motion.div className="absolute inset-0" style={{ rotateX: rx, rotateY: ry, transformStyle: "preserve-3d" }}>
         {/* floor grid, receding */}

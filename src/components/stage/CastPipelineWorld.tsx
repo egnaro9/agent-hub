@@ -53,7 +53,7 @@ export default function CastPipelineWorld() {
       ref={ref}
       onPointerMove={onMove}
       className="relative h-full min-h-0 overflow-hidden"
-      style={{ perspective: "1300px", background: "radial-gradient(1200px 640px at 25% 12%, #fb71851e, transparent 55%), radial-gradient(1000px 720px at 80% 88%, #2dd4bf14, transparent 60%), radial-gradient(760px 520px at 62% 36%, #fb718510, transparent 62%)" }}
+      style={{ perspective: "2600px", background: "radial-gradient(1200px 640px at 25% 12%, #fb71851e, transparent 55%), radial-gradient(1000px 720px at 80% 88%, #2dd4bf14, transparent 60%), radial-gradient(760px 520px at 62% 36%, #fb718510, transparent 62%)" }}
     >
       <motion.div className="absolute inset-0" style={{ rotateX: rx, rotateY: ry, transformStyle: "preserve-3d" }}>
         {/* floor grid, receding */}

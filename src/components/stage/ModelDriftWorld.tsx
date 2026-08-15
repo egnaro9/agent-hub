@@ -71,7 +71,7 @@ export default function ModelDriftWorld() {
       onPointerMove={onMove}
       className="relative h-full min-h-0 overflow-hidden"
       style={{
-        perspective: "1300px",
+        perspective: "2600px",
         background:
           "radial-gradient(1100px 600px at 30% 10%, #2dd4bf12, transparent 55%), radial-gradient(900px 700px at 85% 90%, #fb718508, transparent 60%)",
       }}

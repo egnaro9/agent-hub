@@ -53,7 +53,7 @@ export default function HarnessLoopWorld() {
       onPointerMove={onMove}
       className="relative h-full min-h-0 overflow-hidden"
       style={{
-        perspective: "1300px",
+        perspective: "2600px",
         background:
           "radial-gradient(1100px 600px at 30% 10%, #22d3ee12, transparent 55%), radial-gradient(900px 700px at 85% 90%, #fbbf240c, transparent 60%)",
       }}

@@ -53,7 +53,7 @@ export default function EvalHistoryWorld() {
       ref={ref}
       onPointerMove={onMove}
       className="relative h-full min-h-0 overflow-hidden"
-      style={{ perspective: "1300px", background: "radial-gradient(1100px 600px at 30% 10%, #f472b614, transparent 55%), radial-gradient(900px 700px at 85% 90%, #fbbf240e, transparent 60%)" }}
+      style={{ perspective: "2600px", background: "radial-gradient(1100px 600px at 30% 10%, #f472b614, transparent 55%), radial-gradient(900px 700px at 85% 90%, #fbbf240e, transparent 60%)" }}
     >
       <motion.div className="absolute inset-0" style={{ rotateX: rx, rotateY: ry, transformStyle: "preserve-3d" }}>
         {/* floor grid, receding */}
@@ -144,9 +144,9 @@ export default function EvalHistoryWorld() {
           </div>
           <div className="mt-2.5 flex gap-1.5">
             {[0, 1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-[18px] w-[24px] rounded-sm" style={{ background: "#2dd4bf22", borderTop: "2px solid #2dd4bf" }} />
+              <div key={i} className="h-[18px] w-[24px] rounded-sm" style={{ background: "#2dd4bf3d", border: "1px solid #2dd4bf77", borderTop: "2px solid #2dd4bf" }} />
             ))}
-            <div className="h-[18px] w-[24px] rounded-sm" style={{ background: "#fbbf2426", borderTop: "2px solid #fbbf24", boxShadow: "0 0 14px #fbbf2455" }} />
+            <div className="h-[18px] w-[24px] rounded-sm" style={{ background: "#fbbf2445", border: "1px solid #fbbf2477", borderTop: "2px solid #fbbf24", boxShadow: "0 0 14px #fbbf2455" }} />
           </div>
           <div className="mono mt-2.5 text-[10px] leading-relaxed text-slate-500">it won't let a better average bury the case that broke</div>
         </motion.div>

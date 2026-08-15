@@ -73,7 +73,7 @@ export default function DifferentialOracleWorld() {
       onPointerMove={onMove}
       className="relative h-full min-h-0 overflow-hidden"
       style={{
-        perspective: "1300px",
+        perspective: "2600px",
         // split-lit: cyan half, violet half, dark trough at the seam
         background:
           "linear-gradient(90deg, rgba(34,211,238,.075), rgba(34,211,238,.02) 44%, transparent 50%, rgba(167,139,250,.02) 56%, rgba(167,139,250,.075)), radial-gradient(900px 600px at 12% 18%, #22d3ee12, transparent 60%), radial-gradient(900px 600px at 88% 82%, #a78bfa12, transparent 60%)",

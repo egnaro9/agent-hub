@@ -148,7 +148,7 @@ export default function RagEvalLabWorld() {
       onPointerMove={onMove}
       className="relative h-full min-h-0 overflow-hidden"
       style={{
-        perspective: "1300px",
+        perspective: "2600px",
         background:
           "radial-gradient(1200px 640px at 45% 8%, #60a5fa1c, transparent 55%), radial-gradient(1000px 720px at 85% 90%, #2dd4bf12, transparent 60%), radial-gradient(720px 520px at 10% 80%, #60a5fa0c, transparent 60%), radial-gradient(640px 460px at 88% 16%, #fb71850c, transparent 62%)",
       }}
