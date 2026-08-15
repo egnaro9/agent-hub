@@ -160,7 +160,11 @@ describe("wormholeTarget", () => {
   });
 
   it("opens external hosts in a new tab", () => {
-    expect(wormholeTarget("https://crashkit.onrender.com").newTab).toBe(true);
+    // crashkit joined the ESTATE set (operator call): his own property,
+    // same tab. Lookalikes of it must still fail.
+    expect(wormholeTarget("https://crashkit.onrender.com").newTab).toBe(false);
+    expect(wormholeTarget("https://agent-hub-exiz.onrender.com/#/p/evalmut").newTab).toBe(false);
+    expect(wormholeTarget("https://crashkit.onrender.com.evil.com/x").newTab).toBe(true);
     expect(wormholeTarget("https://dev.to/anything").newTab).toBe(true);
   });
 

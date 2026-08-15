@@ -163,11 +163,18 @@ export const WORMHOLES: Wormhole[] = [
   },
 ];
 
-/** The estate rule: a jump that never leaves his name stays in this tab;
-    anything external opens a new one. The trailing slash matters — without it
-    a lookalike host (egnaro9.github.io.evil.com) would pass as estate. */
+/** The estate rule (operator-tightened 2026-08-15): the estate is ONE
+    continuous space — any of his own properties navigates IN THIS TAB, and
+    only genuinely external hosts get the shared out-tab. Exact-host or
+    host-plus-slash matching, so a lookalike (crashkit.onrender.com.evil.com)
+    never passes as estate. */
+const ESTATE_HOSTS = [
+  "https://egnaro9.github.io",
+  "https://agent-hub-exiz.onrender.com",
+  "https://crashkit.onrender.com",
+];
 export const wormholeTarget = (url: string): { newTab: boolean } => ({
-  newTab: !url.startsWith("https://egnaro9.github.io/"),
+  newTab: !ESTATE_HOSTS.some((h) => url === h || url.startsWith(h + "/")),
 });
 
 /**
