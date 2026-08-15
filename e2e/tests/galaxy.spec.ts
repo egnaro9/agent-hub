@@ -82,16 +82,19 @@ test.describe("the galaxy map", () => {
     await page.waitForTimeout(300);
     expect(await galaxyZoom(page)).toBe(before);
 
-    // drag past the card must not pan: a label's x-position holds while the
+    // Drag past the card must not pan: a label's x-position holds while the
     // pointer is down and moving (sampled BEFORE release — releasing on the
-    // scrim is the designed lower-the-card click)
+    // scrim is the designed lower-the-card click). "Holds" allows the few px
+    // the differential rotation legitimately sweeps in this window — a leaked
+    // 160px drag would throw the label an order of magnitude further.
     const lab = page.locator('[data-planet="gradecore"]');
-    const leftBefore = await lab.evaluate((el) => (el as HTMLElement).style.left);
+    const leftBefore = parseFloat(await lab.evaluate((el) => (el as HTMLElement).style.left));
     await page.mouse.move(box.x + box.width / 2, box.y + 20);
     await page.mouse.down();
     await page.mouse.move(box.x + box.width / 2 + 160, box.y + 80, { steps: 6 });
     await page.waitForTimeout(200);
-    expect(await lab.evaluate((el) => (el as HTMLElement).style.left)).toBe(leftBefore);
+    const leftAfter = parseFloat(await lab.evaluate((el) => (el as HTMLElement).style.left));
+    expect(Math.abs(leftAfter - leftBefore)).toBeLessThan(20);
     await page.mouse.up();
   });
 
@@ -136,7 +139,6 @@ test.describe("the galaxy map", () => {
     // Sweep the sky BEHIND the scrim for a world that isn't the staged one.
     // The scrim's cursor is the affordance under test as much as the click is:
     // without it nothing signals that the neighbours are still live.
-    const box = (await page.getByTestId("galaxy").boundingBox())!;
     const card = (await page.getByTestId("arrival-card").boundingBox())!;
     const scrimCursor = () =>
       page.evaluate(() => (document.querySelector('[data-testid="arrival-scrim"]') as HTMLElement).style.cursor);
@@ -169,10 +171,31 @@ test.describe("the galaxy map", () => {
     await expect(page.getByTestId("arrival-card")).toBeVisible();
     await expect(page.getByTestId("arrival-card")).not.toContainText("crashkit");
 
-    // ...and empty sky still means leave.
-    await page.mouse.move(box.x + 12, box.y + 12);
+    // ...and empty sky still means leave. No corner is GUARANTEED empty under
+    // every hero framing of the spiral, so find clear sky the same way the
+    // world was found — probe the corners for a spot the hit test declines.
+    const empty = await page.evaluate(
+      ({ card }) => {
+        const scrim = document.querySelector('[data-testid="arrival-scrim"]') as HTMLElement;
+        const b = scrim.getBoundingClientRect();
+        const corners: [number, number][] = [
+          [b.left + 12, b.top + 12], [b.right - 12, b.top + 12],
+          [b.left + 12, b.bottom - 12], [b.right - 12, b.bottom - 12],
+        ];
+        for (const [x, y] of corners) {
+          if (x > card.x - 8 && x < card.x + card.width + 8 && y > card.y - 8 && y < card.y + card.height + 8) continue;
+          scrim.style.cursor = "";
+          scrim.dispatchEvent(new MouseEvent("mousemove", { clientX: x, clientY: y, bubbles: true }));
+          if (scrim.style.cursor !== "pointer") return { x, y };
+        }
+        return null;
+      },
+      { card }
+    );
+    expect(empty, "some empty sky exists behind the scrim").toBeTruthy();
+    await page.mouse.move(empty!.x, empty!.y);
     expect(await scrimCursor()).not.toBe("pointer");
-    await page.mouse.click(box.x + 12, box.y + 12);
+    await page.mouse.click(empty!.x, empty!.y);
     await expect(page.getByTestId("arrival-card")).toHaveCount(0);
   });
 

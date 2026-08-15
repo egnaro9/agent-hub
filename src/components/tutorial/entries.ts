@@ -38,10 +38,10 @@ export const SECTIONS: Section[] = [
       {
         title: "the galaxy",
         what:
-          "The default view: every project is a planet — sized by weight, surfaced by what it is (gas bands, craters, ice, an ember world, city lights, one twin) — arranged in thematic clusters on orbital rings. Agents are moons orbiting the project their assignment names; related projects are joined by energy filaments.",
+          "The default view: ONE spiral galaxy. Every project is a planet — sized by weight, surfaced by what it is (gas bands, craters, ice, an ember world, city lights, one twin) — seated along five log-spiral arms that wind out from a tight binary core: the registry sun and the harness's unseen mass, orbiting their shared barycenter. Agents are moons orbiting the project their assignment names; related projects are joined by energy filaments; wormhole doors sit at the arm tips.",
         how: "Drag to pan, scroll or pinch to zoom. Click a planet — the disc itself, or its name — to enter it; the cursor turns to a pointer over a world. Bottom right: − / + / ⤢ fit, ◐ idle drift, 3D for the immersive mode, and the lock. ⤢ measures the system against the current window, so it frames everything on a laptop half-window and on a 5K display alike.",
         gotcha:
-          "It never unmounts — your camera survives a trip into a project. Planets ride fixed cluster rings now, so there is nothing to drag out of place; the idle camera drifts until you touch anything, and comes back on its own after 30 quiet seconds (◐ brings it back sooner, or turns it off for good). Worlds ROTATE while they are big enough to see it — every planet on screen at arrival size, not just the one you came for, each on its own phase and rate. At map size nothing turns: a planet is 20-40px there, where a rotating surface is invisible.",
+          "It never unmounts — your camera survives a trip into a project. Planets keep fixed seats on their arms, so there is nothing to drag out of place — but the whole disc turns, slowly, inner arms outrunning the outer (prefers-reduced-motion freezes all of it, binary included); the idle camera drifts until you touch anything, and comes back on its own after 30 quiet seconds (◐ brings it back sooner, or turns it off for good). Worlds ROTATE while they are big enough to see it — every planet on screen at arrival size, not just the one you came for, each on its own phase and rate. At map size nothing turns: a planet is 20-40px there, where a rotating surface is invisible.",
       },
       {
         title: "🔓 lock",
@@ -166,7 +166,7 @@ export const SECTIONS: Section[] = [
       },
       {
         title: "two commands that need no key",
-        what: "`new project: <name>` mints a real planet in the galaxy immediately — it lands in the `founded` cluster. In #harness-builder, `run the sweep` replays a recorded sweep, refusal and all.",
+        what: "`new project: <name>` mints a real planet in the galaxy immediately — it lands as `founded`, riding the youngest arm's tail. In #harness-builder, `run the sweep` replays a recorded sweep, refusal and all.",
         how: "Type either into any room composer.",
         gotcha:
           "Both run before the live-brain path, so `run the sweep` never reaches a model even with a key connected. Names are slugified, and a collision with an existing project or agent id is refused. Note the asymmetry with the gate: you typing `new project:` creates it outright, while an agent asking for the same thing only gets a proposal card.",

@@ -3,36 +3,43 @@ import { useHub } from "../state/hub";
 import { useChrome } from "../state/chrome";
 import { STRUCTURAL } from "../data/mock";
 import { PAINTERS } from "./planets";
-import { SUN, BLACK_HOLE, WORMHOLES, sunGlow, sunCaption, perturb, wormholeTarget, type Wormhole } from "./constellation";
-import { FIT_MARGIN, solveMapFit, type FitBody } from "./galaxyFit";
+import { SUN, BLACK_HOLE, BINARY_R, WORMHOLES, binaryPose, sunGlow, sunCaption, perturb, wormholeTarget, type Wormhole } from "./constellation";
+import { ARMS, CLUSTER_OF, FOUNDED, GALAXY_CENTER, SPIRAL, armAngleAt, clusterName, placeOnArms, rotatedAngle, spiralPos } from "./galaxySpiral";
+import { FIT_MARGIN, solveMapFit, type FitBody, type MapFit } from "./galaxyFit";
 import { fetchRegistryCount, type RegistryCount } from "../data/registry";
 import type { Agent, Project } from "../types";
 
 /* ════════════════════════════════════════════════════════════════════════════
    THE GALAXY MAP — the hub's default spatial view (Phase 1 of the redesign).
 
-   Projects are planets with real surfaces (six seeded archetypes: gas, rock,
-   ice, ember, ocean, city — plus one twin), lit by a consistent off-limb sun
-   so every body carries a crescent, never an eyeball. Agents are moons
-   orbiting the project their ASSIGNMENT names — the store is the single truth
-   the map draws, which is exactly the contract the joinRoom fix bought.
-   Structural relationships are breathing energy filaments. Everything
-   emissive passes through a real additive bloom chain (offscreen → half-res →
-   quarter-res blur → lighter), over fbm-baked nebulae, three parallax star
-   layers, film grain and a vignette.
+   ONE spiral galaxy (the v2 layout): the five taxonomy clusters are
+   log-spiral ARMS winding from a shared core, and the whole disc turns under
+   differential rotation — inner arms outrunning the outer, subtly. Projects
+   are planets with real surfaces (six seeded archetypes: gas, rock, ice,
+   ember, ocean, city — plus one twin), lit by a consistent off-limb sun so
+   every body carries a crescent, never an eyeball. Agents are moons orbiting
+   the project their ASSIGNMENT names — the store is the single truth the map
+   draws, which is exactly the contract the joinRoom fix bought. Structural
+   relationships are breathing energy filaments. Everything emissive passes
+   through a real additive bloom chain (offscreen → half-res → quarter-res
+   blur → lighter), over fbm-baked nebulae, three parallax star layers, film
+   grain and a vignette.
 
    The constellation layer (constellation.ts) adds the bodies that are NOT
-   planets: the SUN — the evidence registry, corona data-bound to the live
-   accepted-claim count, the one click that leaves for the registry page; the
-   BLACK HOLE — the harness, rendered only by lensing, accretion and the
-   perturbed orbits nearby, with no way in; and WORMHOLES — ring-and-aperture
-   portals to destinations best experienced where they run.
+   planets — the CORE IS A BINARY: the SUN — the evidence registry, corona
+   data-bound to the live accepted-claim count, the one click that leaves for
+   the registry page — and the BLACK HOLE — the harness, rendered only by
+   lensing, accretion and the perturbed orbits nearby, with no way in — orbit
+   their common barycenter at the galactic center, slowly; the hole's
+   influence rides its live position. WORMHOLES — ring-and-aperture portals
+   to destinations best experienced where they run — park at the arm tips,
+   the doors out at the rim.
 
    Two projections share the sprites and the bloom: the default 2.5D map, and
-   an optional immersive 3D mode (free-orbit camera, planets revolving on
-   their cluster rings) behind the HUD's 3D button. The mock this ports from
-   lives in the design history; the production 3D mode is earmarked for R3F if
-   it outgrows this hand-rolled projection.
+   an optional immersive 3D mode (free-orbit camera, the same disc flat in
+   space) behind the HUD's 3D button. The mock this ports from lives in the
+   design history; the production 3D mode is earmarked for R3F if it outgrows
+   this hand-rolled projection.
 
    Perf discipline, paid for in the mock: EVERYTHING expensive is baked once —
    nebulae (low-res fbm, upscaled), star tiles, planet sprites, grain — and
@@ -44,7 +51,7 @@ const TAU = Math.PI * 2;
 // so the arrival stays centred and the card floats over the world.
 const SIDE_MIN_W = 700;
 const LIGHT = { x: -0.62, y: -0.72 };
-const HOME = { x: 360, y: 190, z: 0.4 };
+const HOME: MapFit = { x: GALAXY_CENTER.x, y: GALAXY_CENTER.y, z: 0.4 };
 
 // ── palette helpers ──────────────────────────────────────────────────────────
 const hex = (h: string) => {
@@ -77,28 +84,8 @@ const idSeed = (id: string) => {
   return ((h >>> 0) % 2147483646) + 1;
 };
 
-// ── cluster + archetype assignments (seed projects; extras join "founded") ──
+// ── archetype assignments (arm membership lives in galaxySpiral.ts) ────────
 type Kind = "gas" | "rock" | "ice" | "ember" | "ocean" | "city" | "twin";
-const CLUSTER_DEF: { id: string; name: string; cx: number; cy: number; cap: number }[] = [
-  { id: "grading", name: "grading core", cx: -40, cy: 40, cap: 120 },
-  { id: "harness", name: "harness & agents", cx: 1150, cy: -380, cap: 96 },
-  { id: "runtime", name: "runtimes", cx: 1000, cy: 660, cap: 96 },
-  { id: "studio", name: "studio", cx: -30, cy: 1010, cap: 80 },
-  // The suite-era region: the trust layer and its issuers/instruments.
-  { id: "vac", name: "verifiable evaluation", cx: 2150, cy: 150, cap: 110 },
-  // Operator-minted projects land here: a young system on the frontier.
-  { id: "founded", name: "founded", cx: -700, cy: -520, cap: 80 },
-];
-const CLUSTER_OF: Record<string, string> = {
-  gradecore: "grading", crashkit: "grading", "model-drift": "grading", "rag-eval-lab": "grading",
-  "eval-history": "grading", "eval-dashboard": "grading", "prompt-regress": "grading", "pi-eval": "grading",
-  "agentic-dev-harness": "harness", "pi-gates": "harness", "harness-builder": "harness",
-  "agent-graph": "harness", "mcp-tools": "harness", "llm-gateway": "harness",
-  "tapdodge-engine": "runtime", "match3-engine": "runtime", "evals-differential-oracle": "runtime",
-  "cast-pipeline": "studio",
-  "vac-protocol": "vac", "agent-certlab": "vac", "reference-fleet": "vac",
-  evalmut: "vac", "vac-gate": "vac",
-};
 const KIND_OF: Record<string, Kind> = {
   gradecore: "gas", crashkit: "ember", "model-drift": "gas", "rag-eval-lab": "ocean",
   "eval-history": "rock", "eval-dashboard": "ice", "prompt-regress": "rock", "pi-eval": "ice",
@@ -111,8 +98,9 @@ const KIND_OF: Record<string, Kind> = {
 };
 // Planet size is RATIONAL, not curated: mass = how much of the system runs
 // through this world. Each structural link adds heft, resident crew adds a
-// little more — so the most-connected project in a cluster is also its
-// visual anchor, and the sizes stay true as the portfolio grows.
+// little more — so the most-connected project on an arm is also its biggest
+// body AND sits nearest the core, and the sizes stay true as the portfolio
+// grows.
 const degreeOf = (id: string) =>
   STRUCTURAL.filter((e) => e.source === id || e.target === id).length;
 const radiusOf = (id: string, crewCount: number) =>
@@ -462,51 +450,30 @@ function bakePlanet(id: string, hue: string, kind: Kind, radius: number, phase =
 }
 
 // ── layout ──────────────────────────────────────────────────────────────────
+// The five taxonomy clusters are log-spiral ARMS from the shared core (the
+// binary's barycenter); a project's seat is its slot down its arm — the
+// most-connected world nearest the core. The math is galaxySpiral.ts, pure
+// and unit-pinned; x/y here are the FROZEN (t = 0) pose, and the frame loop
+// re-derives live positions from (rG, aG) under differential rotation.
 interface GNode {
   x: number; y: number; z: number;
-  cluster: (typeof CLUSTER_DEF)[number];
-  ringRad: number; ang: number; y3: number; orbSpeed: number;
+  armId: string;
+  cluster: { id: string; name: string };
+  rG: number; aG: number; y3: number;
 }
 function layout(projects: Project[]) {
-  const byCluster = new Map<string, Project[]>();
-  projects.forEach((p) => {
-    const cid = CLUSTER_OF[p.id] ?? "founded";
-    if (!byCluster.has(cid)) byCluster.set(cid, []);
-    byCluster.get(cid)!.push(p);
-  });
+  const placed = placeOnArms(projects.map((p) => ({ id: p.id, degree: degreeOf(p.id) })));
   const nodes = new Map<string, GNode>();
-  CLUSTER_DEF.forEach((cl) => {
-    const members = byCluster.get(cl.id) ?? [];
-    if (members.length === 0) return;
-    // Most-connected member anchors the cluster; ring position follows
-    // connectedness too, so the orbit structure reads as the dependency
-    // structure — inner ring = closest to the heart of the cluster.
-    const sorted = [...members].sort((a, b) => degreeOf(b.id) - degreeOf(a.id));
-    const zs = [1.06, 1, 0.92, 1.02, 0.88, 0.82, 0.9, 0.78, 0.86];
-    // The vac heart is the SUN's seat, not a planet's: every suite world
-    // rides a ring around the registry its claims are bound to. Everywhere
-    // else the most-connected member still anchors its cluster.
-    const sunSeat = cl.id === "vac";
-    const first = sunSeat ? 0 : 1; // ring-one slots start here
-    const ring1 = sunSeat ? 5 : 4; // and hold this many
-    sorted.forEach((p, i) => {
-      seed = idSeed(p.id) + 7;
-      const y3 = (rnd() - 0.5) * 120;
-      if (i === 0 && members.length > 1 && !sunSeat) {
-        nodes.set(p.id, { x: cl.cx, y: cl.cy, z: 1.06, cluster: cl, ringRad: 0, ang: 0, y3, orbSpeed: 0 });
-        return;
-      }
-      const ringIdx = members.length === 1 && !sunSeat ? 0 : i < first + ring1 ? 1 : 2;
-      const rad = ringIdx === 0 ? 0 : ringIdx === 1 ? 265 : 455;
-      const onRing = ringIdx === 1 ? Math.min(ring1, sorted.length - first) : sorted.length - first - ring1;
-      const slot = ringIdx === 1 ? i - first : i - first - ring1;
-      const off = ringIdx === 1 ? -0.55 : 0.42;
-      const a = off + (slot / Math.max(onRing, 1)) * TAU;
-      nodes.set(p.id, {
-        x: cl.cx + Math.cos(a) * rad * 1.42, y: cl.cy + Math.sin(a) * rad * 0.72,
-        z: zs[i % zs.length], cluster: cl, ringRad: rad, ang: a, y3,
-        orbSpeed: rad ? (0.05 + rnd() * 0.04) * (300 / rad) : 0,
-      });
+  const zs = [1.06, 1, 0.92, 1.02, 0.88, 0.82, 0.9, 0.78, 0.86];
+  projects.forEach((p) => {
+    const pl = placed.get(p.id)!;
+    seed = idSeed(p.id) + 7;
+    const y3 = (rnd() - 0.5) * 120;
+    nodes.set(p.id, {
+      x: pl.x, y: pl.y, z: zs[pl.slot % zs.length],
+      armId: pl.armId,
+      cluster: { id: pl.clusterId, name: clusterName(pl.clusterId) },
+      rG: pl.r, aG: pl.a, y3,
     });
   });
   return nodes;
@@ -552,11 +519,18 @@ export default function GalaxyCanvas() {
     // ── bakes ──
     const { projects } = useHub.getState();
     const nodes = layout(projects);
-    // Base coordinates are the truth the perturbation field bends: positions
-    // re-derive from here every frame, so the unseen mass can never
-    // accumulate drift into the layout.
-    const base = new Map<string, { x: number; y: number }>();
-    nodes.forEach((n, id) => base.set(id, { x: n.x, y: n.y }));
+    // Positions re-derive from the polar base (rG, aG) every frame:
+    // differential rotation sweeps the disc, the unseen mass bends what
+    // passes near its live position, and neither can accumulate drift into
+    // the layout. tw = 0 is the frozen pose — the mount paint and
+    // prefers-reduced-motion both draw exactly this state, binary included.
+    const advanceWorld = (tw: number) => {
+      nodes.forEach((n) => {
+        const p0 = spiralPos(n.rG, n.aG, tw);
+        const q = perturb(p0.x, p0.y, tw);
+        n.x = p0.x + q.dx; n.y = p0.y + q.dy;
+      });
+    };
     // The registry read lands asynchronously; until it does the sun burns at
     // its dim default and the label says it is still reading.
     let reg: RegistryCount | null = null;
@@ -574,7 +548,8 @@ export default function GalaxyCanvas() {
       { c: bakeNebula("#7c3aed", { stretch: 1.8, gain: 0.95 }), x: 1180, y: -420, s: 1600, p: 0.5, a: 0.44, dark: false },
       { c: bakeNebula("#2563eb", { stretch: 1.5, gain: 0.9 }), x: 1020, y: 680, s: 1450, p: 0.5, a: 0.38, dark: false },
       { c: bakeNebula("#be185d", { stretch: 1.3, gain: 0.8 }), x: -40, y: 1050, s: 1150, p: 0.5, a: 0.3, dark: false },
-      { c: bakeNebula("#a16207", { stretch: 1.6, gain: 0.9 }), x: 2170, y: 190, s: 1550, p: 0.5, a: 0.36, dark: false },
+      // the gold one keeps riding the registry's light — that is the core now
+      { c: bakeNebula("#a16207", { stretch: 1.6, gain: 0.9 }), x: 900, y: 160, s: 1550, p: 0.5, a: 0.36, dark: false },
       { c: bakeNebula("#03040a", { stretch: 2.8, gain: 1.25 }), x: 420, y: 180, s: 2300, p: 0.44, a: 0.55, dark: true },
     ];
     const STARL = [
@@ -661,18 +636,30 @@ export default function GalaxyCanvas() {
     // whole system on a laptop half-window and on a 5K display.
     const MARGIN = FIT_MARGIN; // labels hang below; HUD owns the bottom-right
     // The constellation bodies are part of what the fit frames — a sun the
-    // home view crops is a registry nobody sees. They ride parallax 1.
+    // home view crops is a registry nobody sees. The binary orbits, so its
+    // extents reserve the WHOLE orbit about the barycenter; the doors are
+    // fixed at the rim. Everything celestial rides parallax 1.
     const CEL_EXTENT = [
-      { x: SUN.x, y: SUN.y, rx: SUN.r * 2.2, ry: SUN.r * 2.2 },
-      { x: BLACK_HOLE.x, y: BLACK_HOLE.y, rx: BLACK_HOLE.r * 2.3, ry: BLACK_HOLE.r * 2.3 },
+      {
+        x: GALAXY_CENTER.x, y: GALAXY_CENTER.y,
+        rx: BINARY_R.sun + SUN.r * 2.2, ry: BINARY_R.sun * SPIRAL.squashY + SUN.r * 2.2,
+      },
+      {
+        x: GALAXY_CENTER.x, y: GALAXY_CENTER.y,
+        rx: BINARY_R.hole + BLACK_HOLE.r * 2.3, ry: BINARY_R.hole * SPIRAL.squashY + BLACK_HOLE.r * 2.3,
+      },
       ...WORMHOLES.map((w) => ({ x: w.x, y: w.y, rx: w.r * 1.7, ry: w.r * 1.2 })),
     ];
 
     /** 2.5D: planets ride a parallax factor, so the fit is solved iteratively
         — each recentring changes every node's effective offset. Radii scale
         with zoom exactly like positions, which is what lets one z fall out.
-        The solve itself lives in galaxyFit.ts, pure and unit-pinned; this
-        wrapper only gathers what is currently out there. */
+        Each planet reserves the whole CIRCLE it sweeps about the center, not
+        its momentary pose: the fit is rotation-invariant, so differential
+        rotation can never carry a world out of the home frame — and ⤢ lands
+        the same camera at any hour, which is what keeps the fit assertions
+        deterministic. The solve itself lives in galaxyFit.ts, pure and
+        unit-pinned; this wrapper only gathers what is out there. */
     const fitMap = () => {
       const bodies: FitBody[] = [];
       nodes.forEach((n, id) => {
@@ -681,8 +668,9 @@ export default function GalaxyCanvas() {
         // its width vertically shrank the whole frame for two planets
         const ring = RINGED.has(id);
         bodies.push({
-          x: n.x, y: n.y, p: 0.88 + n.z * 0.12,
-          rx: sp.R * n.z * (ring ? 2.25 : 1.2), ry: sp.R * n.z * 1.2,
+          x: GALAXY_CENTER.x, y: GALAXY_CENTER.y, p: 0.88 + n.z * 0.12,
+          rx: n.rG + sp.R * n.z * (ring ? 2.25 : 1.2),
+          ry: n.rG * SPIRAL.squashY + sp.R * n.z * 1.2,
           centroid: true,
         });
       });
@@ -852,19 +840,23 @@ export default function GalaxyCanvas() {
     const w2s = (x: number, y: number, p = 1): [number, number] =>
       [(x - cam.x * p) * cam.z + W / 2, (y - cam.y * p) * cam.z + H / 2];
 
+    /** 3D seats ride the same differential rotation as the flat map — the
+        disc is FLAT in 3D (no squash; that was the 2.5D inclination), with
+        each world's y3 jitter for depth. Reduced motion pins t = 0. */
     const pos3 = (id: string) => {
       const n = nodes.get(id)!;
-      if (!n.ringRad) return { x: n.cluster.cx * SPREAD3, y: n.y3, z: n.cluster.cy * SPREAD3 };
-      const a = n.ang + (reduced ? 0 : tNow * n.orbSpeed);
+      const a = rotatedAngle(n.rG, n.aG, reduced ? 0 : tNow);
       return {
-        x: (n.cluster.cx + Math.cos(a) * n.ringRad * 1.42) * SPREAD3,
+        x: (GALAXY_CENTER.x + Math.cos(a) * n.rG) * SPREAD3,
         y: n.y3,
-        z: (n.cluster.cy + Math.sin(a) * n.ringRad * 1.05) * SPREAD3,
+        z: (GALAXY_CENTER.y + Math.sin(a) * n.rG) * SPREAD3,
       };
     };
-    /** Celestial bodies sit on the galactic plane in 3D — the same mapping
-        the non-ring planets use. */
+    /** Celestial bodies sit on the galactic plane in 3D. */
     const cel3 = (b: { x: number; y: number }) => ({ x: b.x * SPREAD3, y: 0, z: b.y * SPREAD3 });
+    /** The binary's live pose — frozen at its t = 0 seat under reduced
+        motion, exactly the pose the mount paint draws (tNow starts at 0). */
+    const poseNow = () => binaryPose(reduced ? 0 : tNow);
     const project3 = (p: { x: number; y: number; z: number }) => {
       const c = cam3, dx = p.x - c.target.x, dy = p.y - c.target.y, dz = p.z - c.target.z;
       const cy = Math.cos(c.yaw), sy = Math.sin(c.yaw);
@@ -1141,17 +1133,34 @@ export default function GalaxyCanvas() {
       vx.fillStyle = bg; vx.fillRect(0, 0, W, H);
 
       vx.save(); vx.textAlign = "center"; vx.textBaseline = "middle";
-      CLUSTER_DEF.forEach((cl) => {
-        if (![...nodes.values()].some((n) => n.cluster.id === cl.id)) return;
-        const [sx, sy] = w2s(cl.cx, cl.cy + 40, 0.92);
-        const size = cl.cap * cam.z * 1.9;
+      // Region names ride their arms: each caption anchors on the arm's mid
+      // radius and turns with the disc; "founded" tails the youngest arm, so
+      // its caption sits on the mean of its own worlds.
+      const caption = (name: string, cap: number, ax: number, ay: number) => {
+        const [sx, sy] = w2s(ax, ay + 40, 0.92);
+        const size = cap * cam.z * 1.9;
         vx.font = `600 ${size}px ui-monospace, Menlo, monospace`;
         // letterSpacing is Chrome-only canvas API; typed loosely on purpose
         const vxl = vx as CanvasRenderingContext2D & { letterSpacing?: string };
         if (vxl.letterSpacing !== undefined) vxl.letterSpacing = `${size * 0.42}px`;
         vx.fillStyle = `rgba(150,185,240,${Math.max(0, 0.05 - Math.abs(cam.z - 0.42) * 0.06)})`;
-        vx.fillText(cl.name.toUpperCase(), sx, sy);
+        vx.fillText(name.toUpperCase(), sx, sy);
+      };
+      ARMS.forEach((arm) => {
+        const members = [...nodes.values()].filter((n) => n.cluster.id === arm.id);
+        if (members.length === 0) return;
+        const rMid = members.reduce((s, n) => s + n.rG, 0) / members.length;
+        const anchor = spiralPos(rMid, armAngleAt(arm.phase, rMid), reduced ? 0 : t);
+        caption(arm.name, arm.cap, anchor.x, anchor.y);
       });
+      {
+        const foundlings = [...nodes.values()].filter((n) => n.cluster.id === FOUNDED.id);
+        if (foundlings.length) {
+          const ax = foundlings.reduce((s, n) => s + n.x, 0) / foundlings.length;
+          const ay = foundlings.reduce((s, n) => s + n.y, 0) / foundlings.length;
+          caption(FOUNDED.name, FOUNDED.cap, ax, ay);
+        }
+      }
       const vxl2 = vx as CanvasRenderingContext2D & { letterSpacing?: string };
       if (vxl2.letterSpacing !== undefined) vxl2.letterSpacing = "0px";
       vx.restore();
@@ -1171,22 +1180,33 @@ export default function GalaxyCanvas() {
         for (let x = ox - s; x < W; x += s) for (let y = oy - s; y < H; y += s) vx.drawImage(l.c, x, y, s, s);
       });
 
-      // the unseen mass dims the sky it sits in — before rings and filaments,
-      // which may legitimately cross its outer fringe as bent light
+      // the unseen mass dims the sky it sits in — at its LIVE seat on the
+      // binary orbit, before arms and filaments, which may legitimately
+      // cross its outer fringe as bent light
       {
-        const [hx, hy] = w2s(BLACK_HOLE.x, BLACK_HOLE.y);
+        const [hx, hy] = w2s(poseNow().hole.x, poseNow().hole.y);
         paintHole(hx, hy, BLACK_HOLE.r * cam.z, t);
       }
 
-      CLUSTER_DEF.forEach((cl) => {
-        const members = [...nodes.values()].filter((n) => n.cluster.id === cl.id);
-        if (members.length < 2) return;
-        const [sx, sy] = w2s(cl.cx, cl.cy);
-        [265, 455].forEach((rad, i) => {
-          if (i === 1 && members.length <= 5) return;
-          vx.strokeStyle = `rgba(150,185,240,${i === 0 ? 0.075 : 0.05})`; vx.lineWidth = 1;
-          vx.beginPath(); vx.ellipse(sx, sy, rad * 1.42 * cam.z, rad * 0.72 * cam.z, 0, 0, TAU); vx.stroke();
-        });
+      // the arms themselves, faint: each guide threads its LIVE worlds from
+      // the core outward and runs on to its doors, so the curve stays pinned
+      // to the bodies however far the differential rotation has swept them
+      ARMS.forEach((arm) => {
+        const pts = [...nodes.values()]
+          .filter((n) => n.armId === arm.id)
+          .sort((a, b) => a.rG - b.rG)
+          .map((n) => w2s(n.x, n.y));
+        WORMHOLES.filter((w) => w.arm === arm.id)
+          .sort((a, b) => a.rG - b.rG)
+          .forEach((w) => pts.push(w2s(w.x, w.y)));
+        if (pts.length < 2) return;
+        vx.strokeStyle = "rgba(150,185,240,.07)"; vx.lineWidth = 1;
+        vx.beginPath();
+        vx.moveTo(pts[0][0], pts[0][1]);
+        for (let i = 1; i < pts.length - 1; i++)
+          vx.quadraticCurveTo(pts[i][0], pts[i][1], (pts[i][0] + pts[i + 1][0]) / 2, (pts[i][1] + pts[i + 1][1]) / 2);
+        vx.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]);
+        vx.stroke();
       });
 
       STRUCTURAL.forEach((edge) => {
@@ -1220,7 +1240,7 @@ export default function GalaxyCanvas() {
       // the sun and the portals sit under the planets, so a world crossing
       // the registry's face occludes it the way it occludes everything else
       {
-        const [sx2, sy2] = w2s(SUN.x, SUN.y);
+        const [sx2, sy2] = w2s(poseNow().sun.x, poseNow().sun.y);
         paintSun(sx2, sy2, SUN.r * cam.z, t);
       }
       WORMHOLES.forEach((w) => {
@@ -1257,9 +1277,10 @@ export default function GalaxyCanvas() {
       // Celestial light goes down FIRST: the planet-disc punch below occludes
       // the sun's corona and the portals' rims exactly like every far glow.
       {
-        const [sx2, sy2] = w2s(SUN.x, SUN.y);
+        const bp = poseNow();
+        const [sx2, sy2] = w2s(bp.sun.x, bp.sun.y);
         emitSun(sx2, sy2, SUN.r * cam.z, t);
-        const [hx, hy] = w2s(BLACK_HOLE.x, BLACK_HOLE.y);
+        const [hx, hy] = w2s(bp.hole.x, bp.hole.y);
         emitHole(hx, hy, BLACK_HOLE.r * cam.z, t);
         WORMHOLES.forEach((w, i) => {
           const [wx2, wy2] = w2s(w.x, w.y);
@@ -1552,9 +1573,14 @@ export default function GalaxyCanvas() {
         if (crewNames.length) el.title = crewNames.map((nm) => `${nm} is working here`).join(", ");
         else el.removeAttribute("title");
       });
-      // celestial labels ride the same projections as their bodies
+      // celestial labels ride the same projections as their bodies — for the
+      // binary that means the LIVE pose, frozen at t = 0 under reduced motion
+      const bpLab = poseNow();
       celEls.forEach((el, id) => {
-        const b = id === "sun" ? SUN : id === "hole" ? BLACK_HOLE : WORMHOLES.find((w) => w.id === id);
+        const b =
+          id === "sun" ? { x: bpLab.sun.x, y: bpLab.sun.y, r: SUN.r }
+          : id === "hole" ? { x: bpLab.hole.x, y: bpLab.hole.y, r: BLACK_HOLE.r }
+          : WORMHOLES.find((w) => w.id === id);
         if (!b) return;
         let x: number, y: number, below: number, o: number;
         if (mode === "3d") {
@@ -1602,22 +1628,23 @@ export default function GalaxyCanvas() {
         for (let x = ox - s2; x < W; x += s2) for (let y = oy - s2; y < H; y += s2) vx.drawImage(l.c, x, y, s2, s2);
       });
       vx.globalCompositeOperation = "lighter";
-      CLUSTER_DEF.forEach((cl) => {
-        const members = [...nodes.values()].filter((n) => n.cluster.id === cl.id);
-        if (members.length < 2) return;
-        [265, 455].forEach((rad, ri) => {
-          if (ri === 1 && members.length <= 5) return;
-          vx.strokeStyle = "rgba(120,160,230,.10)"; vx.lineWidth = 1;
-          vx.beginPath();
-          let started = false;
-          for (let k = 0; k <= 72; k++) {
-            const a = (k / 72) * TAU;
-            const pr = project3({ x: (cl.cx + Math.cos(a) * rad * 1.42) * SPREAD3, y: 0, z: (cl.cy + Math.sin(a) * rad * 1.05) * SPREAD3 });
-            if (!pr) { started = false; continue; }
-            if (!started) { vx.moveTo(pr.x, pr.y); started = true; } else vx.lineTo(pr.x, pr.y);
-          }
-          vx.stroke();
-        });
+      // arm guides in 3D — the same live thread the flat map draws, projected
+      ARMS.forEach((arm) => {
+        const seats = [...nodes.entries()]
+          .filter(([, n]) => n.armId === arm.id)
+          .sort((a, b) => a[1].rG - b[1].rG)
+          .map(([id]) => project3(pos3(id)));
+        WORMHOLES.filter((w) => w.arm === arm.id)
+          .sort((a, b) => a.rG - b.rG)
+          .forEach((w) => seats.push(project3(cel3(w))));
+        vx.strokeStyle = "rgba(120,160,230,.10)"; vx.lineWidth = 1;
+        vx.beginPath();
+        let started = false;
+        for (const pr of seats) {
+          if (!pr) { started = false; continue; }
+          if (!started) { vx.moveTo(pr.x, pr.y); started = true; } else vx.lineTo(pr.x, pr.y);
+        }
+        vx.stroke();
       });
       STRUCTURAL.forEach((edge) => {
         const A = nodes.get(edge.source), B = nodes.get(edge.target);
@@ -1642,10 +1669,12 @@ export default function GalaxyCanvas() {
                   { kind: "wh"; w: Wormhole; i: number; pr: Pr };
       const items: Item[] = [];
       {
-        // the constellation rides the same depth sort as everything else
-        const ps = project3(cel3(SUN));
+        // the constellation rides the same depth sort as everything else —
+        // the binary at its live pose, the doors at their fixed rim seats
+        const bp = poseNow();
+        const ps = project3(cel3(bp.sun));
         if (ps) items.push({ kind: "sun", pr: ps });
-        const ph = project3(cel3(BLACK_HOLE));
+        const ph = project3(cel3(bp.hole));
         if (ph) items.push({ kind: "hole", pr: ph });
         WORMHOLES.forEach((w, i) => {
           const pw = project3(cel3(w));
@@ -1741,7 +1770,12 @@ export default function GalaxyCanvas() {
       // ease slower than z, and "settled" with the pan still creeping misled
       // a position assertion by 3px. Under idle drift x/y chase a moving
       // choreography and never arrive — there, zoom is the only destination.
-      host.dataset.zoomSettled = String(cam.z === cam.tz && (driftOn || (cam.x === cam.tx && cam.y === cam.ty)));
+      // A STAGED world is the same case now: it rides the rotating disc and
+      // the camera tracks it, so the pan never lands by construction — the
+      // hero zoom is what arrival means.
+      host.dataset.zoomSettled = String(
+        cam.z === cam.tz && (driftOn || stagedId !== null || (cam.x === cam.tx && cam.y === cam.ty))
+      );
       host.dataset.mode = mode;
       const idle = now - lastInput > IDLE_MS;
       if (idle && driftPref && !reduced && !driftOn && !currentRef.current) setDrift(true);
@@ -1758,14 +1792,14 @@ export default function GalaxyCanvas() {
         spinFrame(currentRef.current);
         draw3D(agents);
       } else {
-        // The unseen mass signs every nearby orbit — positions re-derive
-        // from base each frame; under reduced motion the field is static
-        // (t = 0): worlds sit visibly off their rings but stop swaying.
-        nodes.forEach((n, id) => {
-          const b = base.get(id)!;
-          const q = perturb(b.x, b.y, reduced ? 0 : t);
-          n.x = b.x + q.dx; n.y = b.y + q.dy;
-        });
+        // Differential rotation sweeps the disc and the unseen mass signs
+        // every orbit that passes near its live seat — positions re-derive
+        // from the polar base each frame; under reduced motion the whole
+        // field is the frozen t = 0 pose: arms, binary and bends all still.
+        advanceWorld(reduced ? 0 : t);
+        // The staged world keeps riding the disc — follow it, as 3D does,
+        // or the composed hero frame slowly slides off its planet.
+        if (stagedId && nodes.has(stagedId)) aimHero(stagedId);
         if (driftOn && !reduced && (!hoverPause || idle)) {
           // the cruise orbits the FITTED home, so it can't wander the system
           // off-screen on a viewport the constant was never chosen for
@@ -1803,6 +1837,9 @@ export default function GalaxyCanvas() {
     // correct from the moment they exist, whether or not a frame ever fires.
     {
       const agents0 = useHub.getState().agents;
+      // the frozen pose, perturbation field included — exactly the state the
+      // first reduced-motion frame draws, so the mount paint never snaps
+      advanceWorld(0);
       drawScene(0, agents0);
       drawEmissive(0, agents0);
       bloom(); post();
@@ -1850,7 +1887,8 @@ export default function GalaxyCanvas() {
       const rct = host.getBoundingClientRect();
       const px = clientX - rct.left, py = clientY - rct.top;
       const bodies = [
-        { x: SUN.x, y: SUN.y, r: SUN.r * 1.15, url: SUN.url },
+        // the registry is clickable where it IS — its live seat on the orbit
+        { x: poseNow().sun.x, y: poseNow().sun.y, r: SUN.r * 1.15, url: SUN.url },
         ...WORMHOLES.map((w) => ({ x: w.x, y: w.y, r: w.r * 1.4, url: w.url })),
       ];
       for (const b of bodies) {
@@ -2196,7 +2234,7 @@ export default function GalaxyCanvas() {
             <div className="h-[3px]" style={{ background: `linear-gradient(90deg, transparent, ${arrivalProject.hue}, transparent)` }} />
             <div className="p-7">
               <div className="mono text-[8.5px] tracking-[0.34em] text-slate-500 uppercase">
-                project world · {CLUSTER_DEF.find((c) => c.id === (CLUSTER_OF[arrival] ?? "founded"))?.name}
+                project world · {clusterName(CLUSTER_OF[arrival] ?? FOUNDED.id)}
               </div>
               <div className="mt-3 flex items-baseline gap-3.5">
                 <div className="text-[26px] font-semibold tracking-tight text-slate-100">{arrivalProject.name}</div>

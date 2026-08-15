@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { FIT_MARGIN, FIT_Z, projectMap, solveMapFit, type FitBody, type MapFit } from "./galaxyFit";
-import { SUN, BLACK_HOLE, WORMHOLES } from "./constellation";
+import { SUN, BLACK_HOLE, BINARY_R, WORMHOLES } from "./constellation";
+import { CLUSTER_OF, GALAXY_CENTER, SPIRAL, placeOnArms } from "./galaxySpiral";
 
 // The fit solver's contracts, provable without a canvas. The scenario these
 // pin is the one from the field: Chrome on a retina display (dpr = 2) with
@@ -12,40 +13,46 @@ import { SUN, BLACK_HOLE, WORMHOLES } from "./constellation";
 // projection spread assertions below are the direct negation of the reported
 // symptom.
 
-const HOME: MapFit = { x: 360, y: 190, z: 0.4 };
+const HOME: MapFit = { x: GALAXY_CENTER.x, y: GALAXY_CENTER.y, z: 0.4 };
 
-/** A body set with the live system's real envelope: cluster hearts from
-    CLUSTER_DEF (x −700…2150, y −520…1010), ring radii up to 455 world px,
-    sprite extents like the real bake, plus the celestial bounds straight
-    from constellation.ts. */
-function galaxyLikeBodies(): FitBody[] {
-  const hearts = [
-    [520, 210], [1150, -380], [1000, 660], [-30, 1010], [2150, 150], [-700, -520],
-  ];
+/** The live system's real envelope, built the way GalaxyCanvas's fitMap
+    builds it: every world reserves the whole circle it sweeps about the
+    galactic center (the fit is rotation-invariant by design), the binary
+    reserves its full orbit, and the doors sit fixed at the arm tips. The
+    seats come from the real spiral placement — the envelope can never drift
+    from the layout it frames. Placement radii depend only on arm member
+    counts, so degree 0 serves. */
+function galaxyLikeBodies(): { bodies: FitBody[]; worlds: { x: number; y: number }[] } {
+  const placed = placeOnArms(Object.keys(CLUSTER_OF).map((id) => ({ id, degree: 0 })));
   const bodies: FitBody[] = [];
-  hearts.forEach(([cx, cy], h) => {
-    for (let i = 0; i < 4; i++) {
-      const a = (i / 4) * Math.PI * 2 + h;
-      const depth = 0.78 + (i % 3) * 0.14; // n.z's real range
-      bodies.push({
-        x: cx + Math.cos(a) * 265,
-        y: cy + Math.sin(a) * 265,
-        p: 0.88 + depth * 0.12,
-        rx: 40 * depth * 1.2,
-        ry: 40 * depth * 1.2,
-        centroid: true,
-      });
-    }
+  const worlds: { x: number; y: number }[] = [];
+  placed.forEach((pl) => {
+    worlds.push({ x: pl.x, y: pl.y });
+    bodies.push({
+      x: GALAXY_CENTER.x,
+      y: GALAXY_CENTER.y,
+      p: 0.98,
+      rx: pl.r + 130, // 130 = a generous stand-in for the largest sprite reserve
+      ry: pl.r * SPIRAL.squashY + 130,
+      centroid: true,
+    });
   });
-  bodies.push({ x: SUN.x, y: SUN.y, rx: SUN.r * 2.2, ry: SUN.r * 2.2, p: 1, centroid: false });
-  bodies.push({ x: BLACK_HOLE.x, y: BLACK_HOLE.y, rx: BLACK_HOLE.r * 2.3, ry: BLACK_HOLE.r * 2.3, p: 1, centroid: false });
+  bodies.push({
+    x: GALAXY_CENTER.x, y: GALAXY_CENTER.y, p: 1, centroid: false,
+    rx: BINARY_R.sun + SUN.r * 2.2, ry: BINARY_R.sun * SPIRAL.squashY + SUN.r * 2.2,
+  });
+  bodies.push({
+    x: GALAXY_CENTER.x, y: GALAXY_CENTER.y, p: 1, centroid: false,
+    rx: BINARY_R.hole + BLACK_HOLE.r * 2.3, ry: BINARY_R.hole * SPIRAL.squashY + BLACK_HOLE.r * 2.3,
+  });
   WORMHOLES.forEach((w) => bodies.push({ x: w.x, y: w.y, rx: w.r * 1.7, ry: w.r * 1.2, p: 1, centroid: false }));
-  return bodies;
+  return { bodies, worlds };
 }
 
-/** Projected screen spread of the planet bodies under a solved camera. */
-function spread(cam: MapFit, W: number, H: number, bodies: FitBody[]) {
-  const pts = bodies.filter((b) => b.centroid).map((b) => projectMap(cam, W, H, b.x, b.y, b.p));
+/** Projected screen spread of the planets' actual seats under a solved
+    camera — the frozen t = 0 pose, which is what a fresh mount shows. */
+function spread(cam: MapFit, W: number, H: number, worlds: { x: number; y: number }[]) {
+  const pts = worlds.map((b) => projectMap(cam, W, H, b.x, b.y, 0.98));
   const xs = pts.map((q) => q[0]), ys = pts.map((q) => q[1]);
   return { x: Math.max(...xs) - Math.min(...xs), y: Math.max(...ys) - Math.min(...ys) };
 }
@@ -59,7 +66,7 @@ function spread(cam: MapFit, W: number, H: number, bodies: FitBody[]) {
 const FIELD = { W: 517, H: 808 };
 
 describe("solveMapFit at (dpr 2, page zoom 67%) — the reported viewport", () => {
-  const bodies = galaxyLikeBodies();
+  const { bodies, worlds } = galaxyLikeBodies();
   const cam = solveMapFit(bodies, FIELD.W, FIELD.H, HOME);
 
   it("solves a finite camera inside the zoom clamps", () => {
@@ -76,7 +83,7 @@ describe("solveMapFit at (dpr 2, page zoom 67%) — the reported viewport", () =
   });
 
   it("spreads the planets across the canvas — the negation of the collapse", () => {
-    const s = spread(cam, FIELD.W, FIELD.H, bodies);
+    const s = spread(cam, FIELD.W, FIELD.H, worlds);
     expect(s.x).toBeGreaterThan(FIELD.W * 0.4);
     expect(s.y).toBeGreaterThan(FIELD.H * 0.25);
   });
@@ -85,7 +92,7 @@ describe("solveMapFit at (dpr 2, page zoom 67%) — the reported viewport", () =
 // ---- css-px purity: DPR and zoom cannot reach the solve ---------------------
 
 describe("solveMapFit is css-px pure", () => {
-  const bodies = galaxyLikeBodies();
+  const { bodies } = galaxyLikeBodies();
 
   it("fits the same css canvas identically however the device renders it", () => {
     // dpr 1 @ 100%, dpr 2 @ 100%, dpr 2 @ 67% zoom: all hand the solver the
@@ -110,7 +117,7 @@ describe("solveMapFit is css-px pure", () => {
 // ---- the frame on a roomy canvas -------------------------------------------
 
 describe("solveMapFit on the verifier's wide canvas", () => {
-  const bodies = galaxyLikeBodies();
+  const { bodies } = galaxyLikeBodies();
   const W = 1148, H = 856; // 1400×900 viewport minus sidebar/topbar
   const cam = solveMapFit(bodies, W, H, HOME);
 
@@ -142,7 +149,7 @@ describe("solveMapFit fallbacks", () => {
   });
 
   it("hands back the fallback when there is no canvas to frame in", () => {
-    expect(solveMapFit(galaxyLikeBodies(), 0, 0, HOME)).toEqual(HOME);
+    expect(solveMapFit(galaxyLikeBodies().bodies, 0, 0, HOME)).toEqual(HOME);
   });
 
   it("returns a copy, never the fallback object itself", () => {

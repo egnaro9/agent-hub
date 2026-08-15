@@ -1,46 +1,90 @@
 import type { RegistryCount } from "../data/registry";
+import { CLUSTER_OF, GALAXY_CENTER, SPIRAL, armSlot } from "./galaxySpiral";
 
 /* ════════════════════════════════════════════════════════════════════════════
    THE CONSTELLATION LAYER — the three kinds of body that are NOT planets.
 
-   THE SUN is the evidence registry. Everything orbits it because every
-   project's claims are bound to it, and its brightness is DATA-BOUND: the
+   THE SUN and THE BLACK HOLE are a TIGHT BINARY at the galactic center: the
+   evidence registry (visible, data-bound) and the harness (effects only)
+   orbiting their common barycenter, slowly. Everything else orbits the pair
+   of public evidence and private machinery.
+
+   THE SUN is the evidence registry. Its brightness is DATA-BOUND: the
    corona scales with the registry's live accepted-claim count, so the sun's
    luminosity is itself a verifiable claim. Clicking it is the one central
    wormhole — the live registry page.
 
    THE BLACK HOLE is the harness. It is rendered ONLY by its effects —
-   lensing, accretion, and the perturbed orbits of nearby worlds — because
-   that is the posture as physics: its existence is inferred from the motion
-   of everything else. No wormhole in, no room, no name beyond "the harness".
+   lensing, accretion, and the perturbed orbits of nearby worlds, all
+   following its LIVE position — because that is the posture as physics: its
+   existence is inferred from the motion of everything else. No wormhole in,
+   no room, no name beyond "the harness".
 
    WORMHOLES are portals to destinations best experienced where they run —
-   ring-and-aperture, never a disc, labeled with where they go. A jump inside
-   the egnaro9.github.io estate stays in this tab; external hosts open a new
-   one.
+   ring-and-aperture, never a disc, labeled with where they go. They park at
+   the outer tips of their arms: the doors out at the galaxy's edge. A jump
+   inside the egnaro9.github.io estate stays in this tab; external hosts
+   open a new one.
 
    Everything here is pure data and pure math, so the cosmology's contracts
-   (honest captions, data-bound glow, motionless perturbation under reduced
-   motion, the tab rule) are provable without a canvas.
+   (honest captions, data-bound glow, the stationary barycenter, the frozen
+   t = 0 pose under reduced motion, the tab rule) are provable without a
+   canvas.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/** The sun sits on the vac cluster's heart — layout() leaves that seat empty
-    so the suite worlds ride their ring around the registry itself. */
+/** The binary core. The pair rides one squashed orbit in opposite phases,
+    radii mass-inverse about the shared barycenter — so the mass-weighted
+    midpoint sits exactly on the galactic center at every t. */
+export const BINARY = {
+  center: GALAXY_CENTER,
+  /** seconds per orbit — slow enough to read as celestial, not mechanical */
+  period: 96,
+  /** the pose at t = 0 — the frozen state the mount paint draws */
+  theta0: -0.8,
+  sunMass: 1,
+  holeMass: 1.7,
+  /** separation between the two bodies, world px */
+  sep: 210,
+} as const;
+
+const dSun = (BINARY.sep * BINARY.holeMass) / (BINARY.sunMass + BINARY.holeMass);
+const dHole = (BINARY.sep * BINARY.sunMass) / (BINARY.sunMass + BINARY.holeMass);
+/** Orbit radii about the barycenter — the heavier body rides the tighter
+    circle. The fit reserves center ± these, so the whole orbit stays framed. */
+export const BINARY_R = { sun: dSun, hole: dHole } as const;
+
+/** The pair's pose at time t. Time is a parameter, not a read: t = 0 is the
+    frozen pose (SUN and BLACK_HOLE below are exactly binaryPose(0)), which
+    is what the mount paint and prefers-reduced-motion both draw. */
+export const binaryPose = (t: number): { sun: { x: number; y: number }; hole: { x: number; y: number } } => {
+  const th = BINARY.theta0 - ((Math.PI * 2) / BINARY.period) * t;
+  const ux = Math.cos(th), uy = Math.sin(th) * SPIRAL.squashY;
+  return {
+    sun: { x: BINARY.center.x + ux * dSun, y: BINARY.center.y + uy * dSun },
+    hole: { x: BINARY.center.x - ux * dHole, y: BINARY.center.y - uy * dHole },
+  };
+};
+
+const POSE0 = binaryPose(0);
+
+/** The visible half of the binary. x/y are its FROZEN (t = 0) seat — the
+    live position is binaryPose(t).sun. */
 export const SUN = {
   id: "sun-registry",
   name: "the registry",
-  x: 2150,
-  y: 150,
+  x: POSE0.sun.x,
+  y: POSE0.sun.y,
   r: 68,
   url: "https://egnaro9.github.io/vac-protocol/",
 } as const;
 
-/** Placed off the harness cluster's shoulder, in the dark. `influence` is the
-    radius (world px) inside which orbits visibly bend. */
+/** The unseen half. x/y are its frozen seat — the live position is
+    binaryPose(t).hole. `influence` is the radius (world px) around that
+    LIVE position inside which orbits visibly bend. */
 export const BLACK_HOLE = {
   id: "the-harness",
-  x: 1580,
-  y: -760,
+  x: POSE0.hole.x,
+  y: POSE0.hole.y,
   r: 46,
   influence: 950,
 } as const;
@@ -55,38 +99,54 @@ export interface Wormhole {
   y: number;
   r: number;
   hue: string;
+  /** the arm whose tip this door continues */
+  arm: string;
+  /** galactocentric radius — provably beyond every planet on its arm */
+  rG: number;
 }
 
-// Each portal parks near the region whose story it continues; every URL here
-// is the same live destination its project's world already links to.
+const seededOn = (armId: string) => Object.values(CLUSTER_OF).filter((c) => c === armId).length;
+
+/** A door parks past its arm's last seeded world, continuing the same
+    spiral — and never inside the mid disc, so a short arm still reaches the
+    rim before it opens. Doors do not ride the rotation: they are fixed exits
+    at the edge, which is also what keeps the home fit deterministic. */
+const door = (armId: string, i: number) => {
+  const k = Math.max(seededOn(armId), 4) + 0.9 + i * 0.85;
+  const s = armSlot(armId, k);
+  return { x: s.x, y: s.y, arm: armId, rG: s.r };
+};
+
+// The doors out, each at the tip of the arm whose story it continues; every
+// URL here is the same live destination its project's world already links to.
 export const WORMHOLES: Wormhole[] = [
   {
     id: "wh-fleet-audit",
     name: "fleet audit board",
     claim: "the naive suite caught 1 of 6 — live, CI-replayed",
     url: "https://egnaro9.github.io/reference-fleet/",
-    x: 2620, y: -140, r: 19, hue: "#f97316",
+    ...door("grading", 0), r: 19, hue: "#f97316",
   },
   {
     id: "wh-crashkit",
     name: "crashkit",
     claim: "adversarial crash-tests, BYOK, deterministic graders",
     url: "https://crashkit.onrender.com",
-    x: -560, y: 390, r: 19, hue: "#fb7185",
+    ...door("grading", 1), r: 19, hue: "#fb7185",
   },
   {
     id: "wh-drift-board",
     name: "model-drift board",
     claim: "16 LLMs watched daily on a frozen suite",
     url: "https://egnaro9.github.io/model-drift/",
-    x: -470, y: -290, r: 19, hue: "#2dd4bf",
+    ...door("grading", 2), r: 19, hue: "#2dd4bf",
   },
   {
     id: "wh-seraphlight",
     name: "tap dodge rush",
     claim: "one engine, two runtimes, diffed — playable here",
     url: "https://egnaro9.github.io/seraphlight-studios/tap-dodge-rush/play/",
-    x: 1160, y: 1060, r: 19, hue: "#60a5fa",
+    ...door("studio", 0), r: 19, hue: "#60a5fa",
   },
 ];
 
@@ -121,13 +181,16 @@ export const sunCaption = (reg: RegistryCount | null): string => {
 /**
  * The orbital perturbation the unseen mass leaves on a nearby body: mostly
  * tangential (an orbit disturbed), a little radial (a pull), falling off with
- * the square of closeness and EXACTLY zero outside the influence radius.
- * Time is a parameter, not a read — under prefers-reduced-motion the caller
- * passes t = 0 and the field degrades to a static displacement: the orbits
- * still sit visibly off their rings, they just stop swaying.
+ * the square of closeness and EXACTLY zero outside the influence radius —
+ * measured from the hole's LIVE position, so the disturbance sweeps the disc
+ * with the binary. Time is a parameter, not a read — under
+ * prefers-reduced-motion the caller passes t = 0 and the field degrades to a
+ * static displacement around the frozen pose: the nearby orbits still sit
+ * visibly bent, they just stop swaying.
  */
 export const perturb = (x: number, y: number, t: number): { dx: number; dy: number } => {
-  const dx = x - BLACK_HOLE.x, dy = y - BLACK_HOLE.y;
+  const hole = binaryPose(t).hole;
+  const dx = x - hole.x, dy = y - hole.y;
   const d = Math.hypot(dx, dy);
   if (d >= BLACK_HOLE.influence || d < 1) return { dx: 0, dy: 0 };
   const w = (1 - d / BLACK_HOLE.influence) ** 2;
