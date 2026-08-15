@@ -162,7 +162,7 @@ export default function MissionControl({ onMenu }: { onMenu?: () => void }) {
       <a
         href="https://egnaro9.github.io/"
         title="Back to the portfolio hub"
-        className="mono cursor-pointer rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] text-slate-400 transition hover:border-white/25 hover:text-slate-200"
+        className="mono cursor-pointer rounded-md border border-amber-400/50 bg-amber-400/15 px-3 py-1 text-[11px] font-semibold text-amber-300 transition hover:bg-amber-400/25 hover:text-amber-200"
       >
         ← hub
       </a>
