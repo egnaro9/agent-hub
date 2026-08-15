@@ -229,7 +229,7 @@ export default function MissionControl({ onMenu }: { onMenu?: () => void }) {
         <button
           onClick={() => setSummonOpen((v) => !v)}
           disabled={!project || summonable.length === 0}
-          className="mono cursor-pointer rounded-md border border-cyan-300/40 bg-cyan-400/10 px-2.5 py-1 text-[10px] text-cyan-200 transition max-sm:hidden hover:bg-cyan-400/25 disabled:cursor-default disabled:border-white/10 disabled:text-slate-600 disabled:hover:bg-transparent"
+          className="mono cursor-pointer rounded-md border border-cyan-300/60 bg-cyan-400/15 px-2.5 py-1 text-[10px] text-cyan-100 transition max-sm:hidden hover:bg-cyan-400/25 disabled:cursor-default disabled:border-white/15 disabled:text-slate-500 disabled:hover:bg-transparent"
           title={project ? "Summon an agent onto this project" : "Select a project first"}
         >
           + summon agent
@@ -242,7 +242,7 @@ export default function MissionControl({ onMenu }: { onMenu?: () => void }) {
       <div className="relative max-sm:absolute max-sm:top-1 max-sm:right-2 max-sm:origin-top-right max-sm:scale-[0.93]">
         <button
           onClick={() => setRosterOpen((v) => !v)}
-          className="mono cursor-pointer rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] text-slate-400 transition max-sm:hidden hover:text-slate-200"
+          className="mono cursor-pointer rounded-md border border-white/20 bg-white/10 px-2.5 py-1 text-[10px] text-slate-300 transition max-sm:hidden hover:text-slate-200"
           title="Choose the provider and model for each agent"
         >
           ⚙ roster
@@ -273,7 +273,7 @@ export default function MissionControl({ onMenu }: { onMenu?: () => void }) {
       <button
         data-testid="journal-button"
         onClick={() => setJournalOpen(true)}
-        className="mono cursor-pointer rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] text-slate-400 transition max-sm:hidden hover:text-slate-200"
+        className="mono cursor-pointer rounded-md border border-white/20 bg-white/10 px-2.5 py-1 text-[10px] text-slate-300 transition max-sm:hidden hover:text-slate-200"
         title="Gate proposals, commits, shape runs and armings — the record that outlives the chat"
       >
         ▤ journal
@@ -285,7 +285,7 @@ export default function MissionControl({ onMenu }: { onMenu?: () => void }) {
         <button
           data-testid="keys-button"
           onClick={() => setKeysOpen((v) => !v)}
-          className="mono cursor-pointer rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] text-slate-400 transition max-sm:hidden hover:text-slate-200"
+          className="mono cursor-pointer rounded-md border border-white/20 bg-white/10 px-2.5 py-1 text-[10px] text-slate-300 transition max-sm:hidden hover:text-slate-200"
           title="Store a key per provider and test that it actually reaches them"
         >
           ◇ keys

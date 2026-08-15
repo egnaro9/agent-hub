@@ -2100,7 +2100,7 @@ export default function GalaxyCanvas() {
       // entering 3D frames the whole system for THIS viewport
       if (mode === "3d" && atHome) { const f3 = fit3(); cam3.ttarget = f3.target; cam3.tdist = f3.dist; }
       setDrift(driftPref && !reduced);
-      m3d.style.color = mode === "3d" ? "#5eead4" : "#8ea0bd";
+      m3d.style.color = mode === "3d" ? "#5eead4" : "#c3d0e5";
       m3d.textContent = mode === "3d" ? "MAP" : "3D";
       labelHost.querySelectorAll<HTMLElement>(".gal-lab .m,.gal-lab .rule").forEach((el2) => {
         el2.style.display = mode === "3d" ? "none" : "";

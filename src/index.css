@@ -82,9 +82,9 @@ body {
 /* ── Galaxy Map ─────────────────────────────────────────────────────────── */
 .gal-hbtn {
   width: 29px; height: 29px; border-radius: 8px;
-  border: 1px solid rgba(255,255,255,.09);
-  background: rgba(255,255,255,.03);
-  color: #8ea0bd; cursor: pointer; font-size: 13px;
+  border: 1px solid rgba(255,255,255,.22);
+  background: rgba(255,255,255,.07);
+  color: #c3d0e5; cursor: pointer; font-size: 13px;
   transition: color .15s, border-color .15s;
 }
 .gal-hbtn:hover { color: #e2e8f0; border-color: rgba(255,255,255,.22); }
