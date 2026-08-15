@@ -103,6 +103,10 @@ export async function gotoHub(page: Page, hash = "/") {
   await page.goto(hash);
   await expect(page.locator("aside")).toBeVisible({ timeout: 20_000 });
   await expect(page.getByRole("button", { name: "constellation" })).toBeVisible({ timeout: 20_000 });
+  // The app BOOTS in 3D now; the map-behavior contracts below predate that
+  // and test the flat map, so the shared entry drops to map mode first.
+  const m3d = page.locator('[data-hud="m3d"]');
+  if (((await m3d.textContent()) ?? "").trim() === "MAP") await m3d.click();
 }
 
 /** Inline transform React Flow writes on its viewport, e.g. "translate(…) scale(…)". */

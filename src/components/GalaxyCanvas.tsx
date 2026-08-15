@@ -632,7 +632,7 @@ export default function GalaxyCanvas() {
     // system from outside.
     const SPREAD3 = 2.6;
     const CENTER3 = { x: 520 * SPREAD3, y: 0, z: 340 * SPREAD3 };
-    const DIST3 = { home: 5200, min: 420, max: 16000 };
+    const DIST3 = { home: 5200, min: 420, max: 34000 };  // max opens past the fit so home can stand 2x back
     const cam3 = { yaw: 0.6, pitch: 0.62, dist: DIST3.home, tyaw: 0.6, tpitch: 0.62, tdist: DIST3.home,
       target: { ...CENTER3 }, ttarget: { ...CENTER3 } };
     const F3 = 980, NEAR = 80;
@@ -760,7 +760,10 @@ export default function GalaxyCanvas() {
         target.y += right.y * wx + down.y * wy;
         target.z += right.z * wx + down.z * wy;
       }
-      return { target, dist };
+      // Home stands ~2x farther back than the tight fit (three − clicks at
+      // 1.25 each): arrival reads as approaching the whole system from deep
+      // space, door coronas inside the frame — the operator's call.
+      return { target, dist: Math.min(DIST3.max, dist * 1.95) };
     };
 
     // THE SPIN. A world turns while it is BIG — and a stage full of frozen
@@ -1140,8 +1143,8 @@ export default function GalaxyCanvas() {
       // the corona — soft hue glow breathing around the body
       const breathe = reduced ? 0 : Math.sin(t * 0.8 + R) * 0.06;
       const cor = vx.createRadialGradient(0, 0, R * 0.4, 0, 0, R * 1.9);
-      cor.addColorStop(0, rgba(w.hue, 0.42 + breathe));
-      cor.addColorStop(0.45, rgba(w.hue, 0.18));
+      cor.addColorStop(0, rgba(w.hue, 0.6 + breathe));
+      cor.addColorStop(0.45, rgba(w.hue, 0.26));
       cor.addColorStop(1, rgba(w.hue, 0));
       vx.fillStyle = cor;
       vx.beginPath(); vx.arc(0, 0, R * 1.9, 0, TAU); vx.fill();
@@ -1151,15 +1154,15 @@ export default function GalaxyCanvas() {
       sph.addColorStop(0, "rgba(2,3,8,1)");
       sph.addColorStop(0.72, "rgba(2,3,8,.99)");
       sph.addColorStop(0.94, rgba(mix(w.hue, "#000000", 0.45), 0.9));
-      sph.addColorStop(1, rgba(w.hue, 0.55));
+      sph.addColorStop(1, rgba(w.hue, 0.8));
       vx.fillStyle = sph;
       vx.beginPath(); vx.arc(0, 0, R * 0.72, 0, TAU); vx.fill();
       // tilted accretion band crossing the FACE — in front below, behind above,
       // which is what sells the sphere; doppler-graded across its width
       vx.save(); vx.rotate(-0.42);
       const acc = vx.createLinearGradient(-R * 1.4, 0, R * 1.4, 0);
-      acc.addColorStop(0, rgba(mix(w.hue, "#ffffff", 0.55), 0.6));
-      acc.addColorStop(0.5, rgba(w.hue, 0.28));
+      acc.addColorStop(0, rgba(mix(w.hue, "#ffffff", 0.65), 0.85));
+      acc.addColorStop(0.5, rgba(w.hue, 0.42));
       acc.addColorStop(1, rgba(mix(w.hue, "#000000", 0.3), 0.14));
       vx.strokeStyle = acc; vx.lineWidth = Math.max(1.2, R * 0.13);
       // far side (top arc) first, dimmed — it passes BEHIND the body
@@ -1174,10 +1177,10 @@ export default function GalaxyCanvas() {
       if (off(sx, sy, R * 1.6)) return;
       ex.save(); ex.translate(sx, sy);
       // photon ring hugging the spherical shadow — bright, thin, doppler-arced
-      ex.strokeStyle = rgba(mix(w.hue, "#ffffff", 0.5), 0.6);
+      ex.strokeStyle = rgba(mix(w.hue, "#ffffff", 0.55), 0.75);
       ex.lineWidth = Math.max(1, R * 0.06);
       ex.beginPath(); ex.arc(0, 0, R * 0.74, 0, TAU); ex.stroke();
-      ex.strokeStyle = rgba(mix(w.hue, "#ffffff", 0.75), 0.95);
+      ex.strokeStyle = rgba(mix(w.hue, "#ffffff", 0.85), 1);
       ex.lineWidth = Math.max(1.2, R * 0.08);
       ex.beginPath(); ex.arc(0, 0, R * 0.74, Math.PI * 0.7, Math.PI * 1.3); ex.stroke();
       // the band's near-side bloom
@@ -1862,6 +1865,7 @@ export default function GalaxyCanvas() {
         cam3.dist += (cam3.tdist - cam3.dist) * per(0.07);
         (["x", "y", "z"] as const).forEach((ax) => { cam3.target[ax] += (cam3.ttarget[ax] - cam3.target[ax]) * per(0.06); });
         spinFrame(currentRef.current);
+        host.dataset.dist3 = String(Math.round(cam3.dist));   // observability: e2e + tuning read the real camera
         draw3D(agents);
       } else {
         // Differential rotation sweeps the disc and the unseen mass signs
@@ -2139,6 +2143,10 @@ export default function GalaxyCanvas() {
         el2.style.display = mode === "3d" ? "none" : "";
       });
     };
+    // 3D is the DEFAULT mode (operator call, 2026-08-15): enter it through
+    // the mode button's own click path so framing, label display, and the
+    // button state all flip exactly as an operator's click would.
+    m3d.click();
     void hudZi;
 
     // Which world is staged, tracked IMPERATIVELY. currentRef mirrors React

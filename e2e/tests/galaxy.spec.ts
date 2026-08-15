@@ -271,6 +271,13 @@ test.describe("the galaxy map", () => {
     await expect(page).toHaveURL(/#\/p\/crashkit$/);
   });
 
+  test("the constellation BOOTS in 3D — the immersive view is the front door", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator("aside")).toBeVisible({ timeout: 20_000 });
+    // in 3D the mode button offers the way back to the flat map
+    await expect(page.locator('[data-hud="m3d"]')).toHaveText("MAP", { timeout: 20_000 });
+  });
+
   test("the immersive 3D mode is optional, entered and left by its own control", async ({ page }) => {
     await gotoHub(page);
     await settleFlow(page);
