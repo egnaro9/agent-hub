@@ -105,8 +105,16 @@ export async function gotoHub(page: Page, hash = "/") {
   await expect(page.getByRole("button", { name: "constellation" })).toBeVisible({ timeout: 20_000 });
   // The app BOOTS in 3D now; the map-behavior contracts below predate that
   // and test the flat map, so the shared entry drops to map mode first.
+  // The first-visit intro overlay sits over the HUD and eats the click —
+  // dismiss it before reaching for the mode button.
+  // (it mounts a beat after first paint, so WAIT briefly rather than peek)
+  await page.getByRole("button", { name: /got it/i }).click({ timeout: 3000 }).catch(() => {});
+  // Specs that boot INSIDE a project room have the stage covering the HUD —
+  // there the click can never land and map mode is irrelevant, so a short
+  // timeout skips it instead of timing the whole test out.
   const m3d = page.locator('[data-hud="m3d"]');
-  if (((await m3d.textContent()) ?? "").trim() === "MAP") await m3d.click();
+  if (((await m3d.textContent()) ?? "").trim() === "MAP")
+    await m3d.click({ timeout: 2500 }).catch(() => {});
 }
 
 /** Inline transform React Flow writes on its viewport, e.g. "translate(…) scale(…)". */
