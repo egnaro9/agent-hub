@@ -144,9 +144,9 @@ export default function EvalHistoryWorld() {
           </div>
           <div className="mt-2.5 flex gap-1.5">
             {[0, 1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-[18px] w-[24px] rounded-sm" style={{ background: "#2dd4bf3d", border: "1px solid #2dd4bf77", borderTop: "2px solid #2dd4bf" }} />
+              <div key={i} className="h-[18px] w-[24px] rounded-sm" style={{ background: "#2dd4bf", boxShadow: "inset 0 -6px 10px -6px rgba(2,8,10,.55)" }} />
             ))}
-            <div className="h-[18px] w-[24px] rounded-sm" style={{ background: "#fbbf2445", border: "1px solid #fbbf2477", borderTop: "2px solid #fbbf24", boxShadow: "0 0 14px #fbbf2455" }} />
+            <div className="h-[18px] w-[24px] rounded-sm" style={{ background: "#fbbf24", boxShadow: "0 0 14px #fbbf2466, inset 0 -6px 10px -6px rgba(12,6,0,.5)" }} />
           </div>
           <div className="mono mt-2.5 text-[10px] leading-relaxed text-slate-500">it won't let a better average bury the case that broke</div>
         </motion.div>
