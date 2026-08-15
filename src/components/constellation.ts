@@ -172,6 +172,7 @@ const ESTATE_HOSTS = [
   "https://egnaro9.github.io",
   "https://agent-hub-exiz.onrender.com",
   "https://crashkit.onrender.com",
+  "https://eval-history.onrender.com",
 ];
 export const wormholeTarget = (url: string): { newTab: boolean } => ({
   newTab: !ESTATE_HOSTS.some((h) => url === h || url.startsWith(h + "/")),
