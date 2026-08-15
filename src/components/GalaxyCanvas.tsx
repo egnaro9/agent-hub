@@ -760,10 +760,10 @@ export default function GalaxyCanvas() {
         target.y += right.y * wx + down.y * wy;
         target.z += right.z * wx + down.z * wy;
       }
-      // Home stands ~2x farther back than the tight fit (three − clicks at
-      // 1.25 each): arrival reads as approaching the whole system from deep
-      // space, door coronas inside the frame — the operator's call.
-      return { target, dist: Math.min(DIST3.max, dist * 1.95) };
+      // Home framing, operator-tuned live (2026-08-15): the raw fit felt a
+      // shade too close, 1.95x read four clicks too far — 0.85 is where he
+      // called it. DIST3.max stays open so manual − still has real travel.
+      return { target, dist: Math.min(DIST3.max, dist * 0.85) };
     };
 
     // THE SPIN. A world turns while it is BIG — and a stage full of frozen
