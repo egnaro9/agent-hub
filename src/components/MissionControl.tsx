@@ -154,7 +154,12 @@ export default function MissionControl({ onMenu }: { onMenu?: () => void }) {
           ☰
         </button>
       )}
-      {/* location */}
+      {/* location — the crumb starts one level ABOVE the app: the portfolio
+          hub is the estate's root, so the way back out is always in view */}
+      <a href="https://egnaro9.github.io/" className="mono cursor-pointer text-[11px] text-slate-500 transition hover:text-slate-300">
+        hub
+      </a>
+      <span className="mono text-[11px] text-slate-700">/</span>
       <button onClick={backToGraph} className={`mono cursor-pointer text-[11px] transition ${project ? "text-slate-500 hover:text-slate-300" : "text-slate-200"}`}>
         galaxy
       </button>

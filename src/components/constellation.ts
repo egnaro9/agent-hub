@@ -1,5 +1,5 @@
 import type { RegistryCount } from "../data/registry";
-import { CLUSTER_OF, GALAXY_CENTER, SPIRAL, armSlot } from "./galaxySpiral";
+import { ARMS, CLUSTER_OF, GALAXY_CENTER, SPIRAL, armSlot, spiralPos } from "./galaxySpiral";
 
 /* ════════════════════════════════════════════════════════════════════════════
    THE CONSTELLATION LAYER — the three kinds of body that are NOT planets.
@@ -85,7 +85,7 @@ export const BLACK_HOLE = {
   id: "the-harness",
   x: POSE0.hole.x,
   y: POSE0.hole.y,
-  r: 46,
+  r: 58,
   influence: 950,
 } as const;
 
@@ -103,19 +103,31 @@ export interface Wormhole {
   arm: string;
   /** galactocentric radius — provably beyond every planet on its arm */
   rG: number;
+  /** galactocentric bearing at t = 0 — the door's seat in a tip-to-tip void */
+  aG: number;
 }
 
 const seededOn = (armId: string) => Object.values(CLUSTER_OF).filter((c) => c === armId).length;
 
-/** A door parks past its arm's last seeded world, continuing the same
-    spiral — and never inside the mid disc, so a short arm still reaches the
-    rim before it opens. Doors do not ride the rotation: they are fixed exits
-    at the edge, which is also what keeps the home fit deterministic. */
-const door = (armId: string, i: number) => {
-  const k = Math.max(seededOn(armId), 4) + 0.9 + i * 0.85;
-  const s = armSlot(armId, k);
-  return { x: s.x, y: s.y, arm: armId, rG: s.r };
-};
+/** Doors ring the galaxy's open water: each parks on a shared rim just past
+    the outermost world, in a VOID between arm tips rather than continuing
+    any one arm — four exits around the whole disc. TIDALLY LOCKED: each door
+    rides the disc's differential rotation at its own radius, so the bearing
+    chosen into a tip-to-tip void stays in that void as the galaxy turns —
+    outside the galaxy, but bound to its shape. (Cross-radius shear against
+    the tips themselves is ~0.03 rad/min — a geologic drift, not a visible
+    one.) x/y here are the frozen t = 0 pose — the reduced-motion frame and
+    the mount paint; live frames re-derive from (rG, aG) like every world. */
+const RIM = (() => {
+  let rMax = 0;
+  for (const armId of ARMS.map((a) => a.id))
+    rMax = Math.max(rMax, armSlot(armId, seededOn(armId)).r);
+  return rMax + 155;
+})();
+const door = (bearing: number, reach = 1) => ({
+  ...spiralPos(RIM * reach, bearing, 0),
+  arm: "rim", rG: RIM * reach, aG: bearing,
+});
 
 // The doors out, each at the tip of the arm whose story it continues; every
 // URL here is the same live destination its project's world already links to.
@@ -125,28 +137,28 @@ export const WORMHOLES: Wormhole[] = [
     name: "fleet audit board",
     claim: "the naive suite caught 1 of 6 — live, CI-replayed",
     url: "https://egnaro9.github.io/reference-fleet/",
-    ...door("grading", 0), r: 19, hue: "#f97316",
+    ...door(5.95, 0.8), r: 46, hue: "#f97316",
   },
   {
     id: "wh-crashkit",
     name: "crashkit",
     claim: "adversarial crash-tests, BYOK, deterministic graders",
     url: "https://crashkit.onrender.com",
-    ...door("grading", 1), r: 19, hue: "#fb7185",
+    ...door(0.75), r: 46, hue: "#fb7185",
   },
   {
     id: "wh-drift-board",
     name: "model-drift board",
     claim: "16 LLMs watched daily on a frozen suite",
     url: "https://egnaro9.github.io/model-drift/",
-    ...door("grading", 2), r: 19, hue: "#2dd4bf",
+    ...door(2.54), r: 46, hue: "#2dd4bf",
   },
   {
     id: "wh-seraphlight",
     name: "tap dodge rush",
     claim: "one engine, two runtimes, diffed — playable here",
     url: "https://egnaro9.github.io/seraphlight-studios/tap-dodge-rush/play/",
-    ...door("studio", 0), r: 19, hue: "#60a5fa",
+    ...door(4.16, 0.84), r: 46, hue: "#60a5fa",
   },
 ];
 

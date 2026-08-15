@@ -199,6 +199,7 @@ body {
    the sidebar's own collapse changes independently of the viewport). */
 .gal-scrim { justify-content: center; }
 [data-arrive="side"] .gal-scrim { justify-content: flex-end; padding-right: 4.5%; }
+[data-arrive="side-left"] .gal-scrim { justify-content: flex-start; padding-left: 4.5%; }
 /* Beside a planet the card gives up width — the world is the other half of
    the composition, not a backdrop for it. */
-[data-arrive="side"] .gal-card { width: min(400px, 54%); }
+[data-arrive="side"] .gal-card, [data-arrive="side-left"] .gal-card { width: min(400px, 54%); }

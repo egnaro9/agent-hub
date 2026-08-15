@@ -20,16 +20,16 @@ export const GALAXY_CENTER = { x: 760, y: 170 } as const;
 
 export const SPIRAL = {
   /** innermost slot radius — outside the binary core's corona zone */
-  r0: 320,
+  r0: 640,
   /** radial step per slot along an arm */
-  dr: 150,
+  dr: 255,
   /** Winding tightness: φ(r) = ln(r/r0)/b — smaller b = more open arms.
       0.7 is measured, not felt: open the arms much further and a long arm's
       early slots wind into the next arm's sector (the label pileup the
       spacing test pins); tighter and same-arm neighbours stack instead. */
   b: 0.7,
   /** the 2.5D inclination: world y squashed, as the old cluster rings were */
-  squashY: 0.6,
+  squashY: 0.72,
 } as const;
 
 /** Differential rotation: Ω falls with radius, so the inner arms sweep

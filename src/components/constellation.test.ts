@@ -11,6 +11,7 @@ import {
   sunGlow,
   wormholeTarget,
 } from "./constellation";
+import { ARMS, CLUSTER_OF, armAngleAt, armSlot, rotatedAngle, spiralPos } from "./galaxySpiral";
 import { GALAXY_CENTER } from "./galaxySpiral";
 
 // The constellation's contracts, provable without a canvas: the sun never
@@ -187,5 +188,44 @@ describe("the constellation roster", () => {
 
   it("the black hole has no URL — no wormhole in, by construction", () => {
     expect("url" in BLACK_HOLE).toBe(false);
+  });
+});
+
+// ---- door seating: tidally locked into tip-to-tip voids ---------------------
+
+describe("door seating", () => {
+  const seeded = (armId: string) =>
+    Object.values(CLUSTER_OF).filter((c) => c === armId).length;
+  // the outermost OCCUPIED seat per arm — the silhouette the voids are between
+  const tips = ARMS.map((a) => armSlot(a.id, seeded(a.id) - 1).a % (Math.PI * 2));
+  const angDist = (a: number, b: number) => {
+    const d = Math.abs(((a - b) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    return Math.min(d, Math.PI * 2 - d);
+  };
+
+  it("frozen x/y IS spiralPos(rG, aG, 0) — the pose the live frames re-derive", () => {
+    WORMHOLES.forEach((w) => {
+      const p = spiralPos(w.rG, w.aG, 0);
+      expect(w.x).toBeCloseTo(p.x, 6);
+      expect(w.y).toBeCloseTo(p.y, 6);
+    });
+  });
+
+  it("every door bearing clears every arm tip by ≥ 0.3 rad — seated in a void, not on an arm", () => {
+    WORMHOLES.forEach((w) => {
+      const nearest = Math.min(...tips.map((tp) => angDist(w.aG, tp)));
+      expect(nearest).toBeGreaterThanOrEqual(0.3);
+    });
+  });
+
+  it("the lock is exact at the door's own radius: door-to-arm offset is time-invariant", () => {
+    // (The canvas applies this via advanceWorld; here we pin the math it uses.)
+    WORMHOLES.forEach((w) => {
+      ARMS.forEach((arm) => {
+        const off = (t: number) =>
+          rotatedAngle(w.rG, w.aG, t) - rotatedAngle(w.rG, armAngleAt(arm.phase, w.rG), t);
+        expect(off(777)).toBeCloseTo(off(0), 9);
+      });
+    });
   });
 });

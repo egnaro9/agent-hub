@@ -10,6 +10,8 @@ import type { Agent } from "../types";
 const PORTALS = [
   { id: SUN.id, name: SUN.name, claim: "the live evidence registry — do not trust us, run it", url: SUN.url, hue: "#eab308" },
   ...WORMHOLES,
+  // the way home: every estate page points back to the hub, the galaxy included
+  { id: "hub", name: "portfolio hub", claim: "the whole estate, one page", url: "https://egnaro9.github.io/", hue: "#94a3b8" },
 ];
 
 const statusText = (a: Agent, projectName?: string) =>

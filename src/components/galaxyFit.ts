@@ -37,7 +37,7 @@ export interface MapFit {
 /** Frame margins in css px — labels hang below; the HUD owns the bottom-right. */
 export const FIT_MARGIN = { x: 74, top: 58, bottom: 104 };
 /** The camera's zoom clamps — one journey's worth of range. */
-export const FIT_Z = { min: 0.2, max: 3.1 };
+export const FIT_Z = { min: 0.12, max: 3.1 };
 
 /**
  * Solve the camera that frames every body inside a W×H css-px canvas.

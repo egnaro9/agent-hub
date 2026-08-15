@@ -5,7 +5,7 @@ import { STRUCTURAL } from "../data/mock";
 import { PAINTERS } from "./planets";
 import { SUN, BLACK_HOLE, BINARY_R, WORMHOLES, binaryPose, sunGlow, sunCaption, perturb, wormholeTarget, type Wormhole } from "./constellation";
 import { ARMS, CLUSTER_OF, FOUNDED, GALAXY_CENTER, SPIRAL, armAngleAt, clusterName, placeOnArms, rotatedAngle, spiralPos } from "./galaxySpiral";
-import { FIT_MARGIN, solveMapFit, type FitBody, type MapFit } from "./galaxyFit";
+import { FIT_MARGIN, FIT_Z, solveMapFit, type FitBody, type MapFit } from "./galaxyFit";
 import { fetchRegistryCount, type RegistryCount } from "../data/registry";
 import type { Agent, Project } from "../types";
 
@@ -530,6 +530,14 @@ export default function GalaxyCanvas() {
         const q = perturb(p0.x, p0.y, tw);
         n.x = p0.x + q.dx; n.y = p0.y + q.dy;
       });
+      // The doors are tidally locked: same differential rotation as the
+      // worlds, each at its own rim radius, so a bearing chosen into a
+      // tip-to-tip void STAYS in that void. Unperturbed — a portal that
+      // wobbled to the harness's mass would read as loose, not locked.
+      WORMHOLES.forEach((w) => {
+        const p = spiralPos(w.rG, w.aG, tw);
+        w.x = p.x; w.y = p.y;
+      });
     };
     // The registry read lands asynchronously; until it does the sun burns at
     // its dim default and the label says it is still reading.
@@ -622,10 +630,10 @@ export default function GalaxyCanvas() {
     // perspective the same coordinates bunch. SPREAD3 pushes clusters and
     // rings apart, and the dolly range opens far enough to take in the whole
     // system from outside.
-    const SPREAD3 = 2.1;
+    const SPREAD3 = 2.6;
     const CENTER3 = { x: 520 * SPREAD3, y: 0, z: 340 * SPREAD3 };
     const DIST3 = { home: 5200, min: 420, max: 16000 };
-    const cam3 = { yaw: 0.6, pitch: 0.42, dist: DIST3.home, tyaw: 0.6, tpitch: 0.42, tdist: DIST3.home,
+    const cam3 = { yaw: 0.6, pitch: 0.62, dist: DIST3.home, tyaw: 0.6, tpitch: 0.62, tdist: DIST3.home,
       target: { ...CENTER3 }, ttarget: { ...CENTER3 } };
     const F3 = 980, NEAR = 80;
     let mode: "map" | "3d" = "map";
@@ -648,7 +656,12 @@ export default function GalaxyCanvas() {
         x: GALAXY_CENTER.x, y: GALAXY_CENTER.y,
         rx: BINARY_R.hole + BLACK_HOLE.r * 2.3, ry: BINARY_R.hole * SPIRAL.squashY + BLACK_HOLE.r * 2.3,
       },
-      ...WORMHOLES.map((w) => ({ x: w.x, y: w.y, rx: w.r * 1.7, ry: w.r * 1.2 })),
+      // A rotating door sweeps its whole orbit, so the home fit reserves the
+      // ORBIT ellipse, not tonight's position — the frame never has to chase.
+      ...WORMHOLES.map((w) => ({
+        x: GALAXY_CENTER.x, y: GALAXY_CENTER.y,
+        rx: w.rG + w.r * 1.7 + 95, ry: w.rG * SPIRAL.squashY + w.r * 1.2 + 22,
+      })),
     ];
 
     /** 2.5D: planets ride a parallax factor, so the fit is solved iteratively
@@ -1050,40 +1063,66 @@ export default function GalaxyCanvas() {
         accretion streak glows. Everything else it "shows" is the perturbed
         motion of its neighbours. */
     const paintHole = (sx: number, sy: number, R: number, t: number) => {
-      if (off(sx, sy, R * 2.3)) return;
-      const v = vx.createRadialGradient(sx, sy, 0, sx, sy, R * 2.3);
+      if (off(sx, sy, R * 2.6)) return;
+      const v = vx.createRadialGradient(sx, sy, 0, sx, sy, R * 2.6);
       v.addColorStop(0, "rgba(1,2,6,.97)");
       v.addColorStop(0.42, "rgba(1,2,6,.88)");
       v.addColorStop(1, "rgba(1,2,6,0)");
       vx.fillStyle = v;
-      vx.beginPath(); vx.arc(sx, sy, R * 2.3, 0, TAU); vx.fill();
+      vx.beginPath(); vx.arc(sx, sy, R * 2.6, 0, TAU); vx.fill();
       const spin = reduced ? 0 : t * 0.07;
       vx.save(); vx.translate(sx, sy); vx.rotate(-0.35);
+      // Faint lensed background arcs — the sky itself bending past the mass.
       for (let k = 0; k < 3; k++) {
         const rr = R * (1.32 + k * 0.3);
         vx.strokeStyle = `rgba(200,215,240,${0.11 - k * 0.03})`;
         vx.lineWidth = 0.8;
         vx.beginPath(); vx.ellipse(0, 0, rr, rr * 0.42, 0, spin + k, spin + k + 2.1); vx.stroke();
       }
-      const acc = vx.createLinearGradient(-R * 1.9, 0, R * 1.9, 0);
-      acc.addColorStop(0, "rgba(255,196,150,0)");
-      acc.addColorStop(0.28, "rgba(255,196,150,.28)");
-      acc.addColorStop(0.5, "rgba(255,226,190,.08)");
-      acc.addColorStop(0.75, "rgba(190,205,235,.12)");
-      acc.addColorStop(1, "rgba(190,205,235,0)");
-      vx.strokeStyle = acc; vx.lineWidth = Math.max(1, R * 0.16);
-      vx.beginPath(); vx.ellipse(0, 0, R * 1.55, R * 0.5, 0, 0, TAU); vx.stroke();
+      // The equatorial accretion disk, doppler-graded: the approaching (left)
+      // limb burns white-hot, the receding limb cools to a deep ember — the
+      // M87*-image asymmetry. Two passes: a wide warm band and a hot inner
+      // edge hugging the shadow.
+      const acc = vx.createLinearGradient(-R * 2.1, 0, R * 2.1, 0);
+      acc.addColorStop(0, "rgba(255,232,200,0)");
+      acc.addColorStop(0.22, "rgba(255,225,185,.5)");
+      acc.addColorStop(0.5, "rgba(255,200,140,.2)");
+      acc.addColorStop(0.8, "rgba(200,120,80,.16)");
+      acc.addColorStop(1, "rgba(160,90,70,0)");
+      vx.strokeStyle = acc; vx.lineWidth = Math.max(1.4, R * 0.22);
+      vx.beginPath(); vx.ellipse(0, 0, R * 1.6, R * 0.5, 0, 0, TAU); vx.stroke();
+      vx.strokeStyle = acc; vx.lineWidth = Math.max(1, R * 0.1);
+      vx.beginPath(); vx.ellipse(0, 0, R * 1.22, R * 0.38, 0, 0, TAU); vx.stroke();
+      // The LENSED far side of that same disk: light from behind the hole is
+      // bent over the top and under the bottom, so the disk also appears as a
+      // near-circular halo hugging the shadow — Luminet's 1979 drawing,
+      // Gargantua's crossing. Top arc (over) carries more of the light.
+      const halo = vx.createLinearGradient(-R * 1.5, 0, R * 1.5, 0);
+      halo.addColorStop(0, "rgba(255,228,190,.42)");
+      halo.addColorStop(0.55, "rgba(255,205,150,.2)");
+      halo.addColorStop(1, "rgba(200,120,80,.1)");
+      vx.strokeStyle = halo; vx.lineWidth = Math.max(1.2, R * 0.13);
+      vx.beginPath(); vx.ellipse(0, 0, R * 1.18, R * 1.28, 0, Math.PI * 1.02, Math.PI * 1.98); vx.stroke();
+      vx.lineWidth = Math.max(0.9, R * 0.09);
+      vx.beginPath(); vx.ellipse(0, 0, R * 1.18, R * 1.24, 0, Math.PI * 0.06, Math.PI * 0.94); vx.stroke();
       vx.restore();
     };
     const emitHole = (sx: number, sy: number, R: number, _t: number) => {
-      if (off(sx, sy, R * 1.3)) return;
+      if (off(sx, sy, R * 1.9)) return;
       // the photon ring — the one bright thing, and it is bent LIGHT, not
       // surface; the approaching side beams brighter, doppler-fashion
       ex.save(); ex.translate(sx, sy); ex.rotate(-0.35);
-      ex.strokeStyle = "rgba(255,214,168,.4)"; ex.lineWidth = Math.max(0.8, R * 0.07);
+      ex.strokeStyle = "rgba(255,214,168,.55)"; ex.lineWidth = Math.max(0.9, R * 0.08);
       ex.beginPath(); ex.ellipse(0, 0, R * 1.06, R * 1.02, 0, 0, TAU); ex.stroke();
-      ex.strokeStyle = "rgba(255,236,200,.75)"; ex.lineWidth = Math.max(1, R * 0.1);
+      ex.strokeStyle = "rgba(255,240,210,.95)"; ex.lineWidth = Math.max(1.2, R * 0.12);
       ex.beginPath(); ex.ellipse(0, 0, R * 1.06, R * 1.02, 0, Math.PI * 0.75, Math.PI * 1.35); ex.stroke();
+      // the doppler hot spot — the approaching limb of the disk, bloomed: the
+      // one place the M87* image is genuinely bright
+      const hs = ex.createRadialGradient(-R * 1.35, R * 0.12, 0, -R * 1.35, R * 0.12, R * 0.9);
+      hs.addColorStop(0, "rgba(255,235,205,.5)");
+      hs.addColorStop(1, "rgba(255,220,170,0)");
+      ex.fillStyle = hs;
+      ex.beginPath(); ex.arc(-R * 1.35, R * 0.12, R * 0.9, 0, TAU); ex.fill();
       ex.restore();
     };
 
@@ -1950,7 +1989,7 @@ export default function GalaxyCanvas() {
         if (lastPinch && !useHub.getState().mapLocked) {
           const k = dist / lastPinch;
           if (mode === "3d") cam3.tdist = Math.max(DIST3.min, Math.min(DIST3.max, cam3.tdist / k));
-          else cam.tz = Math.max(0.2, Math.min(3.1, cam.tz * k));
+          else cam.tz = Math.max(FIT_Z.min, Math.min(FIT_Z.max, cam.tz * k));
         }
         lastPinch = dist;
         return;
@@ -1988,7 +2027,7 @@ export default function GalaxyCanvas() {
       driftOn = false;
       atHome = false;
       if (mode === "3d") cam3.tdist = Math.max(DIST3.min, Math.min(DIST3.max, cam3.tdist * (e.deltaY > 0 ? 1.12 : 0.9)));
-      else cam.tz = Math.max(0.2, Math.min(3.1, cam.tz * (e.deltaY > 0 ? 0.9 : 1.11)));
+      else cam.tz = Math.max(FIT_Z.min, Math.min(FIT_Z.max, cam.tz * (e.deltaY > 0 ? 0.9 : 1.11)));
     };
     const onEnter = () => { hoverPause = true; };
     const onLeave = () => { hoverPause = false; };
@@ -2002,11 +2041,11 @@ export default function GalaxyCanvas() {
 
     // ── HUD wiring (buttons live in JSX below; handlers attach by id) ──
     const $ = (sel: string) => host.querySelector<HTMLButtonElement>(sel)!;
-    const hudZi = () => { if (mode === "3d") cam3.tdist = Math.max(420, cam3.tdist * 0.8); else cam.tz = Math.min(3.1, cam.tz * 1.25); cam.tz = cam.tz; };
+    const hudZi = () => { if (mode === "3d") cam3.tdist = Math.max(420, cam3.tdist * 0.8); else cam.tz = Math.min(FIT_Z.max, cam.tz * 1.25); };
     const zi = $("[data-hud=zi]"), zo = $("[data-hud=zo]"), fit = $("[data-hud=fit]"),
       drift = $("[data-hud=drift]"), m3d = $("[data-hud=m3d]");
-    zi.onclick = () => { noteInput(); if (useHub.getState().mapLocked || currentRef.current) return; atHome = false; if (mode === "3d") cam3.tdist = Math.max(DIST3.min, cam3.tdist * 0.8); else cam.tz = Math.min(3.1, cam.tz * 1.25); };
-    zo.onclick = () => { noteInput(); if (useHub.getState().mapLocked || currentRef.current) return; atHome = false; if (mode === "3d") cam3.tdist = Math.min(DIST3.max, cam3.tdist * 1.25); else cam.tz = Math.max(0.2, cam.tz * 0.8); };
+    zi.onclick = () => { noteInput(); if (useHub.getState().mapLocked || currentRef.current) return; atHome = false; if (mode === "3d") cam3.tdist = Math.max(DIST3.min, cam3.tdist * 0.8); else cam.tz = Math.min(FIT_Z.max, cam.tz * 1.25); };
+    zo.onclick = () => { noteInput(); if (useHub.getState().mapLocked || currentRef.current) return; atHome = false; if (mode === "3d") cam3.tdist = Math.min(DIST3.max, cam3.tdist * 1.25); else cam.tz = Math.max(FIT_Z.min, cam.tz * 0.8); };
     fit.onclick = () => {
       noteInput();
       if (currentRef.current) return; // mid-fly, the fly owns the camera
@@ -2027,16 +2066,31 @@ export default function GalaxyCanvas() {
     setDrift(driftOn);
     // Re-frame on resize now that the solvers exist: a window drag re-fits a
     // view the operator hasn't aimed, and never yanks one they have.
+    // sizeAll() wipes the backing store (assigning canvas.width clears even at
+    // an unchanged value), and a parked loop — hidden tab, covered stage —
+    // never repaints it. The initial ResizeObserver callback lands AFTER the
+    // mount paint, so without this a background tab shows a void where the
+    // mount paint put a galaxy: the same contract as the mount paint, owed on
+    // every resize path.
+    const paintParked = () => {
+      if (!document.hidden && useHub.getState().stage.kind === "graph") return;
+      cam.x = cam.tx; cam.y = cam.ty; cam.z = cam.tz;
+      const a = useHub.getState().agents;
+      advanceWorld(reduced ? 0 : tNow);
+      drawScene(tNow, a); drawEmissive(tNow, a); bloom(); post();
+      positionLabels(a);
+    };
     onResize = () => {
       sizeAll();
       home = fitMap();
       // A raised card owns the camera: re-aim it for the new canvas instead of
       // leaving the world at a screen position chosen for the old one.
       const staged = stagedId ?? currentRef.current;
-      if (staged) { aimHero(staged); return; }
-      if (!atHome) return;
+      if (staged) { aimHero(staged); paintParked(); return; }
+      if (!atHome) { paintParked(); return; }
       cam.tx = home.x; cam.ty = home.y; cam.tz = home.z;
       if (mode === "3d") { const f3 = fit3(); cam3.ttarget = f3.target; cam3.tdist = f3.dist; }
+      paintParked();
     };
 
     m3d.onclick = () => {
@@ -2072,10 +2126,52 @@ export default function GalaxyCanvas() {
       // every world arrives the same visual size — a small planet is not a
       // lesser event than a big one, it just has less mass in the system
       const heroR = Math.min(W, H) * (arriveSide() ? 0.175 : 0.16);
-      const z = Math.max(0.9, Math.min(3.1, heroR / Math.max(1, sp.R * n.z)));
-      const tx = arriveSide() ? W * 0.25 : W * 0.5;
+      // Ceiling 2.2, not FIT_Z.max: at the spread-out arm spacing a 3.1 hero
+      // zoom put every neighbouring world off-frame, and the scrim's
+      // step-to-a-neighbour affordance (galaxy.spec step test) had nothing
+      // left to offer. The hero reads a touch smaller; the neighbourhood
+      // stays real.
+      const z = Math.max(0.9, Math.min(2.2, heroR / Math.max(1, sp.R * n.z)));
+      // The planet takes the half AWAY from the galactic core, so the open
+      // half faces where its neighbours actually are. A fixed left seat
+      // pointed the camera at empty rim-space for every world on the core's
+      // right — the neighbourhood clamped its labels to the edge and the
+      // step-to-a-neighbour affordance starved. The card mirrors via
+      // data-arrive="side-left".
+      const side = !arriveSide() ? "center" : GALAXY_CENTER.x >= n.x ? "side" : "side-left";
+      host.dataset.arrive = side;
+      const tx = side === "center" ? W * 0.5 : side === "side" ? W * 0.25 : W * 0.75;
       const ty = arriveSide() ? H * 0.5 : H * 0.42;
-      return { z, tx, ty };
+      // The scrim promises a step to a neighbour — so the frame must CONTAIN
+      // one. Nearest-neighbour gaps run 319–442 world px (measured), and at a
+      // fixed hero zoom whether one lands in the open half depends on its
+      // direction versus the card. Back the zoom off (never past 0.9) until
+      // one of the six nearest worlds provably sits in-frame and clear of
+      // the card — the same test the scrim's own sweep applies. Margins
+      // absorb parallax (per-node p spread ≈ 0.04) and the perturb field.
+      const cardW2 = side === "center" ? Math.min(640, W * 0.86) : Math.min(400, W * 0.54);
+      const pad2 = W * 0.045;
+      const cardX = side === "side" ? { x0: W - pad2 - cardW2, x1: W - pad2 }
+        : side === "side-left" ? { x0: pad2, x1: pad2 + cardW2 }
+        : { x0: (W - cardW2) / 2, x1: (W + cardW2) / 2 };
+      const cy0 = H / 2 - 170, cy1 = H / 2 + 170;
+      const near = [...nodes.entries()]
+        .filter(([mid]) => mid !== id)
+        .map(([, m]) => ({ dx: m.x - n.x, dy: m.y - n.y, d: Math.hypot(m.x - n.x, m.y - n.y) }))
+        .sort((a, b) => a.d - b.d).slice(0, 6);
+      const reachable = (zc: number) => near.some((m) => {
+        const px = tx + m.dx * zc, py = ty + m.dy * zc;
+        return px > 70 && px < W - 70 && py > 70 && py < H - 70 &&
+          !(px > cardX.x0 - 12 && px < cardX.x1 + 12 && py > cy0 && py < cy1);
+      });
+      // Floor 1.55, not 0.9: the suite's other contract says a hero IS a
+      // zoom-in (breadcrumb test pins > 1.5). Between the two promises the
+      // zoom-in wins; a world whose whole neighbourhood hides behind the
+      // card at 1.55 arrives without a step affordance, and that is the
+      // honest residue.
+      let zA = z;
+      while (zA > 1.55 && !reachable(zA)) zA -= 0.05;
+      return { z: zA, tx, ty };
     };
 
     /** Aim the camera so this world sits in its side of the composition. The
