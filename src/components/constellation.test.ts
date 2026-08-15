@@ -90,8 +90,8 @@ describe("the binary core", () => {
     expect(BINARY.sunMass * BINARY_R.sun).toBeCloseTo(BINARY.holeMass * BINARY_R.hole, 9);
   });
 
-  it("one period brings the pair back to its starting pose, slowly", () => {
-    expect(BINARY.period).toBeGreaterThanOrEqual(60); // slow: a minute or more
+  it("one period brings the pair back to its starting pose — quick, but never frantic", () => {
+    expect(BINARY.period).toBeGreaterThanOrEqual(20); // spun up by operator call 2026-08-15 — a close binary WHIRLS; 20s floor keeps it celestial, never frantic
     const p = binaryPose(BINARY.period);
     expect(p.sun.x).toBeCloseTo(SUN.x, 6);
     expect(p.sun.y).toBeCloseTo(SUN.y, 6);
