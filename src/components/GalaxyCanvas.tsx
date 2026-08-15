@@ -605,7 +605,7 @@ export default function GalaxyCanvas() {
       W = host.clientWidth; H = host.clientHeight;
       view.width = W * DPR; view.height = H * DPR;
       vx.setTransform(DPR, 0, 0, DPR, 0, 0);
-      em.width = W; em.height = H;
+      em.width = W || 1; em.height = H || 1;   // a 0-sized host must not detonate bloom()
       bl1.width = W >> 1 || 1; bl1.height = H >> 1 || 1;
       bl2.width = W >> 2 || 1; bl2.height = H >> 2 || 1;
       host.dataset.arrive = W >= SIDE_MIN_W ? "side" : "center";
