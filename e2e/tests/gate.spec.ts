@@ -89,7 +89,7 @@ test.describe("the approval gate", () => {
 
     // …and on the galaxy, which is a separate code path (React Flow's
     // node list is seeded once and only appended to).
-    await page.getByRole("button", { name: "galaxy" }).click();
+    await page.getByRole("button", { name: "constellation" }).click();
     await expect(page.locator(`[data-planet="${PROPOSED_ID}"]`)).toHaveCount(1);
   });
 

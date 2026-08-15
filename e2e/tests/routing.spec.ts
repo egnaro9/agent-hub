@@ -50,7 +50,7 @@ test.describe("deep links and mode switching", () => {
     await expect(page).toHaveURL(/#\/p\/gradecore$/);
     await expect(page.locator("header, div").filter({ hasText: "gradecore" }).first()).toBeVisible();
 
-    await page.getByRole("button", { name: "galaxy" }).click();
+    await page.getByRole("button", { name: "constellation" }).click();
     await expect(page).not.toHaveURL(/#\/p\//);
     await expect(page.getByTestId("galaxy")).toBeVisible();
   });

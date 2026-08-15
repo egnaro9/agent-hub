@@ -102,7 +102,7 @@ export function persistedState(state: Record<string, unknown>) {
 export async function gotoHub(page: Page, hash = "/") {
   await page.goto(hash);
   await expect(page.locator("aside")).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByRole("button", { name: "galaxy" })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("button", { name: "constellation" })).toBeVisible({ timeout: 20_000 });
 }
 
 /** Inline transform React Flow writes on its viewport, e.g. "translate(…) scale(…)". */

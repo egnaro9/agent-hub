@@ -40,7 +40,7 @@ const moreMenu = (page: Page) => page.locator("div.panel-solid.w-60");
  */
 async function gotoPhone(page: Page, hash = "/") {
   await page.goto(hash);
-  await expect(page.getByRole("button", { name: "galaxy" })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("button", { name: "constellation" })).toBeVisible({ timeout: 20_000 });
 }
 
 /**

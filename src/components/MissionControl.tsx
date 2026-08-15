@@ -168,7 +168,7 @@ export default function MissionControl({ onMenu }: { onMenu?: () => void }) {
       </a>
       <span className="mono text-[11px] text-slate-700">/</span>
       <button onClick={backToGraph} className={`mono cursor-pointer text-[11px] transition ${project ? "text-slate-500 hover:text-slate-300" : "text-slate-200"}`}>
-        galaxy
+        constellation
       </button>
       {project && (
         <>
@@ -229,7 +229,7 @@ export default function MissionControl({ onMenu }: { onMenu?: () => void }) {
         <button
           onClick={() => setSummonOpen((v) => !v)}
           disabled={!project || summonable.length === 0}
-          className="mono cursor-pointer rounded-md border border-cyan-300/60 bg-cyan-400/15 px-2.5 py-1 text-[10px] text-cyan-100 transition max-sm:hidden hover:bg-cyan-400/25 disabled:cursor-default disabled:border-white/15 disabled:text-slate-500 disabled:hover:bg-transparent"
+          className="mono cursor-pointer rounded-md border border-white/20 bg-white/10 px-2.5 py-1 text-[10px] text-slate-200 transition max-sm:hidden hover:bg-white/20 hover:text-white disabled:cursor-default disabled:border-white/15 disabled:bg-white/5 disabled:text-slate-500 disabled:hover:bg-white/5"
           title={project ? "Summon an agent onto this project" : "Select a project first"}
         >
           + summon agent
@@ -260,7 +260,7 @@ export default function MissionControl({ onMenu }: { onMenu?: () => void }) {
         className={`mono cursor-pointer rounded-md border px-2.5 py-1 text-[10px] whitespace-nowrap transition max-sm:hidden ${
           uiScale > 1
             ? "border-cyan-300/40 bg-cyan-400/10 text-cyan-200 hover:bg-cyan-400/25"
-            : "border-white/10 bg-white/5 text-slate-400 hover:text-slate-200"
+            : "border-white/20 bg-white/10 text-slate-300 hover:text-slate-100"
         }`}
         title="Text size — scales the console without changing the layout the way browser zoom does"
       >

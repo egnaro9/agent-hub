@@ -33,12 +33,12 @@ export const SECTIONS: Section[] = [
   {
     id: "around",
     label: "getting around",
-    blurb: "The galaxy, the lock, the two project modes, and the URL.",
+    blurb: "The constellation, the lock, the two project modes, and the URL.",
     entries: [
       {
-        title: "the galaxy",
+        title: "the constellation",
         what:
-          "The default view: ONE spiral galaxy. Every project is a planet — sized by weight, surfaced by what it is (gas bands, craters, ice, an ember world, city lights, one twin) — seated along five log-spiral arms that wind out from a tight binary core: the registry sun and the harness's unseen mass, orbiting their shared barycenter. Agents are moons orbiting the project their assignment names; related projects are joined by energy filaments; wormhole doors sit at the arm tips.",
+          "The default view: THE CONSTELLATION — one spiral galaxy. Every project is a planet — sized by weight, surfaced by what it is (gas bands, craters, ice, an ember world, city lights, one twin) — seated along five log-spiral arms that wind out from a tight binary core: the registry sun and the harness's unseen mass, orbiting their shared barycenter. Agents are moons orbiting the project their assignment names; related projects are joined by energy filaments; wormhole doors sit at the arm tips.",
         how: "Drag to pan, scroll or pinch to zoom. Click a planet — the disc itself, or its name — to enter it; the cursor turns to a pointer over a world. Bottom right: − / + / ⤢ fit, ◐ idle drift, 3D for the immersive mode, and the lock. ⤢ measures the system against the current window, so it frames everything on a laptop half-window and on a 5K display alike.",
         gotcha:
           "It never unmounts — your camera survives a trip into a project. Planets keep fixed seats on their arms, so there is nothing to drag out of place — but the whole disc turns, slowly, inner arms outrunning the outer (prefers-reduced-motion freezes all of it, binary included); the idle camera drifts until you touch anything, and comes back on its own after 30 quiet seconds (◐ brings it back sooner, or turns it off for good). Worlds ROTATE while they are big enough to see it — every planet on screen at arrival size, not just the one you came for, each on its own phase and rate. At map size nothing turns: a planet is 20-40px there, where a rotating surface is invisible.",
@@ -54,9 +54,9 @@ export const SECTIONS: Section[] = [
       {
         title: "entering and leaving a project",
         what:
-          "Clicking a planet flies the camera in and raises an ARRIVAL CARD — name, crew, latest activity — with `← galaxy`, `Overview` and `Work` on it. A sidebar row does the same from anywhere on the map; clicking the same row again (or the dimmed sky, or Escape) lowers the card. Clicking a different planet or row while a card is up swaps it.",
+          "Clicking a planet flies the camera in and raises an ARRIVAL CARD — name, crew, latest activity — with `← constellation`, `Overview` and `Work` on it. A sidebar row does the same from anywhere on the map; clicking the same row again (or the dimmed sky, or Escape) lowers the card. Clicking a different planet or row while a card is up swaps it.",
         how:
-          "Click the planet itself or its name (Tab + Enter works too), then pick `Overview` or `Work`. To leave a project: press Escape, or click `galaxy` at the top left. To go back to a world's CARD from inside it, click the project name in the breadcrumb — `galaxy / crashkit / [overview|work]` — which lands you at that planet rather than the wide map.",
+          "Click the planet itself or its name (Tab + Enter works too), then pick `Overview` or `Work`. To leave a project: press Escape, or click `constellation` at the top left. To go back to a world's CARD from inside it, click the project name in the breadcrumb — `constellation / crashkit / [overview|work]` — which lands you at that planet rather than the wide map.",
         gotcha:
           "While a card is up the neighbouring worlds are still LIVE: the cursor turns to a pointer over one, and clicking it swaps the card to that world — stepping between projects no longer means backing out to the map first. Empty sky still lowers the card. On a wide canvas the arrival is COMPOSED: the world takes the left third at a consistent hero size (a small project is not a lesser event) and the card takes the right, so the close-up is on display rather than hidden behind the card. Below about 700px of canvas there is no room to stage that and the card returns to centre. Escape pressed inside a text field blurs the field instead of navigating, so leaving from the room composer takes two presses. Turning the ◐ drift off is remembered — a trip into a project and back won't restart it.",
       },
@@ -86,7 +86,7 @@ export const SECTIONS: Section[] = [
       {
         title: "folding the chrome away",
         what:
-          "Every piece of furniture collapses: the whole navigation rail, its header, projects and agents sections independently, the top command strip, and the galaxy's own control cluster. Work mode folds too — tasks, files, gate ops and the topology bar each become a small pill on one row.",
+          "Every piece of furniture collapses: the whole navigation rail, its header, projects and agents sections independently, the top command strip, and the constellation's own control cluster. Work mode folds too — tasks, files, gate ops and the topology bar each become a small pill on one row.",
         how:
           "Chevrons where each piece lives: `⟨` in the rail header collapses the rail (a `⟩` strip brings it back), `▸/▾` on the `projects` and `agents` labels, `▴` at the right end of the top strip (a floating `▾` pill reopens it), `⌄` at the end of the zoom cluster, and a `▾` in the corner of each work-mode card.",
         gotcha:
@@ -129,11 +129,11 @@ export const SECTIONS: Section[] = [
       },
       {
         title: "summoning",
-        what: "Brings an agent into the room and assigns them to the project — its moon starts orbiting that planet on the galaxy.",
+        what: "Brings an agent into the room and assigns them to the project — its moon starts orbiting that planet on the constellation.",
         how:
           "Three ways: `+ summon agent` in the top bar, a dashed-outline avatar in the room header, or an @mention.",
         gotcha:
-          "`+ summon agent` is disabled while you are on the galaxy, and also once every in-scope agent is already on the project.",
+          "`+ summon agent` is disabled while you are on the constellation, and also once every in-scope agent is already on the project.",
       },
       {
         title: "releasing",
@@ -148,7 +148,7 @@ export const SECTIONS: Section[] = [
         what: "Five agents are global. Probe lives in model-drift and Porter lives in tapdodge-engine.",
         how: "Nothing to set — scope is fixed in the seed data. Scoped agents carry a `scoped` chip in the sidebar.",
         gotcha:
-          "The sidebar only lists an agent whose scope matches where you are, so Probe and Porter are invisible in the sidebar (and unfindable by search) while you are on the galaxy, even though their moons are right there in orbit. A scoped agent is already in their home room the first time you open it.",
+          "The sidebar only lists an agent whose scope matches where you are, so Probe and Porter are invisible in the sidebar (and unfindable by search) while you are on the constellation, even though their moons are right there in orbit. A scoped agent is already in their home room the first time you open it.",
       },
       {
         title: "DMs",
@@ -166,7 +166,7 @@ export const SECTIONS: Section[] = [
       },
       {
         title: "two commands that need no key",
-        what: "`new project: <name>` mints a real planet in the galaxy immediately — it lands as `founded`, riding the youngest arm's tail. In #harness-builder, `run the sweep` replays a recorded sweep, refusal and all.",
+        what: "`new project: <name>` mints a real planet in the constellation immediately — it lands as `founded`, riding the youngest arm's tail. In #harness-builder, `run the sweep` replays a recorded sweep, refusal and all.",
         how: "Type either into any room composer.",
         gotcha:
           "Both run before the live-brain path, so `run the sweep` never reaches a model even with a key connected. Names are slugified, and a collision with an existing project or agent id is refused. Note the asymmetry with the gate: you typing `new project:` creates it outright, while an agent asking for the same thing only gets a proposal card.",

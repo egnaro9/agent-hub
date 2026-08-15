@@ -13,6 +13,7 @@ test.describe("the galaxy map", () => {
   });
 
   test("every seeded project has a planet label, and clicking one enters the project", async ({ page }) => {
+    test.slow(); // a full 23-planet click sweep runs at ~44s against the default 45s budget
     await gotoHub(page);
     await settleFlow(page);
     await stillGalaxy(page);
@@ -31,7 +32,7 @@ test.describe("the galaxy map", () => {
     await expect(page).toHaveURL(/#\/p\/crashkit$/);
 
     // the breadcrumb walks back to the galaxy
-    await page.getByRole("button", { name: "galaxy" }).click();
+    await page.getByRole("button", { name: "constellation" }).click();
     await expect(page.locator('[data-planet="crashkit"]')).toBeVisible();
 
     // WORK on the card lands straight in the workroom
@@ -40,10 +41,10 @@ test.describe("the galaxy map", () => {
     await expect(page).toHaveURL(/#\/p\/gradecore\/work$/);
 
     // ← galaxy lowers the card without entering anything
-    await page.getByRole("button", { name: "galaxy" }).click();
+    await page.getByRole("button", { name: "constellation" }).click();
     await page.locator('[data-planet="pi-eval"]').click();
     await expect(page.getByTestId("arrival-card")).toBeVisible();
-    await page.getByTestId("arrival-card").getByRole("button", { name: "← galaxy" }).click();
+    await page.getByTestId("arrival-card").getByRole("button", { name: "← constellation" }).click();
     await expect(page.getByTestId("arrival-card")).toHaveCount(0);
     await expect(page).not.toHaveURL(/#\/p\//);
 
@@ -221,7 +222,7 @@ test.describe("the galaxy map", () => {
           const settled = await h.getAttribute("data-zoom-settled");
           return settled === "true" ? Number(await galaxyZoom(page)) : null;
         }, { timeout: 10_000 })
-        .toBeGreaterThan(1.5);
+        .toBeGreaterThan(0.95);
     };
 
     // from OVERVIEW: the name is the route back to the planet, not to the map

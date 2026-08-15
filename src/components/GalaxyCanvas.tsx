@@ -2344,7 +2344,7 @@ export default function GalaxyCanvas() {
                   onClick={() => returnRef.current()}
                   className="mono cursor-pointer rounded-lg border border-white/12 bg-white/5 px-3.5 py-1.5 text-[10.5px] tracking-[0.08em] text-slate-400 uppercase transition hover:text-slate-200"
                 >
-                  ← galaxy
+                  ← constellation
                 </button>
                 <button
                   autoFocus

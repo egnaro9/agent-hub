@@ -65,12 +65,12 @@ test.describe("collapsible chrome", () => {
 
     // the top bar folds to a floating pill — and the choice SURVIVES a reload
     await page.getByRole("button", { name: "Collapse top bar" }).click();
-    await expect(page.getByRole("button", { name: "galaxy" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "constellation" })).toHaveCount(0);
     await page.reload();
     await expect(page.getByRole("button", { name: "Expand top bar" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "galaxy" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "constellation" })).toHaveCount(0);
     await page.getByRole("button", { name: "Expand top bar" }).click();
-    await expect(page.getByRole("button", { name: "galaxy" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "constellation" })).toBeVisible();
 
     // the workstation's parts fold too: side cards and the topology bar
     await page.evaluate(() => { location.hash = "#/p/crashkit/work"; });
