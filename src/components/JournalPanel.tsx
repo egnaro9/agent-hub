@@ -147,7 +147,8 @@ export default function JournalPanel({ onClose }: { onClose: () => void }) {
             data-testid="journal-export"
             onClick={exportJson}
             disabled={rows.length === 0}
-            className="mono cursor-pointer text-[9.5px] text-cyan-300/90 transition hover:text-cyan-200 disabled:cursor-default disabled:text-slate-600"
+            title={rows.length === 0 ? "Nothing to export yet — the first gate verdict, shape run or arming writes a row" : "Download the ledger as JSON"}
+            className="mono cursor-pointer text-[9.5px] text-cyan-300/90 transition hover:text-cyan-200 disabled:cursor-default disabled:text-slate-700 disabled:line-through disabled:opacity-60"
           >
             export JSON
           </button>
@@ -167,7 +168,8 @@ export default function JournalPanel({ onClose }: { onClose: () => void }) {
               data-testid="journal-clear"
               onClick={() => setConfirming(true)}
               disabled={rows.length === 0}
-              className="mono cursor-pointer text-[9.5px] text-slate-500 transition hover:text-rose-300 disabled:cursor-default disabled:text-slate-600"
+              title={rows.length === 0 ? "Nothing to clear — the ledger is empty" : "Clear the ledger (asks first)"}
+              className="mono cursor-pointer text-[9.5px] text-slate-500 transition hover:text-rose-300 disabled:cursor-default disabled:text-slate-700 disabled:line-through disabled:opacity-60"
             >
               clear
             </button>
