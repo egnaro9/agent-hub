@@ -1,0 +1,44 @@
+# The repo of someone who sells testing rigor cannot be the repo whose tests
+# never run. 250 unit tests and 20 e2e specs existed here for weeks without a
+# workflow; this is that omission closed.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      # tsc --noEmit runs inside build, so a type error fails here too
+      - run: npm run build
+      - run: npm test
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      # The suite is hermetic: GitHub is blocked and Anthropic is stubbed at the
+      # network boundary, so no key and no spend are involved.
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-artifacts
+          path: e2e/.artifacts/
+          retention-days: 7
