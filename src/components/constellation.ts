@@ -137,28 +137,28 @@ export const WORMHOLES: Wormhole[] = [
     name: "fleet audit board",
     claim: "the naive suite caught 1 of 6 — live, CI-replayed",
     url: "https://egnaro9.github.io/reference-fleet/",
-    ...door(5.95, 0.8), r: 64, hue: "#f97316",
+    ...door(5.95, 0.8), r: 96, hue: "#f97316",
   },
   {
     id: "wh-crashkit",
     name: "crashkit",
     claim: "adversarial crash-tests, BYOK, deterministic graders",
     url: "https://crashkit.onrender.com",
-    ...door(0.75), r: 64, hue: "#fb7185",
+    ...door(0.75), r: 96, hue: "#fb7185",
   },
   {
     id: "wh-drift-board",
     name: "model-drift board",
     claim: "16 LLMs watched daily on a frozen suite",
     url: "https://egnaro9.github.io/model-drift/",
-    ...door(2.54), r: 64, hue: "#2dd4bf",
+    ...door(2.54), r: 96, hue: "#2dd4bf",
   },
   {
     id: "wh-seraphlight",
     name: "tap dodge rush",
     claim: "one engine, two runtimes, diffed — playable here",
     url: "https://egnaro9.github.io/seraphlight-studios/tap-dodge-rush/play/",
-    ...door(4.16, 0.84), r: 64, hue: "#60a5fa",
+    ...door(4.16, 0.84), r: 96, hue: "#60a5fa",
   },
 ];
 

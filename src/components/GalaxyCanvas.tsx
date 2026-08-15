@@ -1140,8 +1140,8 @@ export default function GalaxyCanvas() {
       // the corona — soft hue glow breathing around the body
       const breathe = reduced ? 0 : Math.sin(t * 0.8 + R) * 0.06;
       const cor = vx.createRadialGradient(0, 0, R * 0.4, 0, 0, R * 1.9);
-      cor.addColorStop(0, rgba(w.hue, 0.34 + breathe));
-      cor.addColorStop(0.45, rgba(w.hue, 0.14));
+      cor.addColorStop(0, rgba(w.hue, 0.42 + breathe));
+      cor.addColorStop(0.45, rgba(w.hue, 0.18));
       cor.addColorStop(1, rgba(w.hue, 0));
       vx.fillStyle = cor;
       vx.beginPath(); vx.arc(0, 0, R * 1.9, 0, TAU); vx.fill();
