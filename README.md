@@ -11,7 +11,7 @@ actual story — with a practical work mode (chat room + tasks + files) one tab
 away.
 
 **Live: [agent-hub-exiz.onrender.com](https://agent-hub-exiz.onrender.com)** —
-unlisted and un-indexed, no signup. The agents run on canned personas until you
+no signup. The agents run on canned personas until you
 paste your own Anthropic key into the brain menu; that key is stored only in
 your browser and is sent only to `api.anthropic.com`.
 

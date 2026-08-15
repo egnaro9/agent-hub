@@ -5,3 +5,4 @@ dist
 e2e/run-artifacts
 test-results
 shots
+test-results/

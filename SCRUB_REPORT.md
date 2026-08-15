@@ -122,3 +122,13 @@ right cost.
 - token-shape grep (tree + history), test/placeholder constants excluded → 0
 - private-name sweep (game lineage, role names, personal domains, emails) → 0
 - `wmscan` over new/edited prose-bearing files → CLEAN (selftest PASS)
+
+## Residual resolutions (operator decision, 2026-08-15)
+
+- R1 ROADMAP.md: DELETED from the tree (internal strategy lives off-repo).
+- R2 draft posts (TRUST_CASE_*): DELETED from the tree.
+- R3 live URL: OWNED publicly — "unlisted" framing removed from README, noindex
+  headers dropped from render.yaml; the deploy is now a public showpiece.
+- R4 git history: ACCEPTED as-is — the historical name of a private repo reveals
+  no protected content, and a history rewrite on a wired repo carries more risk
+  than the exposure. Recorded here so the decision is legible.
