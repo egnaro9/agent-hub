@@ -1,0 +1,54 @@
+# The hub was on Render's free tier and Render suspended it, so every
+# "Constellation" link on erikhill.dev returned 503 with a body reading
+# "This service has been suspended." The app is a static Vite build with no
+# server code, so it never needed a host that can sleep or be suspended.
+#
+# The base path is passed here rather than set in vite.config.ts on purpose:
+# the dev server and the existing ci.yml build keep serving from "/", and only
+# the Pages artifact is rewritten to "/agent-hub/".
+name: pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never let two deploys race; queue instead of cancelling, so a deploy that
+# has already started is not left half-applied.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      # npm run build is "tsc --noEmit && vite build"; split so the base flag
+      # reaches vite and the type check still gates the deploy.
+      - run: npx tsc --noEmit
+      - run: npx vite build --base=/agent-hub/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
