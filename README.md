@@ -10,7 +10,7 @@ into its own 2.5D "world" — pointer-parallax scenes staged from that project's
 actual story — with a practical work mode (chat room + tasks + files) one tab
 away.
 
-**Live: [agent-hub-exiz.onrender.com](https://agent-hub-exiz.onrender.com)** —
+**Live: [erikhill.dev/agent-hub](https://erikhill.dev/agent-hub/)** —
 no signup. The agents run on canned personas until you
 paste your own Anthropic key into the brain menu; that key is stored only in
 your browser and is sent only to `api.anthropic.com`.
@@ -37,8 +37,8 @@ npm install
 npm run dev   # → http://localhost:5173
 ```
 
-Or just open the live link above. It is a pure client build (`render.yaml`
-deploys `dist/` as a static site) — there is no server, no database, and no
+Or just open the live link above. It is a pure client build: GitHub Pages
+serves `dist/` as a static site. There is no server, no database, and no
 account, so nothing you do there touches anything of mine.
 
 ## What to try
