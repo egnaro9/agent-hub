@@ -144,7 +144,7 @@ export const WORMHOLES: Wormhole[] = [
     id: "wh-crashkit",
     name: "crashkit",
     claim: "adversarial crash-tests, BYOK, deterministic graders",
-    url: "https://crashkit.onrender.com",
+    url: "https://crashkit.erikhill.dev",
     ...door(0.75), r: 96, hue: "#fb7185",
   },
   {
@@ -166,15 +166,13 @@ export const WORMHOLES: Wormhole[] = [
 /** The estate rule (operator-tightened 2026-08-15): the estate is ONE
     continuous space — any of his own properties navigates IN THIS TAB, and
     only genuinely external hosts get the shared out-tab. Exact-host or
-    host-plus-slash matching, so a lookalike (crashkit.onrender.com.evil.com)
+    host-plus-slash matching, so a lookalike (crashkit.erikhill.dev.evil.com)
     never passes as estate. */
 const ESTATE_HOSTS = [
   "https://erikhill.dev",
   "https://www.erikhill.dev",
   "https://erikhill.dev",
-  "https://agent-hub-exiz.onrender.com",
-  "https://crashkit.onrender.com",
-  "https://eval-history.onrender.com",
+  "https://crashkit.erikhill.dev",
 ];
 export const wormholeTarget = (url: string): { newTab: boolean } => ({
   newTab: !ESTATE_HOSTS.some((h) => url === h || url.startsWith(h + "/")),

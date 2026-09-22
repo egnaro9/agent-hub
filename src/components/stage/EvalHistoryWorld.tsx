@@ -213,11 +213,11 @@ export default function EvalHistoryWorld() {
               enter the workroom ▸
             </button>
             <a
-              href="https://eval-history.onrender.com/docs"
+              href="https://erikhill.dev/eval-history/"
              
               className="mono cursor-pointer rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-[11.5px] text-slate-300 transition hover:bg-white/10"
             >
-              ▶ ask the live API
+              ▶ eval-history on the site
             </a>
             <span className="mono self-center text-[9px] text-slate-600">free tier — first click takes ~30s to wake it</span>
           </div>
