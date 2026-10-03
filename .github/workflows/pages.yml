@@ -28,14 +28,14 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # node 24, not 20. This lockfile is accepted by npm 11 and REJECTED by
       # npm 10, which node 20 ships: npm 10 resolves vitest 4's peer on vite to
       # a newer vite and then reports esbuild 0.28.2 missing from the lock.
       # Reproduced locally both ways before pinning this. The underlying
       # vite 5 / vitest 4 conflict is real and is why ci.yml has never passed;
       # it is NOT fixed here, only stepped around for the deploy.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: npm
@@ -44,8 +44,8 @@ jobs:
       # reaches vite and the type check still gates the deploy.
       - run: npx tsc --noEmit
       - run: npx vite build --base=/agent-hub/
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: dist
 
@@ -57,4 +57,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
