@@ -63,7 +63,7 @@ export const SECTIONS: Section[] = [
       {
         title: "overview / work",
         what:
-          "Every project has two modes. Overview renders a hand-built 2.5D scene for that project. Work gives you a task list, a file list, the topology bar and the room — plus a gate-ops card when this repo has `hub/*` branches or the danger zone is armed. The cards sit SIDE BY SIDE in a band above the room, and each folds to a pill on a single row — so a folded workstation hands its whole height to the transcript.",
+          "Every project has two modes. Overview renders a hand-built 2.5D scene where the project has one, and a standard overview where it does not. Work gives you a task list, a file list, the topology bar and the room, plus a gate-ops card when this repo has `hub/*` branches or the danger zone is armed. The cards sit SIDE BY SIDE in a band above the room, and each folds to a pill on a single row, so a folded workstation hands its whole height to the transcript.",
         how: "The segmented control next to the project name in the top bar. Or click `enter the workroom ▸` inside any overview scene.",
         gotcha:
           "The mode is global — it follows you between projects — except that entering a project always resets you to overview. In work mode both side panels read the REAL repo: files show the repo root, and tasks show open GitHub issues where the repo has them, falling back to recent commits where it does not — the header names which is on screen. A project you minted in the hub says `no repo` instead of pretending. The rows are live: a file or folder opens on GitHub, an issue opens the issue, and hovering a FILE reveals `▸ room`, which fetches its contents and posts them into the transcript. That last one is the useful one — the transcript is what the agents read, so afterwards you and they are looking at the same bytes, and it costs no model call. Long files are capped and say where they were cut. The tasks list is not decoration either: the same open-issue list is put into the agents\' system prompt, which is why the room and the panel are never allowed to disagree about what is outstanding.",
@@ -71,7 +71,7 @@ export const SECTIONS: Section[] = [
       {
         title: "the scenes",
         what:
-          "All 23 seeded projects have their own overview scene, built from that project's real story. The numbers in them are hard-coded published results.",
+          "24 of the 31 seeded projects have their own overview scene, built from that project's real story; the rest open a standard overview of metrics, signals and links. The numbers in them are hard-coded published results.",
         how: "Nothing to click. Move the pointer for parallax.",
         gotcha:
           "Everything in a scene is decoration except the one `enter the workroom ▸` button. Scenes compose at a fixed width and scale as a single image, so a wider window makes the same composition bigger — it never reflows.",

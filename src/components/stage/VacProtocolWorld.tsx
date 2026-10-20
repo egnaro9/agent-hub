@@ -117,13 +117,13 @@ export default function VacProtocolWorld() {
         >
           <div className="mono text-[9px] tracking-[0.22em] text-slate-500 uppercase">the registry</div>
           <div className="mono mt-1 text-[34px] leading-none font-semibold text-yellow-300" style={{ textShadow: "0 0 24px #eab30866" }}>
-            11
+            12
           </div>
           <div className="mono mt-2 text-[10px] leading-relaxed text-slate-400">
-            accepted entries, zero pending — regenerated mechanically from committed HEAD trees, reviewed like code
+            accepted entries, zero pending; 11 of 12 replayed green on 2026-10-19. Regenerated mechanically from committed HEAD trees, reviewed like code
           </div>
           <div className="mono mt-2.5 text-[10px] leading-relaxed text-slate-500">
-            15 tampered fixtures in CI, every one refused — a gate must prove it can block
+            23 tampered fixtures in CI, every one refused: a gate must prove it can block
           </div>
         </motion.div>
 
@@ -149,7 +149,7 @@ export default function VacProtocolWorld() {
             ))}
           </div>
           <p className="mono mt-2 text-[9.5px] text-slate-600">
-            the independent replay downloaded a live issuer's bundle by its pins and re-earned the verdicts — refusing, with the precise reason, until the whole path was honest. every refusal and fix is a public commit.
+            the replay downloaded a live issuer's bundle by its pins and re-earned the verdicts. It refused, with the precise reason, until the whole path was honest. every refusal and fix is a public commit.
           </p>
         </div>
 

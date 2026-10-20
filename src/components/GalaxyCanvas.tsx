@@ -95,6 +95,8 @@ const KIND_OF: Record<string, Kind> = {
   "cast-pipeline": "ocean",
   "vac-protocol": "rock", "agent-certlab": "city", "reference-fleet": "rock",
   evalmut: "ember", "vac-gate": "rock",
+  "exposure-watch": "ocean", deadcheck: "ice", deadgate: "ember", "readme-test-count": "ice",
+  "findings-ledger": "rock", "vac-gate-demo": "rock", "llm-wire-stub": "gas", "seraphlight-studios": "gas",
 };
 // Planet size is RATIONAL, not curated: mass = how much of the system runs
 // through this world. Each structural link adds heft, resident crew adds a

@@ -13,12 +13,12 @@ test.describe("the galaxy map", () => {
   });
 
   test("every seeded project has a planet label, and clicking one enters the project", async ({ page }) => {
-    test.slow(); // a full 23-planet click sweep runs at ~44s against the default 45s budget
+    test.slow(); // the click sweep below ran at ~44s against the default 45s budget
     await gotoHub(page);
     await settleFlow(page);
     await stillGalaxy(page);
-    // all 23 seed planets present, addressable by id
-    await expect(page.locator(".gal-lab")).toHaveCount(23);
+    // all 31 seed planets present, addressable by id
+    await expect(page.locator(".gal-lab")).toHaveCount(31);
     await expect(page.locator('[data-planet="gradecore"]')).toBeVisible();
 
     // Clicking a planet flies in and raises the ARRIVAL CARD — the deliberate

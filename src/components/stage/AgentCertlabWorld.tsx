@@ -113,7 +113,7 @@ export default function AgentCertlabWorld() {
         >
           <div className="mono text-[9px] tracking-[0.22em] text-slate-500 uppercase">shipped contracts</div>
           <div className="mono mt-1 text-[34px] leading-none font-semibold text-sky-300" style={{ textShadow: "0 0 24px #38bdf866" }}>
-            7
+            8
           </div>
           <div className="mono mt-2 text-[10px] leading-relaxed text-slate-400">
             two real agents × three families — every committed verdict independently regraded in CI, never trusted
@@ -143,7 +143,7 @@ export default function AgentCertlabWorld() {
         >
           <div className="mono text-[9px] tracking-[0.22em] text-sky-300/80 uppercase">the cloud run</div>
           <div className="mono mt-2 text-[11px] leading-relaxed text-slate-300">
-            one certification earned <span className="text-sky-300">entirely inside GitHub Actions</span> — calibration gate first, headless runs on an ephemeral runner, bundle uploaded as an artifact
+            five certifications earned <span className="text-sky-300">entirely inside GitHub Actions</span>: calibration gate first, headless runs on an ephemeral runner, bundle uploaded as an artifact
           </div>
         </motion.div>
 

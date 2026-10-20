@@ -219,7 +219,7 @@ export default function EvalDashboardWorld() {
           <span className="mono text-[10.5px] text-slate-400">
             strict TypeScript · runtime schema validation ·{" "}
             <span className="font-semibold text-blue-300" style={{ textShadow: "0 0 14px #60a5fa66" }}>
-              29 tests
+              30 tests
             </span>
           </span>
         </motion.div>

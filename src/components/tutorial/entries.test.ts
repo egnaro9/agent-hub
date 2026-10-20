@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { SECTIONS } from "./entries";
 import { BUDGET_CHOICES, MAX_STAGES, MAX_AGENTS_PER_STAGE } from "../../agents/topology";
 import { PROJECTS } from "../../data/mock";
+import { WORLDS } from "../stage/ProjectStage";
 
 // This file's own header promises every line was checked against the code it
 // names — and this repo has been bitten by claim rot before. These tie the
@@ -30,10 +31,12 @@ describe("the manual describes the app it ships with", () => {
     expect(prose).toMatch(/FLOOR|floor, not a limit/);
   });
 
-  it("quotes the real seeded-project count", () => {
-    // "All N seeded projects have their own overview scene" — N is the seed
-    // data's length, so growing the constellation without the scenes (or the
-    // manual) fails here instead of quietly turning the claim into fiction.
-    expect(prose).toContain(`All ${PROJECTS.length} seeded projects`);
+  it("quotes the real seeded-project and scene counts", () => {
+    // "S of the N seeded projects have their own overview scene": N is the seed
+    // data's length and S is how many of them the WORLDS table gives a scene,
+    // so growing the constellation (or the scenes) without the manual fails
+    // here instead of quietly turning the claim into fiction.
+    const scenes = PROJECTS.filter((p) => p.id in WORLDS).length;
+    expect(prose).toContain(`${scenes} of the ${PROJECTS.length} seeded projects`);
   });
 });

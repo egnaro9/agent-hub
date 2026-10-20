@@ -138,7 +138,7 @@ export const WORMHOLES: Wormhole[] = [
     name: "fleet audit board",
     claim: "the naive suite caught 1 of 6 — live, CI-replayed",
     url: "https://erikhill.dev/reference-fleet/",
-    ...door(5.95, 0.8), r: 96, hue: "#f97316",
+    ...door(5.27, 0.8), r: 96, hue: "#f97316",
   },
   {
     id: "wh-crashkit",
@@ -150,7 +150,7 @@ export const WORMHOLES: Wormhole[] = [
   {
     id: "wh-drift-board",
     name: "model-drift board",
-    claim: "16 LLMs watched daily on a frozen suite",
+    claim: "17 LLMs watched daily on a frozen suite",
     url: "https://erikhill.dev/model-drift/",
     ...door(2.54), r: 96, hue: "#2dd4bf",
   },

@@ -2,11 +2,12 @@ import { useRef } from "react";
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import { useHub } from "../../state/hub";
 
-// The agentic-dev-harness project world — the loop. A five-stage dev loop
-// (Strategy · Execution · Critic · Evaluation · Ops) that reviews itself
-// before anything lands. A sibling of CrashkitWorld: CSS perspective +
-// pointer parallax with layered translateZ depth. Every printed claim below
-// is verbatim harness doctrine — do not embellish.
+// The agentic-dev-harness project world: the loop. Four stages (Strategy,
+// Execution, Critic, Ops) with Evaluation as a fifth role that runs alongside,
+// reviewing itself before anything lands. A sibling of CrashkitWorld: CSS
+// perspective + pointer parallax with layered translateZ depth. The harness
+// source is private; every printed claim below matches the public case study,
+// exposure-watch/docs/HARNESS.md. Do not embellish.
 //
 // Framer floats are gated app-wide by MotionConfig reducedMotion="user"; the
 // inline CSS animations (signal pulse, node breathe) and pointer parallax are
@@ -16,7 +17,8 @@ const REDUCE =
   typeof window.matchMedia === "function" &&
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-// The five legs of the loop, in running order.
+// The five roles of the loop: four stages in running order, with Evaluation
+// drawn among them because it runs alongside, scoring completed batches.
 const STAGES = ["Strategy", "Execution", "Critic", "Evaluation", "Ops"];
 
 // The autonomy ladder, top rung first. L2 is where the harness stands today.
@@ -199,16 +201,16 @@ export default function HarnessLoopWorld() {
           </motion.div>
         ))}
 
-        {/* the Stop-hook relay — how one leg hands work to the next */}
+        {/* the manager handoff: how one stage hands work to the next */}
         <motion.div
           className="glass absolute rounded-2xl p-4"
           animate={{ y: [0, -8, 0] }}
           transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
           style={{ width: 268, left: "6%", top: "56%", x: midX, z: 50, rotateY: 5, borderTop: "2px solid #22d3ee", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
         >
-          <div className="mono text-[9px] tracking-[0.22em] text-cyan-300/80 uppercase">stop hook</div>
+          <div className="mono text-[9px] tracking-[0.22em] text-cyan-300/80 uppercase">manager handoff</div>
           <div className="mono mt-2 text-[10.5px] leading-relaxed text-slate-300">
-            each leg arms the next through a Stop hook — wiring, not a human, carries the work
+            the manager hands each stage to a fresh subagent pinned to the model its role needs; a human still approves anything irreversible
           </div>
         </motion.div>
 
@@ -237,7 +239,7 @@ export default function HarnessLoopWorld() {
           style={{ z: 99 }}
         >
           <span className="mono text-[11.5px] whitespace-nowrap text-amber-200">
-            reliability earns launch-automation — it never earns gate-removal
+            reliability earns launch-automation; it never earns gate-removal
           </span>
         </motion.div>
 
@@ -261,14 +263,14 @@ export default function HarnessLoopWorld() {
               enter the workroom ▸
             </button>
             <a
-              href="https://github.com/egnaro9/agentic-dev-harness"
+              href="https://github.com/egnaro9/exposure-watch/blob/main/docs/HARNESS.md"
               target="erikhill-out"
               className="mono cursor-pointer rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-[11.5px] text-slate-300 transition hover:bg-white/10"
             >
-              → the harness
+              → the case study
             </a>
           </div>
-          <p className="mono mt-4 text-[10px] text-slate-600">Strategy · Execution · Critic · Evaluation · Ops</p>
+          <p className="mono mt-4 text-[10px] text-slate-600">Strategy · Execution · Critic · Ops, with Evaluation alongside · source private</p>
         </div>
       </motion.div>
     </div>

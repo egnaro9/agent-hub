@@ -57,12 +57,12 @@ async function labelField(page: Page): Promise<LabelField> {
 async function openGalaxy(ctx: BrowserContext): Promise<Page> {
   const page = await ctx.newPage();
   await page.goto("http://localhost:5173/");
-  await expect(page.locator(".gal-lab")).toHaveCount(23, { timeout: 20_000 });
+  await expect(page.locator(".gal-lab")).toHaveCount(31, { timeout: 20_000 });
   return page;
 }
 
 const expectSpread = (f: LabelField) => {
-  expect(f.n).toBe(23);
+  expect(f.n).toBe(31);
   expect(f.unstyled).toBe(0);
   expect(f.spreadX).toBeGreaterThan(MIN_SPREAD.x);
   expect(f.spreadY).toBeGreaterThan(MIN_SPREAD.y);

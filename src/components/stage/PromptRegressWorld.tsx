@@ -247,7 +247,7 @@ export default function PromptRegressWorld() {
           transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
           style={{ z: 99 }}
         >
-          <span className="mono text-[11.5px] text-teal-200">it gates these very repos</span>
+          <span className="mono text-[11.5px] text-teal-200">reads baselines from eval-history's archive; storing a run needs a writable eval-history</span>
         </motion.div>
 
         {/* front layer: title + actions */}

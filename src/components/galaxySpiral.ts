@@ -73,6 +73,12 @@ export const CLUSTER_OF: Record<string, string> = {
   "cast-pipeline": "studio",
   "vac-protocol": "vac", "agent-certlab": "vac", "reference-fleet": "vac",
   evalmut: "vac", "vac-gate": "vac",
+  // the 2026-10-19 additions: rubric and CI-integrity tools beside the
+  // verifiable-evaluation work, the vulnerability-triage eval with the agents
+  "deadcheck": "grading",
+  "exposure-watch": "harness", "llm-wire-stub": "harness",
+  "seraphlight-studios": "studio",
+  "vac-gate-demo": "vac", "deadgate": "vac", "readme-test-count": "vac", "findings-ledger": "vac",
 };
 
 export const clusterName = (id: string): string =>

@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { chromium } from "playwright";
 mkdirSync("shots", { recursive: true });
-const ids = ["model-drift","gradecore","crashkit","rag-eval-lab","eval-history","mcp-tools","harness-builder","prompt-regress","pi-gates","agentic-dev-harness","match3-engine","tapdodge-engine","agent-graph","llm-gateway","eval-dashboard","pi-eval","cast-pipeline","evals-differential-oracle","evalmut","reference-fleet","agent-certlab","vac-protocol","vac-gate"];
+const ids = ["model-drift","gradecore","crashkit","rag-eval-lab","eval-history","mcp-tools","harness-builder","prompt-regress","pi-gates","agentic-dev-harness","match3-engine","tapdodge-engine","agent-graph","llm-gateway","eval-dashboard","pi-eval","cast-pipeline","evals-differential-oracle","evalmut","reference-fleet","agent-certlab","vac-protocol","vac-gate","exposure-watch"];
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1400, height: 900 } });
 for (const id of ids) {

@@ -3,22 +3,24 @@ import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import { useHub } from "../../state/hub";
 
 // The model-drift project world — "the observatory". A slow radar sweep over
-// 16 model blips clustered by lab; every number on the glass is the board's
-// real published shape: 16 models, 5 labs, 35 frozen tasks, daily cron,
+// 17 model blips clustered by lab; every number on the glass is the board's
+// real published shape: 17 models, 5 labs, 35 frozen tasks, daily cron,
 // 5 deterministic metrics. The rose ribbon is the project's signature insight.
 
 const CX = 450;
 const CY = 235;
 const rad = (deg: number) => (deg * Math.PI) / 180;
 
-// 16 blips across 5 lab clusters. Positions are decorative and deterministic;
-// only the totals (16 / 5) are claims, and they match the live board.
+// 17 blips across 5 lab clusters, per modeldrift/models.json (the mock control
+// is not a model). OpenAI counts its two open-weight GPT-OSS models served by
+// Groq. Positions are decorative and deterministic; only the totals (17 / 5)
+// are claims, and they match the live board.
 const LABS = [
-  { label: "openai", angle: -128, r: 158, count: 4 },
+  { label: "openai", angle: -128, r: 158, count: 6 },
   { label: "anthropic", angle: -52, r: 178, count: 4 },
   { label: "google", angle: 22, r: 128, count: 3 },
-  { label: "xai", angle: 96, r: 188, count: 2 },
-  { label: "meta", angle: 168, r: 142, count: 3 },
+  { label: "xai", angle: 96, r: 188, count: 3 },
+  { label: "qwen", angle: 168, r: 142, count: 1 },
 ].map((lab) => ({
   ...lab,
   lx: CX + (lab.r + 46) * Math.cos(rad(lab.angle)),
@@ -55,7 +57,7 @@ export default function ModelDriftWorld() {
   };
 
   const facts = [
-    { k: "the fleet", big: "16 models", sub: "5 labs", w: 200, z: 66, x: "7%", y: "50%", tilt: -6, hot: true },
+    { k: "the fleet", big: "17 models", sub: "5 labs", w: 200, z: 66, x: "7%", y: "50%", tilt: -6, hot: true },
     { k: "the suite", big: "35 tasks", sub: "frozen · deterministically graded", w: 230, z: 25, x: "26%", y: "66%", tilt: -2, hot: false },
     { k: "scored on", big: "5 metrics", sub: "accuracy · speed · verbosity · reliability · refusal", w: 250, z: 41, x: "58%", y: "56%", tilt: 5, hot: false },
     { k: "the cadence", big: "daily", sub: "cron · public board", w: 180, z: -25, x: "79%", y: "22%", tilt: 8, hot: false },

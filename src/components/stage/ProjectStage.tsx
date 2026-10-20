@@ -29,10 +29,12 @@ const ReferenceFleetWorld = lazy(() => import("./ReferenceFleetWorld"));
 const AgentCertlabWorld = lazy(() => import("./AgentCertlabWorld"));
 const VacProtocolWorld = lazy(() => import("./VacProtocolWorld"));
 const VacGateWorld = lazy(() => import("./VacGateWorld"));
+const ExposureWatchWorld = lazy(() => import("./ExposureWatchWorld"));
 
 // Per-project overview worlds. A project without an entry gets the standard
 // overview template; adding a world is one import + one line here.
-const WORLDS: Record<string, React.ComponentType> = {
+// Exported so the manual's scene count is tied to this table, not typed by hand.
+export const WORLDS: Record<string, React.ComponentType> = {
   "harness-builder": HarnessWorld,
   "model-drift": ModelDriftWorld,
   crashkit: CrashkitWorld,
@@ -56,6 +58,7 @@ const WORLDS: Record<string, React.ComponentType> = {
   "agent-certlab": AgentCertlabWorld,
   "vac-protocol": VacProtocolWorld,
   "vac-gate": VacGateWorld,
+  "exposure-watch": ExposureWatchWorld,
 };
 
 // ---- the WORK panel's two cards ---------------------------------------------

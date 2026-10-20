@@ -14,7 +14,7 @@ const REDUCE =
   typeof window.matchMedia === "function" &&
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-// A sampling of the named failure reasons — the wall's lamps. 17 exist; the
+// A sampling of the named failure reasons, the wall's lamps. 23 exist; the
 // wall shows enough to make the point that every stop has a name.
 const REASONS = [
   "sha256-mismatch",
@@ -107,7 +107,7 @@ export default function VacGateWorld() {
         >
           <div className="mono text-[9px] tracking-[0.22em] text-slate-500 uppercase">named refusals</div>
           <div className="mono mt-1 text-[34px] leading-none font-semibold text-rose-300" style={{ textShadow: "0 0 24px #f43f5e66" }}>
-            17
+            23
           </div>
           <div className="mono mt-2 text-[10px] leading-relaxed text-slate-400">
             every failure is one named reason and a nonzero exit — and every named failure has a test that feeds the gate corrupted input and proves it fires

@@ -16,11 +16,11 @@ export const PROJECT_DETAIL: Record<string, ProjectDetail> = {
     [["Harden refusal-echo grader", "done"], ["Variance panel polish", "doing"], ["Battery: tool-abuse deep set", "todo"]]
   ),
   "model-drift": D(
-    [["models", "16 · 5 labs"], ["suite", "35 frozen tasks"], ["noise floor", "measured, 3 same-day runs"]],
+    [["models", "17 · 5 labs"], ["suite", "35 frozen tasks"], ["noise floor", "measured, 3 same-day runs"]],
     [["Measure the floor under the drift signal", "done"], ["VAC bundle: board recomputed offline", "done"], ["Flip-analysis recording", "done"]]
   ),
   gradecore: D(
-    [["tests", "84"], ["evalmut's verdict on it", "3 holes, fairly classed"], ["LLM judges", "0"]],
+    [["tests", "150"], ["evalmut's verdict on it", "4 holes, fairly classed"], ["LLM judges", "0"]],
     [["Document the sign-test refusal", "done"], ["grounding_score edge cases", "doing"]]
   ),
   "tapdodge-engine": D(
@@ -41,7 +41,7 @@ export const PROJECT_DETAIL: Record<string, ProjectDetail> = {
   ),
   // ── the verifiable-evaluation region ────────────────────────────────────
   evalmut: D(
-    [["operators", "18 · mined, cited"], ["dogfood", "3 holes in its own dependency"], ["LLM judges", "0"]],
+    [["operators", "25 · 17 defect + 8 controls"], ["dogfood", "4 holes in its own dependency"], ["LLM judges", "0"]],
     [["8 adversarial cold-critique rounds", "done"], ["Launch: dev.to + LinkedIn", "done"], ["Operator backlog triage", "todo"]]
   ),
   "reference-fleet": D(
@@ -49,16 +49,49 @@ export const PROJECT_DETAIL: Record<string, ProjectDetail> = {
     [["Audit board, CI-reproduced", "done"], ["Native defect measured (LoRA)", "done"], ["Fleet v2 expansion", "todo"]]
   ),
   "agent-certlab": D(
-    [["contracts", "7 · all regraded in CI"], ["task families", "3"], ["calibration agents", "3, separated by policy"]],
+    [["contracts", "8 · all regraded in CI"], ["task families", "3"], ["calibration agents", "3, separated by policy"]],
     [["Machine family: coordinated seeds", "done"], ["Cloud certification in Actions", "done"], ["Gate on own contract (vac-gate)", "done"]]
   ),
   "vac-protocol": D(
-    [["registry", "11 accepted · 0 pending"], ["tamper fixtures", "15, all refused"], ["evidence profiles", "5"]],
-    [["Fifth profile: the drift board", "done"], ["Independent replay workflow", "done"], ["External replay requests", "todo"]]
+    [["registry", "12 accepted · 11 of 12 replayed green 2026-10-19"], ["tamper fixtures", "23, all refused"], ["evidence profiles", "5"]],
+    [["Fifth profile: the drift board", "done"], ["Weekly replay workflow", "done"], ["External replay requests", "todo"]]
   ),
   "vac-gate": D(
-    [["failure reasons", "17 · named"], ["tests", "16 · gate run as subprocess"], ["regrade scope", "certlab-bundle-v1"]],
+    [["failure reasons", "23 · named"], ["tests", "gate run as a subprocess"], ["regrade scope", "certlab-bundle-v1"]],
     [["Liveness test per refusal", "done"], ["Dogfood workflow in the lab", "done"], ["Freshness policy (v2)", "todo"]]
+  ),
+  // ── the 2026-10-19 additions: metrics only, each read from its repo ─────
+  "exposure-watch": D(
+    [["held-out pairs", "57 · pre-registered"], ["correct answers", "47 vs 45 · a tie (p = 0.69)"], ["wrong answers", "0 vs 12"]],
+    []
+  ),
+  deadcheck: D(
+    [["rubrics nobody here wrote", "3"], ["dependencies", "0 · stdlib only"], ["LLM judges", "0"]],
+    []
+  ),
+  deadgate: D(
+    [["live detectors", "2 · D1, D3"], ["removed on evidence", "2 · D2, D4"], ["published", "PyPI"]],
+    []
+  ),
+  "readme-test-count": D(
+    [["fails closed on", "no count · errored collection"], ["empty test file", "fails"], ["install", "from git"]],
+    []
+  ),
+  "findings-ledger": D(
+    [["publishes", "erikhill.dev/findings"], ["forge status", "fetched at build"], ["unfetchable status", "UNKNOWN"]],
+    []
+  ),
+  "vac-gate-demo": D(
+    [["beats", "4"], ["vendored contract", "real, hashes intact"], ["tamper", "one hex character"]],
+    []
+  ),
+  "llm-wire-stub": D(
+    [["boundary", "Playwright network"], ["API key", "none needed"], ["published", "npm"]],
+    []
+  ),
+  "seraphlight-studios": D(
+    [["live game", "Tap Dodge Rush"], ["store", "Google Play"], ["build step", "none"]],
+    []
   ),
 };
 

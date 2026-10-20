@@ -2,9 +2,10 @@ import { useRef } from "react";
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import { useHub } from "../../state/hub";
 
-// The gradecore project world — the engine room. One grading engine shared by
-// the whole fleet: crashkit, model-drift and harness-builder all draw their
-// verdicts from the same package. A sibling of CrashkitWorld: CSS perspective +
+// The gradecore project world: the engine room. One grading engine, imported
+// by crashkit, evalmut, harness-builder, rag-eval-lab and pi-eval, and
+// wire-compatible with model-drift (identical suite_hash), which does not
+// import it. A sibling of CrashkitWorld: CSS perspective +
 // pointer parallax with layered translateZ depth. Every printed claim is
 // verbatim from the record — no invented numbers.
 //
@@ -262,10 +263,10 @@ export default function GradecoreWorld() {
             gradecore
           </h2>
           <p className="mt-3 max-w-[44ch] text-[14px] leading-relaxed text-slate-400">
-            the shared grading engine — no LLM judges anywhere
+            the grading engine behind crashkit, evalmut, rag-eval-lab and pi-eval; no LLM judges anywhere
           </p>
           <p className="mono mt-2 text-[10.5px] text-slate-500">
-            one grading engine shared by the whole fleet
+            wire-compatible with model-drift: the same suite_hash, without importing it
           </p>
           <div className="mt-5 flex gap-2.5">
             <button
@@ -282,7 +283,7 @@ export default function GradecoreWorld() {
               → the engine
             </a>
           </div>
-          <p className="mono mt-4 text-[10px] text-slate-600">crashkit — model-drift — harness-builder</p>
+          <p className="mono mt-4 text-[10px] text-slate-600">crashkit · evalmut · harness-builder · rag-eval-lab · pi-eval</p>
         </div>
       </motion.div>
     </div>

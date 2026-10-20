@@ -104,10 +104,10 @@ export default function EvalmutWorld() {
         >
           <div className="mono text-[9px] tracking-[0.22em] text-slate-500 uppercase">the battery</div>
           <div className="mono mt-1 text-[34px] leading-none font-semibold text-lime-300" style={{ textShadow: "0 0 24px #a3e63566" }}>
-            18
+            25
           </div>
           <div className="mono mt-2 text-[10px] leading-relaxed text-slate-400">
-            operators, mined not authored — every one names the real failure it reproduces, and that citation is enforced as a test
+            operators: 17 defects plus 8 equivalent-mutant controls, mined not authored; every one names its real origin, and that citation is enforced as a test
           </div>
         </motion.div>
 
@@ -117,9 +117,9 @@ export default function EvalmutWorld() {
           transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
           style={{ left: "37%", top: "48%", x: midX, z: 16, rotateY: 2, borderTop: "2px solid #a3e635", boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}
         >
-          <div className="mono text-[9px] tracking-[0.22em] text-slate-500 uppercase">dogfood, first run</div>
+          <div className="mono text-[9px] tracking-[0.22em] text-slate-500 uppercase">dogfood, on gradecore 0.10.3</div>
           <div className="mono mt-2 text-[11px] leading-relaxed text-slate-300">
-            3 holes in its own dependency's graders — <span className="text-lime-300">1 blind spot, 2 coverage gaps</span>, and it was fair about which was which
+            4 holes in its own dependency's graders: <span className="text-lime-300">2 blind spots, 2 coverage gaps</span>, and it was fair about which was which
           </div>
         </motion.div>
 

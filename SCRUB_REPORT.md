@@ -63,7 +63,9 @@ match-3 engine appears only as its public standalone repo
 (`match3-engine`) with no harness linkage edge — the sever doctrine holds;
 its only structural edge is the public `match3-engine → tapdodge-engine`
 lineage. Harness doctrine phrases in the agent personas mirror the
-already-public `agentic-dev-harness`, not private internals.
+then-public `agentic-dev-harness` (now private; the case study is public at
+[exposure-watch/docs/HARNESS.md](https://github.com/egnaro9/exposure-watch/blob/main/docs/HARNESS.md)),
+not private internals.
 
 ### 7. "Erik's Agent Hub" branding and operator-register comments (fine)
 Erik's name is already public on the portfolio; the branding stays by

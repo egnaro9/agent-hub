@@ -191,7 +191,7 @@ export default function EvalHistoryWorld() {
           style={{ z: 99 }}
         >
           <span className="mono text-[10.5px] leading-relaxed text-teal-200">
-            rag-eval-lab's CI posts its runs here automatically —{" "}
+            rag-eval-lab's CI writes its runs to this database automatically:{" "}
             <span className="text-teal-300">non-blocking, so the bookkeeping can never redden the suite it books</span>
           </span>
         </motion.div>
