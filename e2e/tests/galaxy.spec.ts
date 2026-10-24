@@ -85,10 +85,12 @@ test.describe("the galaxy map", () => {
 
     // Drag past the card must not pan: a label's x-position holds while the
     // pointer is down and moving (sampled BEFORE release — releasing on the
-    // scrim is the designed lower-the-card click). "Holds" allows the few px
-    // the differential rotation legitimately sweeps in this window — a leaked
-    // 160px drag would throw the label an order of magnitude further.
-    const lab = page.locator('[data-planet="gradecore"]');
+    // scrim is the designed lower-the-card click). The label watched is the
+    // STAGED world's: the camera tracks it round the disc, so differential
+    // rotation cannot move it. A neighbour's label sweeps ~10px/s under the
+    // card, and this window runs ~1s locally but past 2s on a slow runner, so
+    // a fixed budget on a neighbour measured the runner's speed, not the drag.
+    const lab = page.locator('[data-planet="crashkit"]');
     const leftBefore = parseFloat(await lab.evaluate((el) => (el as HTMLElement).style.left));
     await page.mouse.move(box.x + box.width / 2, box.y + 20);
     await page.mouse.down();
